@@ -1,0 +1,4 @@
+-r runtime.txt
+-r tools.txt
+
+pyinstaller>=5.13

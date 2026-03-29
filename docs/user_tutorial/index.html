@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QualiFile User Tutorial (Offline)</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <header class="topbar" role="banner">
+    <div class="topbar-title">
+      <span>QualiFile User Tutorial</span>
+      <span class="badge">Offline</span>
+    </div>
+    <div class="topbar-actions">
+      <div class="search" role="search">
+        <input id="search-input" type="search" placeholder="Search the tutorial..." aria-label="Search the tutorial">
+        <button class="btn primary" id="search-button" type="button">Search</button>
+        <button class="btn secondary" id="search-clear" type="button">Clear</button>
+        <div class="search-popover" id="search-popover" aria-live="polite">
+          <div class="search-popover-header">
+            <span id="search-count">0 results</span>
+          </div>
+          <ul class="search-results" id="search-results"></ul>
+        </div>
+      </div>
+      <button class="btn secondary" id="sidebar-toggle" type="button" aria-label="Toggle table of contents">Toggle TOC</button>
+      <button class="btn secondary" id="theme-toggle" type="button" aria-pressed="false">Dark mode</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <h2 class="toc-title">Quick links</h2>
+      <ul class="quick-links">
+        <li><a href="#getting-started">Getting started</a></li>
+        <li><a href="#installation-launch">Installation &amp; launch</a></li>
+        <li><a href="#workspace-tour">Workspace tour</a></li>
+        <li><a href="#projects-tour">Projects tour</a></li>
+        <li><a href="#actions-reference">Actions reference</a></li>
+        <li><a href="#context-menus">Context menus</a></li>
+        <li><a href="#settings-reference">Settings reference</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+      </ul>
+      <h2 class="toc-title">Contents</h2>
+      <nav id="toc" aria-label="Table of contents"></nav>
+    </aside>
+
+    <main>
+      <article id="tutorial">
+        <section id="intro">
+          <h1>QualiFile User Tutorial</h1>
+          <p>This guide is a complete, offline manual for every user-visible feature in QualiFile. It is designed for regulated documentation work: everything is local-only, operations are contained to your chosen root folder, and actions are clearly reported.</p>
+          <div class="callout">
+            <strong>Local-first:</strong> QualiFile runs a local server bound to <code>127.0.0.1</code>. It does not access external networks for file operations. Your browser is only a UI for the local service.
+          </div>
+          <div class="section-grid">
+            <div class="card">
+              <h3>Core concepts</h3>
+              <ul>
+                <li><strong>Root folder</strong>: the top directory QualiFile is allowed to manage.</li>
+                <li><strong>Workspace</strong>: the file browser with folder tree, list/grid, and preview.</li>
+                <li><strong>Projects</strong>: task &amp; note tracking with optional timeline view.</li>
+                <li><strong>Sync Manager</strong>: bulk Git Sync status and actions across rooted projects.</li>
+                <li><strong>Tags</strong> and <strong>Notes</strong>: metadata stored alongside files/folders.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Quick start</h3>
+              <ol>
+                <li>Launch QualiFile (portable or embedded).</li>
+                <li>Choose a root folder when prompted.</li>
+                <li>Use the Workspace to create folders/files and attach notes/tags.</li>
+                <li>Use Projects to track tasks, notes, and timelines.</li>
+                <li>Use Sync Manager to run export/import and Git sync actions per project root.</li>
+              </ol>
+            </div>
+          </div>
+        </section>
+
+        <section id="getting-started">
+          <h2>Getting started</h2>
+          <p>QualiFile manages documentation inside a single root folder. All file operations (create, rename, delete, copy/move) are constrained to that root. If you need to work with a different folder, update the root in <a href="#settings-workspace">Settings -> Workspace</a> or from the first-run screen.</p>
+          <div class="callout">
+            <strong>Why a root folder?</strong> It keeps qualification evidence contained and reduces accidental edits outside scope.
+          </div>
+        </section>
+
+        <section id="installation-launch">
+          <h2>Installation &amp; launch</h2>
+          <h3>Portable (folder-based)</h3>
+          <ul>
+            <li>Run <code>QualiFile.exe</code> from the portable folder.</li>
+            <li>First launch asks for a root folder; the choice is stored under <code>data/notes/root_state.json</code>.</li>
+            <li>Exit safely via <strong>Settings -> Utilities -> Exit QualiFile</strong> to stop the local server.</li>
+          </ul>
+          <h3>Portable (embedded / onefile)</h3>
+          <ul>
+            <li>Run the single executable; it extracts and launches the app.</li>
+            <li>Behavior is the same as portable: local-only server, root selection, same UI.</li>
+          </ul>
+          <h3>Startup Progress Dialog (portable)</h3>
+          <ul>
+            <li>Shows startup stages and browser selection (if configured).</li>
+            <li>Uses safe, detected browsers only; no arbitrary executable paths.</li>
+          </ul>
+          <p class="see-also">See also: <a href="#diagnostics-support">Diagnostics &amp; support</a> for logs, and <a href="#troubleshooting">Troubleshooting</a> for common startup issues.</p>
+        </section>
+
+        <section id="workspace-tour">
+          <h2>Workspace tour</h2>
+          <p>The Workspace is the main file-management screen with three panes: Folders (left), Files (middle), and Preview (right).</p>
+
+          <h3 id="workspace-navigation">Navigation &amp; toolbar</h3>
+          <ul>
+            <li><strong>Back/Forward/Up</strong>: traverse navigation history and parent folders.</li>
+            <li><strong>Refresh</strong>: reload folder tree and file list.</li>
+            <li><strong>Status pill</strong>: shows "Saved/Idle", "Loading...", "Moving...", etc.</li>
+            <li><strong>Filter</strong>: quick search within the current folder.</li>
+            <li><strong>Advanced filters</strong>: scope (current/root), folder name, tags, and date ranges.</li>
+            <li><strong>Workspace root pill</strong>: click the current project pill to open a quick menu and switch to another linked project root.</li>
+          </ul>
+          <div class="callout">
+            <strong>Advanced filter tips:</strong> use "Scope: All folders (root)" to search the entire root, filter by tags, and set modified date ranges (including custom start/end dates).
+          </div>
+          <ul>
+            <li><strong>Scope</strong>: Current folder vs All folders (root).</li>
+            <li><strong>Folder name</strong>: folder-only matching.</li>
+            <li><strong>Tags</strong>: multi-select tags filter.</li>
+            <li><strong>Date presets</strong>: last 24h, 7d, 30d, 90d, or custom range.</li>
+            <li><strong>Apply / Reset</strong>: run or clear advanced filters.</li>
+          </ul>
+
+          <h3 id="workspace-toolbar-actions">Toolbar actions</h3>
+          <ul>
+            <li><strong>New Folder / New File</strong>: create items in the current folder.</li>
+            <li><strong>Add note</strong>: add a note tied to the current folder or selection.</li>
+            <li><strong>PDF Tools</strong>: merge PDFs, merge images into a PDF, or extract pages.</li>
+            <li><strong>Capture</strong>: screenshot capture workflow (rectangle/window/screen).</li>
+            <li><strong>Greenshot</strong>: launch external Greenshot with optional hotkey automation.</li>
+            <li><strong>Import Structure</strong>: create folder trees from a template file.</li>
+            <li><strong>Rename / Delete</strong>: operate on selected items.</li>
+          </ul>
+
+          <h3 id="workspace-layout">Layout &amp; panes</h3>
+          <ul>
+            <li><strong>Layout menu</strong> (top right): show/hide the Folders, Files, and Preview panes.</li>
+            <li><strong>List/Grid toggle</strong> in the Files pane.</li>
+            <li><strong>Actions menu</strong> in the Files pane: categorize files, show tag dots, and choose table columns.</li>
+          </ul>
+
+          <h3 id="folders-pane">Folders pane</h3>
+          <ul>
+            <li>Tree view of folders under the current root.</li>
+            <li>Double-click to expand a folder.</li>
+            <li>Keyboard: <span class="kbd">Right</span> expand, <span class="kbd">Left</span> collapse, <span class="kbd">Enter</span> select.</li>
+            <li>Drag &amp; drop files/folders onto a tree node to move items.</li>
+          </ul>
+
+          <h3 id="files-pane">Files pane</h3>
+          <ul>
+            <li><strong>List view</strong> with sortable columns (Name, Type, Size, Created, Modified).</li>
+            <li><strong>Choose columns</strong> from the Actions menu in the Files pane.</li>
+            <li><strong>Grid view</strong> for card-style browsing.</li>
+            <li><strong>Grid thumbnails</strong>: common image files (JPG/JPEG/PNG/GIF/WEBP/BMP) show inline thumbnails when visible, including after folder navigation; other items keep icon placeholders.</li>
+            <li><strong>Categorize</strong> groups items by tags; categories can be collapsed.</li>
+            <li><strong>Tag dots</strong> show tag colors instead of full tag labels.</li>
+            <li><strong>Selection</strong>: shift-click and ctrl/cmd-click for multi-select.</li>
+            <li><strong>Inline rename</strong>: <span class="kbd">F2</span> on a selected item.</li>
+          </ul>
+
+          <h3 id="preview-pane">Preview pane</h3>
+          <ul>
+            <li>Preview supported file types (PDF, PNG, JPG, TXT, source code).</li>
+            <li>Code syntax highlighting follows the selected app theme (Light, Light+, Dark, Dark+).</li>
+            <li>Buttons: Open file, Notes, Fullscreen, Show/Hide details, Clear.</li>
+            <li>Metadata panel includes type, size, modified/created, validation state, and full path.</li>
+            <li>Image controls: zoom, rotate, reset, annotate.</li>
+            <li>PDF controls: page count + Extract button.</li>
+          </ul>
+          <p class="note">Unsupported file types show a download/notice card rather than preview content.</p>
+        </section>
+
+        <section id="projects-tour">
+          <h2>Projects tour</h2>
+          <p>The Projects view manages projects, tasks, and notes, plus an optional timeline.</p>
+
+          <h3>Projects toolbar</h3>
+          <ul>
+            <li>Add note button for project-level notes.</li>
+            <li>Header alerts bell appears when task reminders become active; opening the dropdown marks current items as seen.</li>
+            <li>Use <strong>See all alerts</strong> to open the dedicated Alerts page with grouped alert states and per-item actions.</li>
+            <li>The Alerts page list expands to fill available page height by default for easier scanning.</li>
+            <li>Toggle between Tasks/Notes and Timeline views.</li>
+            <li>Layout menu controls side panel placement and content.</li>
+          </ul>
+
+          <h3>Projects table</h3>
+          <ul>
+            <li>Create projects, link each to a root folder, and open them in Workspace.</li>
+            <li>Project create/edit includes a Tags section to import definitions from another rooted project (append missing tags or replace).</li>
+            <li>Columns can include status, description, root path, parent, created/modified.</li>
+            <li>Project color can appear as a name pill or a full row highlight.</li>
+            <li>Use <strong>Select Columns</strong> to show/hide optional columns.</li>
+            <li>Use the <strong>Layout</strong> menu to place the side panel (right/bottom/hidden) and choose its content (Tasks/Notes or Timeline).</li>
+          </ul>
+
+          <h3>Sync Manager page</h3>
+          <ul>
+            <li>Open <strong>Sync</strong> from the left navigation to view all rooted projects in one table.</li>
+            <li>On desktop widths, the projects table and Activity panel fill the available page height and scroll internally.</li>
+            <li>If refreshes stop succeeding or become delayed, a <strong>Status may be stale</strong> badge appears; click it to refresh immediately. When live refresh is disabled, an <strong>Auto refresh OFF</strong> hint appears near the toolbar refresh button.</li>
+            <li>Each row shows Git state (branch/ahead/behind), metadata snapshot health, and local metadata state.</li>
+            <li>The table also includes a <strong>Local files</strong> summary using plain-language chips (for example: <strong>1 modified</strong>, <strong>2 untracked</strong>); internal Sync artifacts are excluded from these counts.</li>
+            <li>In <strong>Project pills</strong> mode, the project cell shows only the pill label (no secondary line underneath).</li>
+            <li>Use the inline <strong>Status legend and help</strong> panel for plain-language badge meanings and color cues.</li>
+            <li>Each row keeps a compact action set: <strong>Refresh</strong> plus <strong>...</strong> (Sync settings).</li>
+            <li>Sync Manager now applies a deterministic recommendation so one next action is highlighted per actionable row (for example: <strong>Init Repo</strong>, <strong>Sync settings</strong>, <strong>Commit &amp; Push</strong>, or <strong>Pull &amp; Import</strong>), and the same recommendation is emphasized in the row context menu.</li>
+            <li>Open the per-project settings modal from <strong>...</strong> to review compact tabbed sections: <strong>Overview</strong>, <strong>Remote</strong>, and <strong>Diagnostics</strong>.</li>
+            <li>Global Sync Manager preferences now live in <strong>Settings → Sync</strong> (auto refresh, interval, project color style, advanced inline row actions, and default Activity panel visibility).</li>
+            <li>Resize the Activity panel directly with the vertical drag handle; width is remembered automatically on this device (no width slider setting).</li>
+            <li>Right-click a project row (or press <strong>Shift+F10</strong> on a focused row) to open context-menu shortcuts using the same menu style as Files/Projects: <strong>Sync settings</strong>, <strong>Refresh status</strong>, <strong>Commit &amp; Push</strong>, <strong>Pull &amp; Import</strong>, <strong>Export metadata</strong>, <strong>Import metadata</strong>, and <strong>Open folder</strong>; unavailable actions stay disabled.</li>
+            <li>Configure remotes from the modal <strong>Remote</strong> tab; <strong>Set Remote</strong> enables only when name/URL changes are detected, and credential-bearing URL previews stay redacted.</li>
+            <li>The row-level <strong>Set Remote</strong> action is removed to keep remote configuration centralized in settings.</li>
+            <li>The settings modal keeps only constrained recommended actions; use row/context-menu actions for the complete operation list.</li>
+            <li>The settings modal <strong>Diagnostics &amp; smart hints</strong> section maps common safe error codes to next-step guidance and can copy sanitized command templates for support.</li>
+            <li>Use <strong>Settings → Sync → Project color style</strong> to switch between <strong>Project pills</strong> and <strong>Row colored</strong> display modes; this visual preference is local to your device.</li>
+            <li>Status columns keep concise badges only; helper text under Git/metadata indicators is removed to reduce row noise.</li>
+            <li>Use the Activity panel <strong>Filter by project</strong> box to isolate events by project name or project ID without deleting the timeline.</li>
+            <li>Diagnostics preview keeps project root paths redacted; <strong>Copy diagnostics template</strong> includes a full project-root command block for explicit support sharing.</li>
+            <li>Sync Manager auto-refreshes while visible and also refreshes when the window regains focus; the header shows the last refresh time.</li>
+            <li>The header also shows a live <strong>Refreshing/Running...</strong> status indicator while Sync Manager requests are in progress.</li>
+            <li>If repeated status refresh failures occur, polling temporarily backs off and automatically returns to the normal interval after a successful refresh.</li>
+            <li>Use the right-side <strong>Activity</strong> panel to review Started/Succeeded/Failed/Cancelled action events, copy the log, or clear it for the current tab session.</li>
+            <li>When destructive confirmations are required, Sync Manager prompts for large-delete confirmation first, then force-import phrase if required.</li>
+            <li>Per-action outcomes (success/failure) appear as bottom-right toasts; the in-page error banner is reserved for status-load failures.</li>
+          </ul>
+
+          <h3>Tasks &amp; Notes panel</h3>
+          <ul>
+            <li>Use the top toggle to switch between Tasks/Notes and Timeline modes.</li>
+            <li>Toggle between Tasks and Notes.</li>
+            <li>Filters: priority, status, date ranges, duration min/max, and project selection.</li>
+            <li>Option to show archived tasks.</li>
+          </ul>
+
+          <h3>Project entry fields</h3>
+          <ul>
+            <li><strong>Tasks</strong>: title, description, status, priority, color, start/end dates, parent task, reminder controls (on end date or X days before), and optional auto-rollup from children.</li>
+            <li>Disabling reminders on a task with an active alert now prompts you to either keep the active alert until completion or clear it immediately.</li>
+            <li><strong>Notes</strong>: text, priority, status, color, deadlines, linked project, and optional parent task.</li>
+            <li>Each entry tracks created/modified metadata and supports copy-to-clipboard for descriptions.</li>
+          </ul>
+
+          <h3>Timeline view</h3>
+          <ul>
+            <li>Timeline can follow the selected project or use a custom selection.</li>
+            <li>Controls: visible columns, zoom, hierarchy tree rows, link style, and highlight options.</li>
+            <li>Create tasks from timeline selection ranges.</li>
+          </ul>
+          <p class="see-also">See also: <a href="#projects-context-menu">Projects context menus</a> and <a href="#projects-settings">Projects settings</a>.</p>
+        </section>
+
+        <section id="notes-tags">
+          <h2>Notes &amp; tags</h2>
+          <h3>Notes</h3>
+          <ul>
+            <li>Notes are attached to a file or folder (local to that path).</li>
+            <li>Fields: text, deadline, priority (high/medium/low), status (none/in progress/closed), optional custom background.</li>
+            <li>Open notes and closed notes are shown separately; closed notes can be toggled.</li>
+          </ul>
+          <h3>Tags</h3>
+          <ul>
+            <li>Assign tags to files and folders via context menu or capture/merge dialogs.</li>
+            <li>Tags can be color-coded and organized hierarchically.</li>
+            <li>Use tag dots or full tag labels in the Files pane.</li>
+          </ul>
+          <p class="see-also">See also: <a href="#settings-tags">Settings -> Tags &amp; categories</a>.</p>
+        </section>
+
+        <section id="actions-reference">
+          <h2>Actions reference</h2>
+          <p>This section lists every action a user can trigger. For right-click items, see <a href="#context-menus">Context menus</a>.</p>
+
+          <h3 id="workspace-actions">Workspace actions</h3>
+          <table>
+            <thead>
+              <tr><th>Action</th><th>Where</th><th>What it does</th><th>How to use</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>New Folder</td><td>Toolbar</td><td>Create a folder in the current path.</td><td>Click "New Folder", enter name.</td></tr>
+              <tr><td>New File</td><td>Toolbar</td><td>Create an empty file.</td><td>Click "New File", enter name.</td></tr>
+              <tr><td>Import Structure</td><td>Toolbar / Import modal</td><td>Create folder structure from a template.</td><td>Choose a .txt template, set destination, preview, apply.</td></tr>
+              <tr><td>Rename</td><td>Toolbar / F2</td><td>Rename selected item.</td><td>Select one item, press <span class="kbd">F2</span> or click Rename.</td></tr>
+              <tr><td>Delete</td><td>Toolbar / Context</td><td>Delete items (soft delete by default).</td><td>Select items, click Delete, optionally "Delete permanently".</td></tr>
+              <tr><td>Set as Root</td><td>Folder context menu</td><td>Make a folder the new root.</td><td>Right-click a folder Right Set as root.</td></tr>
+              <tr><td>Open in Explorer</td><td>Context menu</td><td>Reveal file or folder in system explorer.</td><td>Right-click -> Show in File Explorer.</td></tr>
+              <tr><td>Create ZIP archive</td><td>Context menu</td><td>Compress selected files/folders.</td><td>Right-click -> Create ZIP Archive.</td></tr>
+              <tr><td>Send via Email</td><td>Context menu (files)</td><td>Open email client with attachments.</td><td>Select files -> Right-click -> Send via Email (max 20 files / 34 MB).</td></tr>
+              <tr><td>Validate / Unvalidate</td><td>Context menu (files)</td><td>Mark files as validated.</td><td>Right-click -> Validate / Unvalidate.</td></tr>
+              <tr><td>Manage Notes</td><td>Context menu / Preview</td><td>Add, edit, or close notes tied to a path.</td><td>Right-click -> Manage Notes, or use Preview -> Notes.</td></tr>
+              <tr><td>Edit Tags</td><td>Context menu / Capture / Merge</td><td>Assign category tags.</td><td>Right-click -> Edit Tags, or select tags in dialogs.</td></tr>
+              <tr><td>Copy / Move</td><td>Context menu / Drag-drop</td><td>Copy or move files/folders within the root.</td><td>Right-click -> Copy/Move or drag to a target folder.</td></tr>
+              <tr><td>Paste into Folder</td><td>Folder context menu</td><td>Paste copied/moved items into a folder.</td><td>Right-click a folder -> Paste (if clipboard set).</td></tr>
+              <tr><td>Open Multiple Fullscreen</td><td>File context menu</td><td>Compare 2-4 files in fullscreen.</td><td>Select 2-4 files -> Right-click -> Open fullscreen.</td></tr>
+              <tr><td>Open in Greenshot</td><td>Context menu / Preview</td><td>Open an image in Greenshot.</td><td>Right-click an image -> Open in Greenshot.</td></tr>
+              <tr><td>Capture</td><td>Toolbar</td><td>Capture screen region/window/full screen.</td><td>Click Capture -> select mode.</td></tr>
+              <tr><td>Merge PDFs / Extract Pages</td><td>Toolbar / Preview</td><td>Merge PDFs/images or extract page ranges.</td><td>Use PDF Tools or Extract in preview.</td></tr>
+            </tbody>
+          </table>
+
+          <h3 id="preview-actions">Preview actions</h3>
+          <ul>
+            <li><strong>Open file</strong>: opens the file in the system default app.</li>
+            <li><strong>Notes</strong>: manage notes linked to the file or folder.</li>
+            <li><strong>Fullscreen</strong>: enlarge the preview.</li>
+            <li><strong>Show/Hide details</strong>: toggle metadata panel.</li>
+            <li><strong>Annotate</strong> (images): open annotation workspace.</li>
+            <li><strong>Extract pages</strong> (PDFs): open extract modal.</li>
+          </ul>
+
+          <h3 id="pdf-tools">PDF &amp; image tools</h3>
+          <ul>
+            <li><strong>Merge PDFs</strong> or <strong>Merge images into PDF</strong>.</li>
+            <li>Configure paper size, orientation, margins, fit, alignment, caption size, and page numbers.</li>
+            <li>Optional per-page phrases with helpers: <strong>Use filenames</strong> and <strong>Clear all</strong>.</li>
+            <li>Merge actions are type-aware: PDF merge expects only PDFs, image merge expects image files.</li>
+          </ul>
+
+          <h3 id="capture-actions">Capture &amp; Greenshot</h3>
+          <ul>
+            <li><strong>Capture screenshot</strong>: rectangle, window, or full screen.</li>
+            <li>Optional details prompt (filename, folder, tags).</li>
+            <li><strong>Greenshot</strong>: external integration with optional hotkey automation.</li>
+          </ul>
+        </section>
+
+        <section id="context-menus">
+          <h2>Context menus (right-click)</h2>
+          <p>QualiFile provides right-click menus in multiple areas. Items are shown or disabled based on selection and item type.</p>
+
+          <h3 id="context-menu-files">File items (list/grid/preview)</h3>
+          <ul>
+            <li>Open File</li>
+            <li>Send via Email (max 20 files / 34 MB)</li>
+            <li>Open multiple files fullscreen (2-4 files)</li>
+            <li>Open in Greenshot (images)</li>
+            <li>Copy / Move</li>
+            <li>Create ZIP Archive</li>
+            <li>Rename</li>
+            <li>Manage Notes</li>
+            <li>Validate / Unvalidate</li>
+            <li>Edit Tags</li>
+            <li>Delete</li>
+            <li>Show in File Explorer</li>
+          </ul>
+
+          <h3 id="context-menu-folders">Folder items (tree/list/grid)</h3>
+          <ul>
+            <li>Open Folder</li>
+            <li>Copy / Move</li>
+            <li>Paste into folder (if clipboard set)</li>
+            <li>Create ZIP Archive</li>
+            <li>Rename Folder</li>
+            <li>Manage Notes</li>
+            <li>Delete Folder</li>
+            <li>Set as root folder</li>
+            <li>Show in File Explorer</li>
+          </ul>
+
+          <h3 id="context-menu-empty">Empty list area</h3>
+          <ul>
+            <li>Create New Folder / File</li>
+            <li>Paste (if clipboard set)</li>
+            <li>Open Current Folder in File Explorer</li>
+            <li>Capture</li>
+            <li>Go to Parent Folder</li>
+          </ul>
+
+          <h3 id="context-menu-tree-empty">Empty tree area</h3>
+          <ul>
+            <li>Refresh Folders</li>
+            <li>Paste into Current Folder</li>
+            <li>Open Current Folder in File Explorer</li>
+          </ul>
+
+          <h3 id="projects-context-menu">Projects &amp; timeline</h3>
+          <ul>
+            <li>Project list: Create New Project, Enable/Disable Nested View, Refresh Projects.</li>
+            <li>Project row: Open in Workspace, Edit Project, Add Task/Note, Copy Root Path, Manage Tasks/Notes, Delete.</li>
+            <li>Task item: Open details, Edit, Mark done/Reopen, Duplicate, Copy description, Filter by project/priority, Expand/Collapse tree, Delete.</li>
+            <li>Note item: Open note, Edit, Duplicate, Copy note text, Filter by project/priority, Delete.</li>
+            <li>Linked note item: Open in Workspace and standard note actions.</li>
+            <li>Timeline bar: context menu mirrors task actions for the selected task.</li>
+          </ul>
+        </section>
+
+        <section id="keyboard-shortcuts">
+          <h2>Keyboard shortcuts &amp; hotkeys</h2>
+          <h3>Workspace list/grid</h3>
+          <ul>
+            <li><span class="kbd">Enter</span>: open selected file or folder.</li>
+            <li><span class="kbd">Delete</span>: queue delete for selection.</li>
+            <li><span class="kbd">Space</span>: toggle selection.</li>
+            <li><span class="kbd">F2</span>: inline rename.</li>
+            <li><span class="kbd">Up</span>/<span class="kbd">Down</span>: move selection.</li>
+          </ul>
+          <h3>Folder tree</h3>
+          <ul>
+            <li><span class="kbd">Right</span>: expand folder</li>
+            <li><span class="kbd">Left</span>: collapse folder</li>
+            <li><span class="kbd">Enter</span>: open folder</li>
+          </ul>
+          <h3>Annotation workspace</h3>
+          <ul>
+            <li><span class="kbd">Delete</span> / <span class="kbd">Backspace</span>: delete selection</li>
+            <li><span class="kbd">Ctrl</span> + <span class="kbd">Z</span>: undo</li>
+            <li><span class="kbd">Ctrl</span> + <span class="kbd">Y</span> or <span class="kbd">Ctrl</span> + <span class="kbd">Shift</span> + <span class="kbd">Z</span>: redo</li>
+            <li><span class="kbd">Ctrl</span> + <span class="kbd">S</span>: save (overwrite); <span class="kbd">Ctrl</span> + <span class="kbd">Shift</span> + <span class="kbd">S</span>: save as copy</li>
+            <li><span class="kbd">H</span>/<span class="kbd">I</span>/<span class="kbd">L</span>/<span class="kbd">C</span>/<span class="kbd">R</span>: highlight/counter/line/circle/rectangle tools</li>
+            <li><span class="kbd">Space</span> (hold): pan canvas</li>
+          </ul>
+        </section>
+
+        <section id="settings-reference">
+          <h2>Settings reference</h2>
+          <p>Settings are grouped into sections. Use the left rail inside the Settings modal to navigate.</p>
+
+          <h3 id="settings-general">General</h3>
+          <ul>
+            <li>Theme: Light, Light+, Dark, Dark+.</li>
+            <li>Workspace chrome: Expanded/Compact toolbar.</li>
+            <li>Sidebar compact lock: prevent hover expansion.</li>
+            <li>Reset layout: restore default pane sizes.</li>
+          </ul>
+          <p class="note">Defaults: theme = Light, design mode = Expanded, sidebar pinned = on, compact lock = off.</p>
+
+          <h3 id="settings-profile">Profile</h3>
+          <ul>
+            <li>Display name and email.</li>
+            <li>Avatar upload (PNG/JPEG/WEBP up to 2 MB).</li>
+            <li>Export/import profile JSON.</li>
+            <li>Disconnect profile (return to guest).</li>
+          </ul>
+          <p class="note">Profile mode can be disabled by configuration.</p>
+
+          <h3 id="settings-workspace">Workspace</h3>
+          <ul>
+            <li>Set or clear the root path.</li>
+            <li>Browse button uses folder picker.</li>
+          </ul>
+
+          <h3 id="settings-tags">Tags &amp; categories</h3>
+          <ul>
+            <li>Create, rename, recolor, and delete tags.</li>
+            <li>Search tags using the tag search field.</li>
+            <li>Drag tags to change hierarchy; use the root drop zone to move a tag to root.</li>
+            <li>Toggle hierarchy view in Workspace categorization.</li>
+            <li>Tag limit and warnings are shown in the UI (50 tags total).</li>
+          </ul>
+
+          <h3 id="projects-settings">Projects</h3>
+          <ul>
+            <li>Nested project view (hierarchy).</li>
+            <li>Include child project entries in previews.</li>
+            <li>Open task on click in timeline (default off).</li>
+            <li>Compact task cards (default on).</li>
+            <li>Project color style: pill / row / none.</li>
+            <li>Timeline hierarchy link style: hover / bracket / none.</li>
+            <li>Timeline options: show bar labels, highlight rows, tree rows.</li>
+            <li>Note preview lines (1-10).</li>
+          </ul>
+          <p class="note">Defaults: nested view off, include child entries off, timeline open-on-click off, compact task cards on, project color style = pill.</p>
+
+          <h3 id="settings-files">File management</h3>
+          <ul>
+            <li>Soft delete (default on): move to trash instead of permanent delete.</li>
+          </ul>
+
+          <h3 id="settings-merge">Merge defaults</h3>
+          <ul>
+            <li>Paper size, orientation, margin, fit, alignment, page numbers.</li>
+            <li>Defaults are used by the Merge dialog.</li>
+          </ul>
+          <p class="note">Defaults: Paper = A4, Orientation = Portrait, Margin = 10 mm, Fit = Contain, Alignment = Left, Page numbers = off.</p>
+
+          <h3 id="settings-capture">Capture &amp; automation</h3>
+          <ul>
+            <li>Enable Greenshot integration toggle (shows/hides Greenshot actions).</li>
+            <li>Greenshot executable path.</li>
+            <li>Greenshot hotkey string (e.g. <span class="kbd">Ctrl</span> + <span class="kbd">PrintScreen</span>).</li>
+            <li>Hotkey delay in milliseconds (default 350).</li>
+            <li>Prompt for screenshot details after capture.</li>
+          </ul>
+          <p class="note">Defaults: capture mode = Rectangle, prompt details = off, Greenshot delay = 350 ms, Greenshot enabled when an executable path is configured.</p>
+
+          <h3 id="settings-utilities">Utilities</h3>
+          <ul>
+            <li>Office preview quality: Standard (better fidelity) or Fast (quicker Office previews).</li>
+            <li>Copy TOC extraction helper to clipboard.</li>
+            <li>Clear preview cache (frees disk space).</li>
+            <li>Portable mode: view data folder location and open it.</li>
+            <li>Portable mode: Exit QualiFile to stop the server.</li>
+          </ul>
+
+          <h3 id="settings-about">About</h3>
+          <ul>
+            <li>App version string.</li>
+            <li>Copy version for support.</li>
+          </ul>
+        </section>
+
+        <section id="data-storage">
+          <h2>Data &amp; storage</h2>
+          <p>QualiFile stores operational data alongside your root or portable data folder.</p>
+          <ul>
+            <li><code>data/preview_cache</code>: rendered preview images and PDFs.</li>
+            <li><code>data/office_cache</code>: Office-to-PDF preview cache.</li>
+            <li><code>data/notes</code>: notes, root state, and small runtime files.</li>
+            <li><code>.qualifile_internal/qualifile.db</code>: internal database (projects, validation, metadata).</li>
+            <li><code>.qualifile_meta.json</code> and <code>.qualifile_internal/</code>: internal metadata folders.</li>
+            <li>Legacy sidecars may exist: <code>.qualifile_tags.json</code>, <code>.qualifile_notes.json</code>.</li>
+            <li><code>.qualifile_trash</code>: soft delete location (if enabled).</li>
+            <li><code>data/logs</code> and <code>activity.log</code>: operational logs.</li>
+          </ul>
+          <p class="note">Portable mode keeps these within the portable folder unless <code>QUALIFILE_DATA_DIR</code> points elsewhere. Internal files are managed by QualiFile and should not be edited manually.</p>
+        </section>
+
+        <section id="diagnostics-support">
+          <h2>Diagnostics &amp; support</h2>
+          <ul>
+            <li>Check <strong>Settings -> About</strong> for version info.</li>
+            <li>Use logs in the data folder when reporting issues.</li>
+            <li>If support requests a bundle, follow their instructions to generate a support bundle and share only that bundle.</li>
+          </ul>
+        </section>
+
+        <section id="troubleshooting">
+          <h2>Troubleshooting</h2>
+          <h3>Port already in use</h3>
+          <p>QualiFile will choose a fallback port. The dialog will show the new URL.</p>
+
+          <h3>Browser doesn't open</h3>
+          <p>Use the "Open" button (or copy the URL). Ensure your default browser is set.</p>
+
+          <h3>Cannot set root folder</h3>
+          <p>Make sure the folder is accessible and is not a restricted path. Use the Browse button to avoid invalid paths.</p>
+
+          <h3>Capture fails</h3>
+          <p>If browser permissions block capture, try the legacy rectangle mode or use Greenshot.</p>
+
+          <h3>Preview unavailable</h3>
+          <p>Only PDF, PNG, JPG, TXT, and code files are previewed. Other file types show a notice.</p>
+        </section>
+
+        <section id="faq">
+          <h2>FAQ</h2>
+          <h3>Is QualiFile offline?</h3>
+          <p>Yes. It uses a local server bound to <code>127.0.0.1</code>.</p>
+          <h3>How do I back up?</h3>
+          <p>Copy the root folder and the <code>data/</code> folder (portable mode). Avoid copying temporary caches if space is limited.</p>
+          <h3>Where are preferences stored?</h3>
+          <p>Preferences are stored in browser localStorage and in portable profile data (if profile mode is enabled).</p>
+        </section>
+
+        <section id="glossary">
+          <h2>Glossary</h2>
+          <dl>
+            <dt>Root folder</dt>
+            <dd>The top-level folder QualiFile manages.</dd>
+            <dt>Workspace</dt>
+            <dd>The three-pane file management UI.</dd>
+            <dt>Soft delete</dt>
+            <dd>Move items to a trash folder instead of permanent removal.</dd>
+            <dt>Validation</dt>
+            <dd>A file state indicating it has been reviewed/validated.</dd>
+            <dt>Portable mode</dt>
+            <dd>Run from a folder or USB drive without installation.</dd>
+          </dl>
+        </section>
+      </article>
+    </main>
+  </div>
+
+  <script src="assets/app.js" defer></script>
+</body>
+</html>

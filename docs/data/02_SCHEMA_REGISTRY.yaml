@@ -1,0 +1,486 @@
+﻿# Schema Registry (machine-readable)
+#
+# Rules:
+# - Every authoritative data artifact MUST appear here.
+# - Derived artifacts SHOULD appear here too (marked rebuildable=true).
+# - Each schema has:
+#   - id: stable identifier (never reuse)
+#   - kind: json | sqlite | sidecar_json | filesystem_marker | file | cache | log | directory | backup | temp
+#   - lifecycle: active | legacy | tooling
+#   - current_version: integer schema version (use 0 for unversioned legacy)
+#   - version_field: how to read the version (json field, schema_migrations table, or none)
+#   - locations: list of location patterns (relative to DATA_DIR or workspace root)
+#   - authoritative: true/false
+#   - rebuildable: true/false
+#   - validator: json_schema path or custom validator
+#   - migrations: ordered list of allowed upgrades (may be empty)
+#   - compatibility: min_reader/max_reader (optional)
+#   - privacy_class: P0..P3 (see privacy spec)
+
+registry_version: 1
+
+schemas:
+  - id: qualifile_db
+    title: SQLite persistence database
+    kind: sqlite
+    lifecycle: active
+    current_version: 5
+    version_field:
+      type: schema_migrations_table
+      table: schema_migrations
+      id_column: id
+      ordered_ids:
+        - "0001_core_schema"
+        - "0002_migration_journal"
+        - "0003_index_schema"
+        - "0004_user_profiles"
+        - "0005_task_alert_state"
+      latest_id: "0005_task_alert_state"
+    locations:
+      - scope: data_dir
+        pattern: ".qualifile_internal/qualifile.db"
+      - scope: data_dir
+        pattern: ".qualifile_internal/qualifile.db-wal"
+        note: "SQLite WAL"
+      - scope: data_dir
+        pattern: ".qualifile_internal/qualifile.db-shm"
+        note: "SQLite SHM"
+    authoritative: true
+    rebuildable: false
+    validator:
+      type: sqlite_checks
+      description: "apply_migrations + required tables; no dedicated validator"
+    migrations:
+      - id: "0001_core_schema"
+        description: "core schema skeleton"
+      - id: "0002_migration_journal"
+        description: "migration journal table"
+      - id: "0003_index_schema"
+        description: "index cache tables"
+      - id: "0004_user_profiles"
+        description: "user profile tables"
+      - id: "0005_task_alert_state"
+        description: "task reminder alert state table"
+    privacy_class: P3
+    notes:
+      - "Authoritative tables: roots, projects, entries, tag_definitions, profile_preferences, user_profiles, profile_portable_preferences, app_state, task_alert_state."
+      - "Derived tables: file_index, tag_index, entry_index."
+      - "DB uses WAL and busy_timeout defaults from app/shared/db.py."
+
+  - id: sidecar_metadata
+    title: Sidecar metadata (notes, tags, validation)
+    kind: sidecar_json
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: json_field
+      field: schema_version
+    locations:
+      - scope: workspace_root
+        pattern: "**/.qualifile_meta.json"
+    authoritative: true
+    rebuildable: false
+    validator:
+      type: custom
+      description: "app/features/metadata/sidecar.py"
+    migrations: []
+    privacy_class: P3
+
+  - id: root_marker
+    title: Workspace root marker
+    kind: filesystem_marker
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: json_field
+      field: schema_version
+    locations:
+      - scope: workspace_root
+        pattern: ".qualifile_root.json"
+    authoritative: false
+    rebuildable: true
+    validator:
+      type: custom
+      description: "app/shared/root_marker.py"
+    migrations: []
+    privacy_class: P1
+
+  - id: avatar_store
+    title: Profile avatar files
+    kind: file
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: none
+    locations:
+      - scope: data_dir
+        pattern: ".qualifile_internal/avatars/*.{png,jpg,webp}"
+    authoritative: true
+    rebuildable: false
+    validator:
+      type: custom
+      description: "app/features/user_profile/avatar.py (size/type validation)"
+    migrations: []
+    privacy_class: P3
+
+  - id: activity_log
+    title: Activity log
+    kind: log
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: none
+    locations:
+      - scope: data_dir
+        pattern: "activity.log"
+    authoritative: false
+    rebuildable: true
+    validator:
+      type: none
+    migrations: []
+    privacy_class: P1
+    notes:
+      - "JSON lines appended by /api/log; trimmed to ~256KB."
+
+  - id: error_log
+    title: Application error log
+    kind: log
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: none
+    locations:
+      - scope: data_dir
+        pattern: "logs/errors.log*"
+    authoritative: false
+    rebuildable: true
+    validator:
+      type: none
+    migrations: []
+    privacy_class: P1
+    notes:
+      - "TimedRotatingFileHandler with QUALIFILE_LOG_RETENTION (default 30)."
+
+  - id: startup_logs
+    title: Startup logs (portable/embedded)
+    kind: log
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: none
+    locations:
+      - scope: data_dir
+        pattern: "logs/portable_startup.log"
+      - scope: data_dir
+        pattern: "logs/launcher_startup.log"
+      - scope: data_dir
+        pattern: "logs/embedded_backend_startup.log"
+      - scope: data_dir
+        pattern: "logs/portable_backend.log"
+      - scope: temp
+        pattern: "qualifile_launcher_startup.log"
+      - scope: temp
+        pattern: "qualifile_embedded_backend_startup.log"
+    authoritative: false
+    rebuildable: true
+    validator:
+      type: none
+    migrations: []
+    privacy_class: P1
+
+  - id: data_state
+    title: Diagnostics data state snapshot
+    kind: json
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: json_field
+      field: schema_version
+    locations:
+      - scope: data_dir
+        pattern: "diagnostics/data_state.json"
+    authoritative: false
+    rebuildable: true
+    validator:
+      type: custom
+      description: "app/shared/diagnostics/state.py"
+    migrations: []
+    privacy_class: P1
+
+  - id: migration_report
+    title: Migration dry-run report
+    kind: json
+    lifecycle: tooling
+    current_version: 1
+    version_field:
+      type: json_field
+      field: schema_version
+    locations:
+      - scope: data_dir
+        pattern: "diagnostics/last_migration_report.json"
+    authoritative: false
+    rebuildable: true
+    validator:
+      type: custom
+      description: "app/shared/migrations/runner.py"
+    migrations: []
+    privacy_class: P1
+
+  - id: upgrade_in_progress
+    title: Migration in-progress marker
+    kind: json
+    lifecycle: tooling
+    current_version: 1
+    version_field:
+      type: json_field
+      field: schema_version
+    locations:
+      - scope: data_dir
+        pattern: "diagnostics/upgrade_in_progress.json"
+    authoritative: false
+    rebuildable: true
+    validator:
+      type: custom
+      description: "app/shared/migrations/runner.py"
+    migrations: []
+    privacy_class: P1
+
+  - id: support_bundle
+    title: Support bundle zip
+    kind: file
+    lifecycle: tooling
+    current_version: 1
+    version_field:
+      type: none
+    locations:
+      - scope: data_dir
+        pattern: "support/support_bundle_<timestamp>.zip"
+    authoritative: false
+    rebuildable: true
+    validator:
+      type: custom
+      description: "app/shared/support_bundle/generator.py"
+    migrations: []
+    privacy_class: P1
+    notes:
+      - "May include P3 content when include_p3 is enabled."
+
+  - id: preview_cache
+    title: Preview cache
+    kind: cache
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: none
+    locations:
+      - scope: data_dir
+        pattern: "preview_cache/**"
+    authoritative: false
+    rebuildable: true
+    validator:
+      type: none
+    migrations: []
+    privacy_class: P3
+
+  - id: office_cache
+    title: Office preview cache
+    kind: cache
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: none
+    locations:
+      - scope: data_dir
+        pattern: "office_cache/**"
+    authoritative: false
+    rebuildable: true
+    validator:
+      type: none
+    migrations: []
+    privacy_class: P3
+    notes:
+      - "Contains hashed PDFs, .lock, and .tmp files."
+
+  - id: soft_delete_trash
+    title: Soft delete trash directory
+    kind: directory
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: none
+    locations:
+      - scope: workspace_root
+        pattern: ".qualifile_trash/**"
+    authoritative: true
+    rebuildable: false
+    validator:
+      type: none
+    migrations: []
+    privacy_class: P3
+
+  - id: sidecar_quarantine_backups
+    title: Sidecar corrupt backups
+    kind: backup
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: none
+    locations:
+      - scope: workspace_root
+        pattern: "**/.qualifile_meta.json.corrupt-*.bak"
+    authoritative: false
+    rebuildable: false
+    validator:
+      type: none
+    migrations: []
+    privacy_class: P3
+
+  - id: atomic_temp_files
+    title: Atomic write temporary files
+    kind: temp
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: none
+    locations:
+      - scope: any
+        pattern: "**/.qualifile_tmp_*"
+    authoritative: false
+    rebuildable: true
+    validator:
+      type: none
+    migrations: []
+    privacy_class: P1
+
+  - id: legacy_projects_store
+    title: Legacy projects JSON store
+    kind: json
+    lifecycle: legacy
+    current_version: 1
+    version_field:
+      type: json_field
+      field: version
+    locations:
+      - scope: data_dir
+        pattern: ".qualifile_internal/projects/projects.json"
+    authoritative: true
+    rebuildable: false
+    validator:
+      type: custom
+      description: "app/features/projects/store.py"
+    migrations: []
+    privacy_class: P2
+
+  - id: legacy_project_entries_store
+    title: Legacy project entries JSON store
+    kind: json
+    lifecycle: legacy
+    current_version: 1
+    version_field:
+      type: json_field
+      field: version
+    locations:
+      - scope: data_dir
+        pattern: ".qualifile_internal/projects/project_entries.json"
+    authoritative: true
+    rebuildable: false
+    validator:
+      type: custom
+      description: "app/features/projects/entries_store.py"
+    migrations: []
+    privacy_class: P3
+
+  - id: legacy_tags_store
+    title: Legacy tags JSON store
+    kind: json
+    lifecycle: legacy
+    current_version: 0
+    version_field:
+      type: none
+      note: "Legacy store has no schema version field."
+    locations:
+      - scope: workspace_root
+        pattern: ".qualifile_tags.json"
+    authoritative: true
+    rebuildable: false
+    validator:
+      type: custom
+      description: "app/features/tags/store.py"
+    migrations: []
+    privacy_class: P2
+
+  - id: legacy_notes_store
+    title: Legacy notes JSON store
+    kind: json
+    lifecycle: legacy
+    current_version: 1
+    version_field:
+      type: json_field
+      field: version
+    locations:
+      - scope: workspace_root
+        pattern: "**/.qualifile_notes.json"
+    authoritative: true
+    rebuildable: false
+    validator:
+      type: custom
+      description: "app/features/notes/store.py"
+    migrations: []
+    privacy_class: P3
+
+  - id: legacy_validation_state
+    title: Legacy validation JSON store
+    kind: json
+    lifecycle: legacy
+    current_version: 1
+    version_field:
+      type: json_field
+      field: version
+    locations:
+      - scope: data_dir
+        pattern: ".qualifile_internal/validation/validation_state.json"
+    authoritative: true
+    rebuildable: false
+    validator:
+      type: custom
+      description: "app/features/validation/store.py"
+    migrations: []
+    privacy_class: P2
+
+  - id: legacy_root_state
+    title: Legacy root state JSON
+    kind: json
+    lifecycle: legacy
+    current_version: 0
+    version_field:
+      type: none
+      note: "Legacy file expects { 'root': '<path>' }."
+    locations:
+      - scope: data_dir
+        pattern: "notes/root_state.json"
+      - scope: env_override
+        pattern: "$QUALIFILE_STATE"
+    authoritative: true
+    rebuildable: false
+    validator:
+      type: custom
+      description: "scripts/data_shadow.py"
+    migrations: []
+    privacy_class: P1
+
+  - id: migration_backups
+    title: Tooling backup snapshots
+    kind: directory
+    lifecycle: tooling
+    current_version: 1
+    version_field:
+      type: none
+    locations:
+      - scope: data_dir
+        pattern: ".qualifile_internal/backups/<timestamp>/**"
+    authoritative: false
+    rebuildable: false
+    validator:
+      type: none
+    migrations: []
+    privacy_class: P3

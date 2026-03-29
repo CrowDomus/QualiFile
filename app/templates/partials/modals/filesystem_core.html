@@ -1,0 +1,74 @@
+<div class="modal fade" id="modal-folder" tabindex="-1" aria-labelledby="modal-folder-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" id="form-folder">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="modal-folder-label">Create Folder</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="folder-name">Folder name</label>
+                    <input class="form-control" id="folder-name" name="name" placeholder="Enter folder name" required maxlength="120">
+                    <div class="invalid-feedback" id="folder-feedback"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-loading" tabindex="-1" aria-labelledby="loading-modal-message" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body d-flex align-items-center gap-3">
+                <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+                <div>
+                    <p class="fw-semibold mb-1" id="loading-modal-message">Loading...</p>
+                    <p class="text-muted mb-0" id="loading-modal-detail">This may take a moment.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" id="loading-modal-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-file" tabindex="-1" aria-labelledby="modal-file-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" id="form-file">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="modal-file-label">Create File</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="file-name">Filename</label>
+                    <input class="form-control" id="file-name" name="name" placeholder="example.txt" required maxlength="120">
+                    <div class="form-text">Include the extension, e.g. <code>.txt</code>.</div>
+                    <div class="invalid-feedback" id="file-feedback"></div>
+                </div>
+                <div class="mb-3" id="create-file-tag-container">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <label class="form-label mb-0">Tags (optional)</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="btn btn-sm btn-outline-secondary" type="button" id="create-file-tag-toggle" aria-expanded="false">Show tags</button>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" id="create-file-tag-refresh">Refresh</button>
+                        </div>
+                    </div>
+                    <div class="d-none" id="create-file-tag-panel">
+                        <div class="tag-picker" id="create-file-tag-options" role="group" aria-label="Assign tags"></div>
+                        <div class="form-text">Selected tags will be applied to the new file.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>

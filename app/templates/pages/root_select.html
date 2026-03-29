@@ -1,0 +1,100 @@
+{% extends "layouts/layout.html" %}
+{% block title %}Choose Root • QualiFile{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-center">
+    <div class="d-flex align-items-center gap-3 gap-sm-4 mb-4 root-hero flex-column flex-sm-row">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="QualiFile logo" class="root-hero-logo" loading="lazy">
+        <div class="fw-bold display-6 mb-0 text-center text-sm-start">QualiFile</div>
+    </div>
+</div>
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h1 class="h5 mb-0">Choose a workspace</h1>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Select the folder that QualiFile should manage. You can change this later.</p>
+                <form id="root-form" class="row g-2" method="post" action="/api/root">
+                    <div class="col-12">
+                        <label class="form-label" for="root-path">Path</label>
+                        <div class="input-group">
+                            <input class="form-control" type="text" id="root-path" name="path" placeholder="/home/user/project" required>
+                            <button class="btn btn-outline-secondary" type="button" id="root-browse">Browse</button>
+                        </div>
+                    </div>
+                    <div class="col-12 d-flex justify-content-end">
+                        <button class="btn btn-primary" type="submit">Set root</button>
+                    </div>
+                </form>
+                <div class="alert alert-danger mt-3 d-none" role="alert" id="root-error"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<style>
+.root-hero {
+    max-width: 720px;
+}
+.root-hero-logo {
+    height: 80px;
+    width: auto;
+    max-width: 100%;
+    image-rendering: auto;
+}
+@media (min-width: 992px) {
+    .root-hero-logo {
+        height: 100px;
+    }
+}
+</style>
+{% if use_minified_assets %}
+{% set folder_picker_js = 'dist/js/features/filesystem/folder_picker.min.js' %}
+{% set api_js = 'dist/js/shared/api.min.js' %}
+{% else %}
+{% set folder_picker_js = 'js/features/filesystem/folder_picker.js' %}
+{% set api_js = 'js/shared/api.js' %}
+{% endif %}
+<script type="module">
+import { openFolderPicker } from '{{ url_for('static', filename=folder_picker_js) }}';
+import { updateRoot, handleError } from '{{ url_for('static', filename=api_js) }}';
+
+const form = document.getElementById('root-form');
+const input = document.getElementById('root-path');
+const browse = document.getElementById('root-browse');
+
+if (browse && input) {
+    browse.addEventListener('click', async () => {
+        try {
+            const initial = input.value.trim() || '.';
+            const selected = await openFolderPicker({ initialPath: initial, title: 'Choose root folder', absolute: true, mode: 'system' });
+            if (selected) {
+                input.value = selected;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        } catch (error) {
+            console.error('Folder picker failed', error);
+        }
+    });
+}
+
+if (form) {
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const alert = document.getElementById('root-error');
+        alert.classList.add('d-none');
+        try {
+            const path = input.value.trim();
+            await updateRoot(path);
+            window.location.reload();
+        } catch (error) {
+            handleError(error);
+            alert.textContent = error?.message || 'Unable to set root folder.';
+            alert.classList.remove('d-none');
+        }
+    });
+}
+</script>
+{% endblock %}

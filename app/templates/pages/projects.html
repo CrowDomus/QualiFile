@@ -1,0 +1,1172 @@
+{% extends "layouts/layout.html" %}
+{% block title %}Projects · QualiFile{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename=asset_prefix ~ 'css/timeline' ~ css_suffix) }}">
+{% endblock %}
+{% block nav_actions %}
+<div class="toolbar-container projects-toolbar align-items-center">
+    <div class="toolbar-brand projects-toolbar-brand">
+        <span class="fw-semibold text-body-emphasis projects-toolbar-title">Projects</span>
+    </div>
+    <div class="toolbar-actions projects-toolbar-actions ms-auto">
+        <button class="btn btn-outline-primary btn-sm me-2" type="button" id="header-add-note-projects">Add note</button>
+        <div class="btn-group btn-group-sm me-2" role="group" aria-label="Projects view toggle">
+            <button type="button" class="btn btn-outline-secondary projects-aux-tab" id="projects-view-tasks" data-aux-tab="tasks">Tasks/Notes</button>
+            <button type="button" class="btn btn-outline-secondary projects-aux-tab" id="projects-view-timeline" data-aux-tab="timeline">Timeline</button>
+        </div>
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="projects-layout-toggle" data-bs-toggle="dropdown" aria-expanded="false">Layout</button>
+            <div class="dropdown-menu dropdown-menu-end p-3" aria-labelledby="projects-layout-toggle" id="projects-layout-menu">
+                <div class="mb-2 small text-uppercase text-muted">Placement</div>
+                <div class="form-check">
+                    <input class="form-check-input projects-layout-placement" type="radio" name="projects-layout-placement" id="projects-layout-placement-right" value="right" checked>
+                    <label class="form-check-label" for="projects-layout-placement-right">Right</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input projects-layout-placement" type="radio" name="projects-layout-placement" id="projects-layout-placement-bottom" value="bottom">
+                    <label class="form-check-label" for="projects-layout-placement-bottom">Bottom</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input projects-layout-placement" type="radio" name="projects-layout-placement" id="projects-layout-placement-hidden" value="hidden">
+                    <label class="form-check-label" for="projects-layout-placement-hidden">Hidden</label>
+                </div>
+                <hr class="dropdown-divider my-2">
+                <div class="mb-2 small text-uppercase text-muted">Content</div>
+                <div class="form-check">
+                    <input class="form-check-input projects-layout-content" type="radio" name="projects-layout-content" id="projects-layout-content-tasks" value="tasks" checked>
+                    <label class="form-check-label" for="projects-layout-content-tasks">Tasks/Notes</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input projects-layout-content" type="radio" name="projects-layout-content" id="projects-layout-content-timeline" value="timeline">
+                    <label class="form-check-label" for="projects-layout-content-timeline">Timeline</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="projects-layout" id="projects-layout" data-layout="projects">
+    <div class="projects-top" id="projects-top" data-columns="single">
+        <div class="card shadow-sm h-100 projects-pane" id="projects-pane">
+            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div>
+                    <h1 class="h5 mb-0">Projects</h1>
+                    <p class="text-muted mb-0 small">Create projects, link roots, and jump into the workspace.</p>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <div class="btn-group d-none" id="projects-columns-group">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="projects-columns-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Select columns">Select Columns</button>
+                        <div class="dropdown-menu dropdown-menu-end p-3 projects-columns-menu" aria-labelledby="projects-columns-toggle">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" value="name" id="projects-col-opt-name" data-column-toggle="name" disabled checked>
+                                <label class="form-check-label" for="projects-col-opt-name">Name</label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" value="status" id="projects-col-opt-status" data-column-toggle="status">
+                                <label class="form-check-label" for="projects-col-opt-status">Status</label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" value="description" id="projects-col-opt-desc" data-column-toggle="description">
+                                <label class="form-check-label" for="projects-col-opt-desc">Description</label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" value="root" id="projects-col-opt-root" data-column-toggle="root">
+                                <label class="form-check-label" for="projects-col-opt-root">Root</label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" value="parent" id="projects-col-opt-parent" data-column-toggle="parent">
+                                <label class="form-check-label" for="projects-col-opt-parent">Parent</label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" value="created" id="projects-col-opt-created" data-column-toggle="created">
+                                <label class="form-check-label" for="projects-col-opt-created">Created</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="modified" id="projects-col-opt-modified" data-column-toggle="modified">
+                                <label class="form-check-label" for="projects-col-opt-modified">Modified</label>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" type="button" id="action-new-project-secondary">New Project</button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive projects-table-wrapper">
+                    <table class="table table-hover align-middle mb-0" id="projects-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col" class="text-center" style="width: 2.5rem;">
+                                    <input class="form-check-input" type="checkbox" id="projects-select-all" aria-label="Select all projects">
+                                </th>
+                                <th scope="col" id="projects-col-name" data-column="name">Name</th>
+                                <th scope="col" id="projects-col-status" data-optional="true" data-column="status">Status</th>
+                                <th scope="col" id="projects-col-desc" data-optional="true" data-column="description" class="d-none d-md-table-cell">Description</th>
+                                <th scope="col" id="projects-col-root" data-optional="true" data-column="root">Root</th>
+                                <th scope="col" id="projects-col-parent" data-optional="true" data-column="parent" class="d-none d-lg-table-cell">Parent</th>
+                                <th scope="col" id="projects-col-created" data-optional="true" data-column="created" class="d-none d-lg-table-cell">Created</th>
+                                <th scope="col" id="projects-col-modified" data-optional="true" data-column="modified" class="d-none d-lg-table-cell">Modified</th>
+                                <th scope="col" class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="projects-body">
+                            <tr id="projects-empty">
+                                <td colspan="9" class="text-center py-4 text-muted">No projects yet. Create one to link a root folder.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="projects-splitter projects-splitter-vertical d-none" id="projects-vertical-splitter" role="separator" aria-orientation="vertical" aria-label="Resize projects and tasks panes" tabindex="0"></div>
+        <div class="card shadow-sm h-100 projects-preview d-none" id="projects-preview">
+            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="projects-preview-header d-flex align-items-center gap-2">
+                    <h2 class="h6 mb-0 d-flex align-items-center gap-2 projects-preview-header-title">
+                        <span id="projects-preview-title">Tasks &amp; Notes</span>
+                        <span class="badge text-bg-secondary d-none" id="projects-preview-mode-badge">Tasks</span>
+                    </h2>
+                    <small class="text-muted projects-preview-subtitle" id="projects-preview-subtitle">No project selected</small>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <div class="d-flex align-items-center gap-2 flex-wrap" id="projects-preview-controls">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Entry type toggle">
+                            <button type="button" class="btn btn-outline-secondary active" id="projects-preview-tab-tasks">Tasks</button>
+                            <button type="button" class="btn btn-outline-secondary" id="projects-preview-tab-notes">Notes</button>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="projects-preview-filters-toggle" aria-pressed="false" aria-label="Toggle filters">Filters</button>
+                        <div class="form-check form-switch small m-0" id="projects-preview-archived-wrapper">
+                            <input class="form-check-input" type="checkbox" role="switch" id="projects-preview-archived">
+                            <label class="form-check-label" for="projects-preview-archived">Show archived</label>
+                        </div>
+                        <button type="button" class="btn btn-primary btn-sm" id="projects-preview-new">New</button>
+                    </div>
+                    <div id="projects-timeline-header-host" class="d-none"></div>
+                </div>
+            </div>
+            <div class="card-body projects-preview-body">
+                <div class="projects-preview-filters d-none" id="projects-preview-filters">
+                    <div class="row g-2 align-items-end" id="projects-preview-task-filters">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label form-label-sm mb-1" for="filter-task-priority">Priority</label>
+                            <select class="form-select form-select-sm" id="filter-task-priority">
+                                <option value="">Any</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label form-label-sm mb-1" for="filter-task-status">Status</label>
+                            <select class="form-select form-select-sm" id="filter-task-status">
+                                <option value="">Any</option>
+                                <option value="none">None</option>
+                                <option value="in_progress">In progress</option>
+                                <option value="closed">Closed</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label form-label-sm mb-1" for="filter-task-project">Project</label>
+                            <select class="form-select form-select-sm" id="filter-task-project">
+                                <option value="all">All projects</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label form-label-sm mb-1" for="filter-task-start">Start from</label>
+                            <input class="form-control form-control-sm" type="date" id="filter-task-start">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label form-label-sm mb-1" for="filter-task-end">End until</label>
+                            <input class="form-control form-control-sm" type="date" id="filter-task-end">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label form-label-sm mb-1" for="filter-task-duration-min">Min days</label>
+                            <input class="form-control form-control-sm" type="number" id="filter-task-duration-min" min="0" step="1" placeholder="Any">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label form-label-sm mb-1" for="filter-task-duration-max">Max days</label>
+                            <input class="form-control form-control-sm" type="number" id="filter-task-duration-max" min="0" step="1" placeholder="Any">
+                        </div>
+                    </div>
+                    <div class="row g-2 align-items-end d-none" id="projects-preview-note-filters">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label form-label-sm mb-1" for="filter-note-priority">Priority</label>
+                            <select class="form-select form-select-sm" id="filter-note-priority">
+                                <option value="">Any</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label form-label-sm mb-1" for="filter-note-project">Project</label>
+                            <select class="form-select form-select-sm" id="filter-note-project">
+                                <option value="all">All projects</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label form-label-sm mb-1" for="filter-note-created-from">Created from</label>
+                            <input class="form-control form-control-sm" type="date" id="filter-note-created-from">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label form-label-sm mb-1" for="filter-note-created-until">Created until</label>
+                            <input class="form-control form-control-sm" type="date" id="filter-note-created-until">
+                        </div>
+                    </div>
+                    <div class="projects-preview-filters-footer d-flex justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="projects-preview-filters-reset">Reset filters</button>
+                    </div>
+                </div>
+                <div class="projects-preview-loading text-muted d-none" id="projects-preview-loading">Loading...</div>
+                <div class="alert alert-danger d-none py-2 px-3" id="projects-preview-error"></div>
+                <div class="projects-preview-placeholder text-muted" id="projects-preview-placeholder">
+                    <div class="text-center">
+                        <div class="mb-1 fw-semibold">Select a project</div>
+                        <p class="mb-0 small">Choose a project to see its tasks and notes.</p>
+                    </div>
+                </div>
+                <div class="projects-preview-list d-none" id="projects-preview-list"></div>
+                <div id="projects-aux-right-host" class="d-none"></div>
+            </div>
+        </div>
+    </div>
+    <div class="projects-splitter projects-splitter-horizontal d-none" id="projects-horizontal-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize timeline height" tabindex="0"></div>
+    <div id="projects-aux-bottom-host"></div>
+    <div class="card shadow-sm projects-timeline d-none" id="projects-timeline">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="h6 mb-0">Timeline</h2>
+                <small class="text-muted" id="timeline-range-label"></small>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap" id="timeline-header-controls">
+                <div class="btn-group" id="timeline-projects-group">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="timeline-projects-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        Projects
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end p-3 timeline-projects-menu" aria-labelledby="timeline-projects-toggle">
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                            <div class="form-check form-switch small m-0">
+                                <input class="form-check-input" type="checkbox" role="switch" id="timeline-projects-follow" checked>
+                                <label class="form-check-label" for="timeline-projects-follow">Follow main selection</label>
+                            </div>
+                            <button type="button" class="btn btn-link btn-sm p-0" id="timeline-projects-clear">Clear</button>
+                        </div>
+                        <div class="timeline-projects-options" id="timeline-projects-options" role="group" aria-label="Timeline project selection"></div>
+                    </div>
+                </div>
+                <div class="btn-group" id="timeline-columns-group">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="timeline-columns-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        Columns
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end p-3 timeline-columns-menu" aria-labelledby="timeline-columns-toggle">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="timeline-col-task" checked disabled>
+                            <label class="form-check-label" for="timeline-col-task">Task</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="timeline-col-project" checked>
+                            <label class="form-check-label" for="timeline-col-project">Project</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="timeline-col-start" checked>
+                            <label class="form-check-label" for="timeline-col-start">Start</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="timeline-col-end" checked>
+                            <label class="form-check-label" for="timeline-col-end">End</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="timeline-col-duration" checked>
+                            <label class="form-check-label" for="timeline-col-duration">Duration</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="btn-group" id="timeline-filters-group">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="timeline-filters-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        Filters
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end timeline-filters-menu" aria-labelledby="timeline-filters-toggle" id="timeline-filters-menu">
+                        <div class="mb-2">
+                            <label class="form-label form-label-sm mb-1" for="timeline-filter-status">Status</label>
+                            <select class="form-select form-select-sm" id="timeline-filter-status">
+                                <option value="">Any</option>
+                                <option value="none">None</option>
+                                <option value="in_progress">In progress</option>
+                                <option value="closed">Closed</option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label form-label-sm mb-1" for="timeline-filter-priority">Priority</label>
+                            <select class="form-select form-select-sm" id="timeline-filter-priority">
+                                <option value="">Any</option>
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="timeline-filter-hide-undated">
+                            <label class="form-check-label" for="timeline-filter-hide-undated">Hide tasks without dates</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="timeline-filter-show-archived">
+                            <label class="form-check-label" for="timeline-filter-show-archived">Show archived</label>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" id="timeline-filter-reset">Reset</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="timeline-zoom-controls d-flex align-items-center gap-2 flex-wrap" id="timeline-zoom-controls">
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Timeline zoom">
+                        <button class="btn btn-outline-secondary btn-sm" type="button" id="timeline-zoom-out" title="Zoom out">-</button>
+                        <button class="btn btn-outline-secondary btn-sm" type="button" id="timeline-zoom-in" title="Zoom in">+</button>
+                    </div>
+                    <input type="range" class="form-range timeline-zoom-slider" id="timeline-zoom-slider" min="8" max="120" step="1" aria-label="Timeline zoom slider">
+                    <button class="btn btn-outline-secondary btn-sm" type="button" id="timeline-zoom-fit" title="Fit to view">Fit</button>
+                    <span class="small text-muted" id="timeline-zoom-value">Auto</span>
+                </div>
+            </div>
+        </div>
+        <div class="card-body projects-timeline-body">
+            <div class="projects-timeline-root" id="timeline-root" aria-label="Timeline viewer placeholder"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="project-modal" tabindex="-1" aria-labelledby="project-modal-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="project-modal-label">New Project</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="project-form" class="needs-validation" novalidate>
+                <div class="modal-body">
+                    <div class="alert alert-danger d-none" id="project-form-error" role="alert"></div>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label" for="project-name">Name</label>
+                            <input type="text" class="form-control" id="project-name" name="name" required maxlength="200">
+                            <div class="invalid-feedback">A project name is required.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="project-description">Description <span class="text-muted">(optional)</span></label>
+                            <textarea class="form-control" id="project-description" name="description" rows="2" maxlength="2000"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="project-root">Root folder <span class="text-muted">(optional)</span></label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="project-root" name="root_path" placeholder="C:\\Projects\\Alpha" autocomplete="off">
+                                <button class="btn btn-outline-secondary" type="button" id="project-root-browse">Browse</button>
+                            </div>
+                            <div class="form-text">Must be an existing folder when set.</div>
+                        </div>
+                        <div class="col-12" id="project-tags-import-section">
+                            <div class="border rounded-3 p-3">
+                                <h2 class="h6 mb-1">Tags</h2>
+                                <p class="form-text mb-2">Imports tag definitions from the selected project's root into this project's root.</p>
+                                <p class="form-text mb-0 text-muted" id="project-tags-import-empty-note">Set a root folder to import tags.</p>
+                                <div class="row g-3 d-none mt-0" id="project-tags-import-controls">
+                                    <div class="col-12 col-md-8">
+                                        <label class="form-label" for="project-tags-import-source">Import tags from</label>
+                                        <select class="form-select" id="project-tags-import-source">
+                                            <option value="">(None)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label" for="project-tags-import-mode">Import mode</label>
+                                        <select class="form-select" id="project-tags-import-mode">
+                                            <option value="append" selected>Append missing tags (recommended)</option>
+                                            <option value="replace">Replace tags (advanced)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="project-parent">Parent project <span class="text-muted">(optional)</span></label>
+                            <select class="form-select" id="project-parent" name="parent_id">
+                                <option value="">None</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="project-status">Status</label>
+                            <select class="form-select" id="project-status" name="status">
+                                <option value="new" selected>New</option>
+                                <option value="ongoing">Ongoing</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="project-color">Colour</label>
+                            <input type="hidden" id="project-color" name="color">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis" id="project-color-value">No colour</span>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="project-color-clear">Clear</button>
+                            </div>
+                            <div class="project-color-palette-wrapper mt-2">
+                                <div class="project-color-palette" id="project-color-palette" role="group" aria-label="Project colours"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="project-save">Save project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="project-entry-modal" tabindex="-1" aria-labelledby="project-entry-title" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <form class="modal-content project-entry-modal" id="project-entry-form" novalidate>
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="project-entry-title">Create Note/Task</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert project-entry-alert alert-success d-none d-flex align-items-center justify-content-between gap-2" role="alert" id="project-entry-alert">
+                    <span class="project-entry-alert-text"></span>
+                    <button type="button" class="btn-close" aria-label="Close" id="project-entry-alert-dismiss"></button>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="project-entry-mode">Entry type</label>
+                    <select class="form-select" id="project-entry-mode" aria-label="Entry type"></select>
+                </div>
+                <div class="mb-3" id="project-entry-linked-toggle-wrap">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="project-entry-linked-toggle">
+                        <label class="form-check-label" for="project-entry-linked-toggle">Create as linked note (workspace note)</label>
+                    </div>
+                    <small class="form-text text-muted" id="project-entry-linked-help">Creates a workspace note under the project root.</small>
+                </div>
+                <div class="mb-3 d-none" id="project-entry-linked-path-wrap">
+                    <label class="form-label">Link target</label>
+                    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Link target type">
+                            <input class="btn-check" type="radio" name="project-entry-linked-target-type" id="project-entry-linked-target-folder" value="folder" checked>
+                            <label class="btn btn-outline-secondary" for="project-entry-linked-target-folder">Folder</label>
+                            <input class="btn-check" type="radio" name="project-entry-linked-target-type" id="project-entry-linked-target-file" value="file">
+                            <label class="btn btn-outline-secondary" for="project-entry-linked-target-file">File</label>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <input class="form-control" type="text" id="project-entry-linked-path" placeholder="." value="." readonly aria-readonly="true">
+                        <button class="btn btn-outline-secondary" type="button" id="project-entry-linked-browse">Browse</button>
+                    </div>
+                    <small class="form-text text-muted" id="project-entry-linked-path-help">Select a folder under the project root ("." for root).</small>
+                </div>
+                <div class="mb-3 d-none" data-field="title">
+                    <label class="form-label" for="project-entry-title-input">Title (tasks only) <span class="text-danger">*</span></label>
+                    <input class="form-control" type="text" id="project-entry-title-input" maxlength="200" placeholder="Required task title">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="project-entry-text">Description</label>
+                    <textarea class="form-control" id="project-entry-text" rows="3" maxlength="4000" placeholder="Optional"></textarea>
+                    <div class="form-text">Optional for tasks. Notes still require content.</div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label" for="project-entry-status">Status</label>
+                        <select class="form-select" id="project-entry-status">
+                            <option value="none">None</option>
+                            <option value="in_progress">In progress</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="project-entry-priority">Priority</label>
+                        <select class="form-select" id="project-entry-priority">
+                            <option value="">None</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex flex-column">
+                        <label class="form-label" for="project-entry-color">Colour</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input class="form-control form-control-color project-entry-color" type="color" id="project-entry-color" value="#1e88e5" title="Pick a color">
+                            <small class="form-text">Optional accent.</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3 mt-1" data-field="parent">
+                    <div class="col-md-6" id="project-entry-parent-project-select-wrap">
+                        <label class="form-label" for="project-entry-parent-project">Parent project</label>
+                        <select class="form-select" id="project-entry-parent-project"></select>
+                        <small class="form-text">Defaults to this project; pick another to parent across projects.</small>
+                    </div>
+                    <div class="col-md-6 d-none" id="project-entry-parent-project-readonly-wrap">
+                        <label class="form-label" for="project-entry-parent-project-readonly">Parent project</label>
+                        <input class="form-control" type="text" id="project-entry-parent-project-readonly" readonly aria-readonly="true">
+                        <small class="form-text text-muted">Locked in edit mode.</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="project-entry-parent-task">Parent task</label>
+                        <select class="form-select" id="project-entry-parent-task"></select>
+                        <small class="form-text">Choose a task to link as the parent, or leave as “No parent”.</small>
+                    </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-4" data-field="deadline">
+                        <label class="form-label" for="project-entry-deadline">Deadline</label>
+                        <input class="form-control" type="date" id="project-entry-deadline">
+                        <small class="form-text">Shown for notes.</small>
+                    </div>
+                    <div class="col-md-4" data-field="start">
+                        <label class="form-label" for="project-entry-start">Start date</label>
+                        <input class="form-control" type="date" id="project-entry-start">
+                    </div>
+                    <div class="col-md-4" data-field="end">
+                        <label class="form-label" for="project-entry-end">End date</label>
+                        <input class="form-control" type="date" id="project-entry-end">
+                    </div>
+                </div>
+                <div class="row g-3 mt-1 d-none" data-field="reminder">
+                    <div class="col-md-4">
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="project-entry-reminder-enabled">
+                            <label class="form-check-label" for="project-entry-reminder-enabled">Enable reminder</label>
+                        </div>
+                        <small class="form-text text-muted">Requires an end date.</small>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="project-entry-reminder-mode">Reminder timing</label>
+                        <select class="form-select" id="project-entry-reminder-mode">
+                            <option value="on_end_date">On end date (08:00)</option>
+                            <option value="days_before_end_date">X days before end date (08:00)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-none" id="project-entry-reminder-days-wrap">
+                        <label class="form-label" for="project-entry-reminder-days-before">Days before</label>
+                        <input
+                            class="form-control"
+                            type="number"
+                            id="project-entry-reminder-days-before"
+                            min="1"
+                            max="365"
+                            step="1"
+                            inputmode="numeric"
+                            placeholder="e.g. 3"
+                        >
+                        <small class="form-text text-muted">Use a value from 1 to 365.</small>
+                    </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-12 d-none" id="entryAutoRollupWrap">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="entryAutoRollupDates">
+                            <label class="form-check-label" for="entryAutoRollupDates">Auto sync dates from children</label>
+                        </div>
+                        <small class="form-text text-muted" id="entryAutoRollupHelp"></small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="project-entry-save">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="project-note-view-modal" tabindex="-1" aria-labelledby="project-note-view-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h1 class="modal-title fs-5 mb-0" id="project-note-view-label">View Note</h1>
+                    <p class="small text-muted mb-0" id="project-note-view-meta"></p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body note-view-body" id="project-note-view-body"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="project-task-view-modal" tabindex="-1" aria-labelledby="project-task-view-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header align-items-start">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="task-view-color rounded" id="project-task-view-color" aria-hidden="true"></div>
+                    <div>
+                        <h1 class="modal-title fs-5 mb-0" id="project-task-view-label">Task details</h1>
+                        <p class="small text-muted mb-0" id="project-task-view-project"></p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body task-view-body">
+                <div class="task-view-description mb-3" id="project-task-view-description"></div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3" id="project-task-view-badges"></div>
+                <div class="row g-3 small text-muted mb-3" id="project-task-view-dates"></div>
+                <div class="task-view-parent small text-muted d-none" id="project-task-view-parent"></div>
+                <div class="task-view-meta small text-muted mt-3" id="project-task-view-meta"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-outline-primary" id="project-task-view-copy">Copy description</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<style>
+#projects-table td {
+    vertical-align: middle;
+}
+#projects-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+#projects-table .project-name {
+    font-weight: 600;
+}
+#projects-table .project-status .badge {
+    font-weight: 600;
+}
+#projects-table .project-root {
+    font-family: var(--bs-font-monospace);
+    white-space: nowrap;
+}
+.project-root-inline {
+    font-size: 0.85rem;
+    color: var(--bs-secondary-color);
+    word-break: break-all;
+}
+.project-name-wrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding-left: calc((var(--project-depth, 0) * 1.25rem));
+}
+.project-name-wrapper[data-depth]:not([data-depth="0"]) {
+    border-left: 1px solid var(--bs-border-color);
+}
+.project-name-block {
+    min-width: 0;
+}
+.project-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.project-name-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.15rem 0.6rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+    background-color: var(--project-color, var(--bs-secondary-bg));
+    border-color: color-mix(
+        in srgb,
+        var(--bs-border-color) 70%,
+        var(--project-color, var(--bs-secondary-bg)) 30%
+    );
+    color: var(--project-pill-text, var(--bs-body-color));
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.project-color-palette {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: min(260px, 100%);
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    padding: 0.5rem;
+    box-shadow: var(--bs-box-shadow-sm);
+    position: relative;
+    z-index: 5;
+}
+.project-color-palette.d-none {
+    display: none;
+}
+.project-color-picker-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.project-color-picker {
+    min-width: 3rem;
+}
+#projects-table .project-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+#projects-table .project-action-open {
+    padding-inline: 0.9rem;
+}
+#projects-table .project-action-open.project-action-open-missing-root {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+#projects-table .project-action-menu-toggle {
+    padding-inline: 0.65rem;
+}
+#projects-table .project-action-menu .dropdown-toggle::after {
+    display: none;
+}
+.projects-table-wrapper {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+#projects-table .project-root-icon,
+#projects-table .project-root-label {
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1.3;
+}
+#projects-table .project-root-icon {
+    margin-right: 0.35rem;
+}
+#projects-table tr.project-row-colored {
+    background: color-mix(in srgb, var(--project-color, var(--bs-primary)) 14%, var(--bs-body-bg));
+}
+#projects-table tr.project-row-colored td {
+    background-color: inherit;
+    border-color: color-mix(in srgb, var(--project-color, var(--bs-primary)) 35%, var(--bs-border-color));
+}
+#projects-table tr.project-row-colored td:first-child {
+    box-shadow: inset 3px 0 color-mix(in srgb, var(--project-color, var(--bs-primary)) 70%, var(--project-color, var(--bs-primary)));
+}
+#projects-table tr.project-row-colored .project-name-wrapper[data-depth]:not([data-depth="0"]) {
+    border-left-color: color-mix(in srgb, var(--project-color, var(--bs-primary)) 65%, var(--bs-border-color));
+}
+.project-entry-alert {
+    display: none;
+}
+.project-entry-alert:not(.d-none) {
+    display: block;
+}
+.project-entry-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+}
+.project-entry-modal .form-label {
+    font-weight: 600;
+}
+.project-entry-modal small.form-text {
+    color: var(--bs-secondary-color);
+}
+.project-entry-color {
+    width: 2rem;
+    height: 2rem;
+    padding: 0.1rem;
+    border-radius: 0.5rem;
+}
+.projects-layout {
+    --projects-pane-min: 320px;
+    --projects-preview-min: 280px;
+    --projects-timeline-min: 220px;
+    --projects-splitter-size: 1rem;
+    width: 100%;
+    display: grid;
+    grid-template-rows: 1fr;
+    align-items: stretch;
+    height: 100%;
+    min-height: 0;
+    gap: 0;
+}
+.projects-layout[data-layout="both"] {
+    grid-template-rows: 1fr var(--projects-splitter-size) var(--projects-timeline-height, 1fr);
+}
+.projects-top {
+    display: grid;
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 0;
+    min-height: 0;
+}
+.projects-top[data-columns="dual"] {
+    grid-template-columns: var(--projects-pane-width, minmax(var(--projects-pane-min), 1.2fr)) var(--projects-splitter-size) var(--projects-preview-width, minmax(var(--projects-preview-min), 1fr));
+    align-items: stretch;
+}
+.projects-top[data-columns="single"] {
+    grid-template-columns: 1fr;
+}
+.projects-pane,
+.projects-preview,
+.projects-timeline {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.projects-pane > .card-body,
+.projects-preview > .card-body,
+.projects-timeline > .card-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+.projects-preview {
+    min-height: 100%;
+}
+.projects-preview-header {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.projects-preview-header-title {
+    flex-shrink: 0;
+}
+.projects-preview-subtitle {
+    min-width: 0;
+    flex: 1 1 auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.projects-timeline {
+    min-height: var(--projects-timeline-min);
+}
+#projects-aux-right-host {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+#projects-aux-bottom-host {
+    display: contents;
+}
+.projects-preview.projects-preview-aux-timeline > .card-header {
+    display: flex;
+}
+.projects-preview.projects-preview-aux-timeline #projects-preview-controls {
+    display: none !important;
+}
+.projects-preview.projects-preview-aux-timeline #projects-preview-mode-badge {
+    display: none;
+}
+.projects-preview.projects-preview-aux-timeline #projects-preview-subtitle {
+    display: none;
+}
+.projects-preview.projects-preview-aux-timeline .projects-preview-body > :not(#projects-aux-right-host) {
+    display: none !important;
+}
+.projects-timeline.projects-timeline-right {
+    flex: 1 1 auto;
+    min-height: 0;
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+}
+.projects-timeline.projects-timeline-right > .card-header {
+    display: none !important;
+}
+.projects-splitter {
+    position: relative;
+    align-self: stretch;
+    background: transparent;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+.projects-splitter::after {
+    content: '';
+    position: absolute;
+    inset: 0.35rem;
+    border-radius: 999px;
+    background: var(--bs-secondary);
+    opacity: 0.35;
+}
+.projects-splitter:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: -2px;
+}
+.projects-splitter:hover::after,
+.projects-splitter:focus-visible::after {
+    opacity: 0.7;
+}
+.projects-splitter:active::after {
+    opacity: 0.9;
+}
+.projects-splitter-vertical {
+    cursor: col-resize;
+    width: var(--projects-splitter-size);
+    height: 100%;
+}
+.projects-splitter-horizontal {
+    cursor: row-resize;
+    height: var(--projects-splitter-size);
+    width: 100%;
+}
+.projects-timeline-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+}
+.projects-preview-filters {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+}
+.projects-preview-filters-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid var(--bs-border-color);
+}
+.projects-preview-filters .form-label-sm {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+}
+.projects-preview-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+}
+.projects-preview-loading {
+    text-align: center;
+}
+.projects-preview-placeholder {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+.projects-preview-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    overflow-y: auto;
+}
+.projects-preview-card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.85rem;
+    background: var(--bs-body-bg);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.projects-preview-card.accented {
+    border-left-width: 4px;
+}
+.projects-preview-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+.projects-preview-card-compact .projects-preview-card-header-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.5rem;
+    row-gap: 0.25rem;
+    container-type: inline-size;
+}
+.projects-preview-card-compact .projects-preview-card-title {
+    min-width: 8rem;
+}
+.projects-preview-card-compact .projects-preview-card-meta {
+    align-items: center;
+    border-left: 1px solid var(--bs-border-color);
+    padding-left: 0.5rem;
+    margin-left: 0.35rem;
+}
+.projects-preview-card-compact .projects-preview-actions {
+    border-left: 1px solid var(--bs-border-color);
+    padding-left: 0.5rem;
+    margin-left: 0.35rem;
+}
+@container (max-width: 420px) {
+    .projects-preview-card-compact .projects-preview-card-meta {
+        flex-basis: 100%;
+        padding-left: 0;
+        margin-left: 0;
+        border-left: none;
+    }
+}
+.projects-preview-card-title {
+    margin: 0;
+    font-weight: 600;
+    line-height: 1.3;
+}
+.projects-preview-note-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--projects-note-lines, 1);
+    overflow: hidden;
+}
+.projects-preview-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+.projects-preview-parent-row {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+.projects-preview-parent-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 100%;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--ui-border-subtle, var(--bs-border-color));
+    background: var(--ui-bg-subtle, var(--bs-tertiary-bg));
+    color: var(--ui-text-primary, var(--bs-body-color));
+    font-size: 0.85rem;
+    line-height: 1.2;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+}
+.projects-preview-parent-link:hover:not(:disabled),
+.projects-preview-parent-link:focus-visible {
+    border-color: var(--ui-border-strong, var(--bs-border-color));
+    background: var(--ui-bg-elevated, var(--bs-body-bg));
+}
+.projects-preview-parent-link:disabled {
+    opacity: 0.6;
+}
+.projects-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+    border-color: color-mix(in srgb, var(--bs-border-color) 70%, currentColor 15%);
+    color: var(--ui-text-primary, var(--bs-body-color));
+}
+.projects-chip.status-none {
+    background: var(--ui-bg-subtle, var(--bs-secondary-bg));
+    color: var(--ui-text-secondary, var(--bs-secondary-color));
+}
+.projects-chip.status-in_progress {
+    background: var(--ui-info-soft, #e0f2fe);
+}
+.projects-chip.status-closed {
+    background: var(--ui-success-soft, #d1fae5);
+}
+.projects-chip.priority-high {
+    background: var(--ui-danger-soft, #fde2e1);
+}
+.projects-chip.priority-medium {
+    background: var(--ui-warning-soft, #fff3cd);
+}
+.projects-chip.priority-low {
+    background: var(--ui-bg-subtle, var(--bs-secondary-bg));
+    color: var(--ui-text-secondary, var(--bs-secondary-color));
+}
+.projects-chip.meta-date {
+    background: var(--ui-accent-soft, rgba(13, 110, 253, 0.12));
+    color: var(--ui-text-primary, var(--bs-body-color));
+    border-color: color-mix(in srgb, var(--bs-border-color) 75%, var(--ui-accent, var(--bs-primary)) 15%);
+}
+.projects-preview-card.accented .projects-chip.status-none,
+.projects-preview-card.accented .projects-chip.priority-low {
+    background: var(--ui-bg-elevated, var(--bs-body-bg));
+    color: var(--ui-text-primary, var(--bs-body-color));
+    border-color: var(--ui-border-subtle, var(--bs-border-color));
+}
+.projects-preview-actions {
+    display: inline-flex;
+    gap: 0.25rem;
+}
+.projects-preview-actions .btn {
+    padding: 0.2rem 0.45rem;
+}
+.projects-preview-section-title {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--bs-secondary-color);
+    margin: 0.35rem 0 0.15rem;
+}
+.projects-preview-section-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+}
+.projects-preview-section-toggle::after {
+    content: "▾";
+    font-size: 0.9em;
+    color: var(--bs-secondary-color);
+}
+.projects-preview-section-toggle[aria-expanded="false"]::after {
+    content: "▸";
+}
+.projects-preview-section-toggle:focus-visible {
+    outline: 2px solid var(--ui-focus-ring, var(--bs-primary));
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+.note-view-body {
+    max-height: 60vh;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.project-entry-text-tall {
+    min-height: 200px;
+}
+.projects-toolbar {
+    /* No fixed height here – inherit from .toolbar-container / navbar */
+}
+.projects-toolbar-title {
+    font-size: 1.25rem;
+    line-height: 1.2;
+}
+.projects-toolbar-actions .btn {
+    min-height: 2.25rem;
+}
+.projects-toolbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+@media (max-width: 991.98px) {
+    .projects-top[data-columns="dual"] {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+    }
+    .projects-splitter-vertical {
+        display: none;
+    }
+}
+</style>
+{% if use_minified_assets %}
+{% set projects_js = 'dist/js/entrypoints/projects_page.min.js' %}
+{% else %}
+{% set projects_js = 'js/entrypoints/projects_page.js' %}
+{% endif %}
+<script type="module" src="{{ url_for('static', filename=projects_js) }}" defer></script>
+{% endblock %}

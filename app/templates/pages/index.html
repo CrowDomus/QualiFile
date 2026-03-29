@@ -1,0 +1,315 @@
+{% extends "layouts/layout.html" %}
+{% block title %}QualiFile{% endblock %}
+{% block nav_actions %}
+<div class="toolbar-container workspace-toolbar" id="toolbar-container">
+    <div class="toolbar-navigation" id="toolbar-navigation">
+        <div class="btn-group btn-group-sm" role="group" aria-label="Navigation controls">
+            <button class="btn btn-outline-secondary btn-icon" id="action-go-back" type="button" aria-label="Go back" disabled>
+                <svg class="toolbar-icon" viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
+                    <polyline points="11 5 5 12 11 19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+            </button>
+            <button class="btn btn-outline-secondary btn-icon" id="action-go-forward" type="button" aria-label="Go forward" disabled>
+                <svg class="toolbar-icon" viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
+                    <polyline points="13 5 19 12 13 19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+            </button>
+            <button class="btn btn-outline-secondary btn-icon" id="action-go-up" type="button" aria-label="Go up one level">
+                <svg class="toolbar-icon" viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
+                    <polyline points="6 13 12 7 18 13" />
+                    <line x1="12" y1="7" x2="12" y2="19" />
+                </svg>
+            </button>
+            <button class="btn btn-outline-secondary btn-icon" id="action-refresh-all" type="button" aria-label="Refresh">
+                <svg class="toolbar-icon" viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
+                    <path d="M20 11a8 8 0 0 0-8-8 8 8 0 0 0-6 2.73" />
+                    <polyline points="4 4 4 9 9 9" />
+                    <path d="M4 13a8 8 0 0 0 8 8 8 8 0 0 0 6-2.73" />
+                    <polyline points="20 20 20 15 15 15" />
+                </svg>
+            </button>
+        </div>
+    </div>
+    <div class="toolbar-filter" aria-label="Filter files">
+        <div class="advanced-filter-wrapper">
+            <div class="input-group input-group-sm advanced-filter-input-group">
+                <input id="filter-input" type="search" class="form-control form-control-sm" placeholder="Filter files" aria-label="Filter files">
+                <button class="btn btn-outline-secondary advanced-filter-toggle" id="advanced-filter-toggle" type="button" aria-expanded="false" aria-haspopup="true" aria-controls="advanced-filter-panel">
+                    <span class="advanced-filter-label">Advanced</span>
+                    <span class="advanced-filter-badge badge text-bg-primary rounded-pill d-none" id="advanced-filter-badge"></span>
+                    <svg class="chevron" viewBox="0 0 24 24" role="presentation" focusable="false" aria-hidden="true">
+                        <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                </button>
+            </div>
+            <div class="advanced-filter-panel shadow-sm" id="advanced-filter-panel" role="dialog" aria-modal="false" aria-labelledby="advanced-filter-title">
+                <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                    <div>
+                        <p class="mb-0 fw-semibold" id="advanced-filter-title">Advanced filters</p>
+                        <p class="text-muted small mb-0" id="advanced-filter-status">Scope: current folder</p>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" id="advanced-filter-close" aria-label="Close advanced filters">&times;</button>
+                </div>
+                <div class="advanced-filter-section">
+                    <div class="form-label small text-uppercase text-muted mb-2">Scope</div>
+                    <div class="btn-group btn-group-sm w-100" role="group" aria-label="Filter scope">
+                        <input type="radio" class="btn-check" name="advanced-filter-scope" id="advanced-scope-current" value="current" checked>
+                        <label class="btn btn-outline-secondary w-50" for="advanced-scope-current">Current folder</label>
+                        <input type="radio" class="btn-check" name="advanced-filter-scope" id="advanced-scope-root" value="root">
+                        <label class="btn btn-outline-secondary w-50" for="advanced-scope-root">All folders (root)</label>
+                    </div>
+                </div>
+                <div class="advanced-filter-section">
+                    <label for="advanced-folder-filter" class="form-label mb-1">Folder name</label>
+                    <input type="search" class="form-control form-control-sm" id="advanced-folder-filter" placeholder="Search folders only">
+                    <div class="form-text">Only directories matching this name will be shown.</div>
+                </div>
+                <div class="advanced-filter-section">
+                    <label class="form-label mb-1">Tags</label>
+                    <div class="advanced-filter-tags" id="advanced-filter-tag-list"></div>
+                </div>
+                <div class="advanced-filter-section">
+                    <label class="form-label mb-1" for="advanced-filter-modified">Last modified</label>
+                    <select class="form-select form-select-sm" id="advanced-filter-modified">
+                        <option value="any">Any time</option>
+                        <option value="24h">Last 24 hours</option>
+                        <option value="7d">Last 7 days</option>
+                        <option value="30d">Last 30 days</option>
+                        <option value="90d">Last 90 days</option>
+                        <option value="custom">Custom range</option>
+                    </select>
+                    <div class="row g-2 mt-2 d-none" id="advanced-filter-custom-range">
+                        <div class="col-6">
+                            <label class="form-label small mb-1" for="advanced-filter-modified-from">From</label>
+                            <input type="date" class="form-control form-control-sm" id="advanced-filter-modified-from">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small mb-1" for="advanced-filter-modified-to">To</label>
+                            <input type="date" class="form-control form-control-sm" id="advanced-filter-modified-to">
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center justify-content-between gap-2 pt-1">
+                    <button class="btn btn-link btn-sm text-decoration-none" type="button" id="advanced-filter-reset">Reset filters</button>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" type="button" id="advanced-filter-apply">Apply</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="workspace-linked-project-wrap" class="workspace-linked-project-wrap workspace-linked-project-wrap--inline dropdown" hidden>
+            <span class="workspace-linked-project-sep" aria-hidden="true"></span>
+            <button
+                id="workspace-linked-project-pill"
+                class="project-name-pill workspace-linked-project-pill workspace-root-switcher-toggle"
+                type="button"
+                data-bs-toggle="dropdown"
+                aria-haspopup="true"
+                aria-expanded="false"
+                aria-controls="workspace-root-switcher-menu"
+            ></button>
+            <div
+                id="workspace-root-switcher-menu"
+                class="dropdown-menu workspace-root-switcher-menu ws-root-dropdown p-0 shadow-sm"
+                role="menu"
+                aria-labelledby="workspace-linked-project-pill"
+            >
+                <div class="workspace-root-switcher-title" id="workspace-root-switcher-title">WORKSPACE ROOT</div>
+                <div class="workspace-root-switcher-list ws-root-list" id="workspace-root-switcher-list" role="menu"></div>
+            </div>
+        </div>
+    </div>
+    <div class="toolbar-actions" id="toolbar-actions">
+        <div class="badge bg-secondary-subtle text-secondary-emphasis" id="status-pill">Saved/Idle</div>
+        <div class="toolbar-expanded d-flex align-items-center gap-2 flex-wrap" id="toolbar-expanded">
+            <button class="btn btn-primary" id="action-new-folder" type="button" data-bs-toggle="modal" data-bs-target="#modal-folder">New Folder</button>
+            <button class="btn btn-outline-primary" id="action-new-file" type="button" data-bs-toggle="modal" data-bs-target="#modal-file">New File</button>
+            <button class="btn btn-outline-primary" id="header-add-note-workspace" type="button">Add note</button>
+            <div class="btn-group" id="pdf-tools-group">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    PDF Tools
+                </button>
+                <ul class="dropdown-menu">
+                    <li><button class="dropdown-item" type="button" data-pdf-action="merge">Merge PDFs</button></li>
+                    <li><button class="dropdown-item" type="button" data-pdf-action="merge-images">Merge images into PDF</button></li>
+                    <li><button class="dropdown-item" type="button" data-pdf-action="extract">Extract Pages to New PDF</button></li>
+                </ul>
+            </div>
+            <button class="btn btn-outline-secondary" id="action-capture" type="button">Capture</button>
+            <button class="btn btn-outline-secondary" id="action-greenshot" type="button">Greenshot</button>
+            <button class="btn btn-outline-secondary" id="action-import" type="button">Import Structure</button>
+            <button class="btn btn-outline-secondary" id="action-rename" type="button">Rename</button>
+            <button class="btn btn-outline-danger" id="action-delete" type="button">Delete</button>
+        </div>
+        <div class="toolbar-compact d-none align-items-center gap-2 flex-wrap" id="toolbar-compact">
+            <div class="btn-group" role="group" aria-label="Create items">
+                <button class="btn btn-primary" type="button" data-toolbar-action="new-folder">New</button>
+                <button class="btn btn-primary dropdown-toggle dropdown-toggle-split" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="visually-hidden">Toggle create menu</span>
+                </button>
+                <ul class="dropdown-menu">
+                    <li><button class="dropdown-item" type="button" data-toolbar-action="new-folder">New folder</button></li>
+                    <li><button class="dropdown-item" type="button" data-toolbar-action="new-file">New file</button></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button class="dropdown-item" type="button" data-toolbar-action="import">Import structure</button></li>
+                </ul>
+            </div>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="compact-actions-toggle" data-bs-toggle="dropdown" aria-expanded="false">Quick actions</button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="compact-actions-toggle">
+                    <li><button class="dropdown-item" type="button" data-toolbar-action="merge">Merge PDFs</button></li>
+                    <li><button class="dropdown-item" type="button" data-toolbar-action="merge-images">Merge images into PDF</button></li>
+                    <li><button class="dropdown-item" type="button" data-toolbar-action="pdf-extract">Extract pages to PDF</button></li>
+                    <li><button class="dropdown-item" type="button" data-toolbar-action="capture">Capture screenshot</button></li>
+                    <li><button class="dropdown-item" type="button" data-toolbar-action="greenshot">Launch Greenshot</button></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button class="dropdown-item" type="button" data-toolbar-action="rename">Rename</button></li>
+                    <li><button class="dropdown-item" type="button" data-toolbar-action="delete">Delete</button></li>
+                </ul>
+            </div>
+        </div>
+        <div class="toolbar-shared gap-2" id="toolbar-shared">
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" id="layout-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Layout</button>
+                <div class="dropdown-menu dropdown-menu-end p-3" aria-labelledby="layout-toggle" id="layout-menu">
+                    <div class="form-check">
+                        <input class="form-check-input layout-toggle" type="checkbox" id="layout-tree" data-pane="tree" checked>
+                        <label class="form-check-label" for="layout-tree">Folders pane</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input layout-toggle" type="checkbox" id="layout-list" data-pane="list" checked>
+                        <label class="form-check-label" for="layout-list">Files pane</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input layout-toggle" type="checkbox" id="layout-preview" data-pane="preview" checked>
+                        <label class="form-check-label" for="layout-preview">Preview pane</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block content %}
+<div id="app" class="app-shell card shadow-sm" data-root="{{ root }}" data-portable="{{ 'true' if portable_mode else 'false' }}">
+    <div class="card-body py-2 px-0">
+        <div class="row g-0 flex-lg-nowrap app-panels">
+            <div class="col-12 col-lg-3 border-end position-relative pane" id="tree-pane">
+                <div class="pane-toolbar d-flex align-items-center px-3 pt-2 pb-2 border-bottom">
+                    <h2 class="h6 mb-0">Folders</h2>
+                </div>
+                <div id="folder-tree" class="list-group list-group-flush border-top" role="tree" aria-label="Folder tree"></div>
+                <div class="pane-resize-handle" data-pane="tree" role="separator" aria-orientation="vertical" tabindex="0"></div>
+            </div>
+            <div class="col-12 col-lg-5 border-end position-relative pane" id="list-pane">
+                <div class="pane-toolbar px-3 pt-2 pb-2 border-bottom list-pane-toolbar d-flex align-items-center gap-3 flex-wrap">
+                    <div class="d-flex align-items-center gap-2 flex-wrap list-pane-toolbar-title flex-grow-1">
+                        <h2 class="h6 mb-0 text-truncate" id="list-pane-title">Files in <span id="current-folder-label" class="fw-semibold text-body-emphasis" aria-live="polite">Root</span></h2>
+                    </div>
+                    <div class="btn-group btn-group-sm list-pane-toolbar-controls" role="group" aria-label="View mode">
+                        <button class="btn btn-outline-secondary active" id="view-mode-list" data-view="list" type="button">List</button>
+                        <button class="btn btn-outline-secondary" id="view-mode-grid" data-view="grid" type="button">Grid</button>
+                    </div>
+                    <div class="dropdown ms-auto list-actions-menu">
+                        <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" type="button" id="list-actions-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span>Actions</span>
+                            <svg class="toolbar-icon" viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
+                                <circle cx="5" cy="12" r="1.5" />
+                                <circle cx="12" cy="12" r="1.5" />
+                                <circle cx="19" cy="12" r="1.5" />
+                            </svg>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end p-3 shadow-sm" aria-labelledby="list-actions-toggle">
+                            <div class="form-check form-switch categorize-toggle mb-3">
+                                <input class="form-check-input" type="checkbox" id="categorize-toggle">
+                                <label class="form-check-label" for="categorize-toggle">Categorize files</label>
+                            </div>
+                            <button class="btn btn-outline-secondary btn-sm w-100 mb-3" type="button" id="tag-mode-toggle">Show Tag Dots</button>
+                            <div class="dropdown-divider"></div>
+                            <p class="text-muted text-uppercase small mb-2">Columns</p>
+                            <div class="column-menu-options" id="columns-menu">
+                                <div class="form-check column-menu-option">
+                                    <input class="form-check-input column-toggle" type="checkbox" id="column-type" data-column="type">
+                                    <label class="form-check-label" for="column-type">Type</label>
+                                </div>
+                                <div class="form-check column-menu-option">
+                                    <input class="form-check-input column-toggle" type="checkbox" id="column-size" data-column="size">
+                                    <label class="form-check-label" for="column-size">Size</label>
+                                </div>
+                                <div class="form-check column-menu-option">
+                                    <input class="form-check-input column-toggle" type="checkbox" id="column-created" data-column="created">
+                                    <label class="form-check-label" for="column-created">Creation date</label>
+                                </div>
+                                <div class="form-check column-menu-option">
+                                    <input class="form-check-input column-toggle" type="checkbox" id="column-modified" data-column="modified">
+                                    <label class="form-check-label" for="column-modified">Modification date</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive" id="list-view">
+                    <table class="table table-hover align-middle mb-0" id="file-table" role="grid">
+                        <thead class="table-light position-sticky top-0">
+                            <tr>
+                                <th scope="col" class="text-center column-select" style="width: 3rem;">
+                                    <input class="form-check-input" type="checkbox" id="select-all" aria-label="Select all files">
+                                </th>
+                                <th scope="col" class="text-nowrap sortable" data-sort="name" data-column="name" aria-sort="none">Name <span class="sort-indicator" aria-hidden="true"></span></th>
+                                <th scope="col" class="text-nowrap sortable" data-sort="type" data-column="type" aria-sort="none">Type <span class="sort-indicator" aria-hidden="true"></span></th>
+                                <th scope="col" class="text-nowrap text-end sortable" data-sort="size" data-column="size" aria-sort="none">Size <span class="sort-indicator" aria-hidden="true"></span></th>
+                                <th scope="col" class="text-nowrap sortable" data-sort="created" data-column="created" aria-sort="none">Created <span class="sort-indicator" aria-hidden="true"></span></th>
+                                <th scope="col" class="text-nowrap sortable" data-sort="modified" data-column="modified" aria-sort="none">Modified <span class="sort-indicator" aria-hidden="true"></span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="file-rows"></tbody>
+                    </table>
+                </div>
+                <div class="d-none" id="grid-view" aria-hidden="true">
+                    <div class="px-3 py-3" id="file-grid" role="list"></div>
+                </div>
+                <div class="drop-indicator" id="list-drop-indicator" role="status" aria-hidden="true">Drop items here</div>
+                <div class="pane-resize-handle" data-pane="list" role="separator" aria-orientation="vertical" tabindex="0"></div>
+            </div>
+            <div class="col-12 col-lg-4 position-relative pane" id="preview-pane">
+                <div class="pane-toolbar px-3 pt-2 pb-2 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <h2 class="h6 mb-0 d-flex align-items-center gap-2">
+                        <span>Preview</span>
+                        <span class="preview-file-label text-muted text-truncate" id="preview-file-label" aria-live="polite"></span>
+                    </h2>
+                    <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+                        <div class="btn-group btn-group-sm" id="preview-controls" role="group" aria-label="Preview controls"></div>
+                        <div class="btn-group btn-group-sm" id="preview-open-group" role="group" aria-label="Open file actions">
+                            <button class="btn btn-sm btn-outline-secondary" id="preview-open" type="button" disabled>Open file</button>
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split d-none" id="preview-open-dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open with Greenshot">
+                                <span class="visually-hidden">More open options</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end d-none" id="preview-open-dropdown">
+                                <li><button class="dropdown-item" type="button" id="preview-open-greenshot">Open in Greenshot</button></li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" id="preview-notes" type="button" disabled>Notes</button>
+                        <button class="btn btn-sm btn-outline-secondary" id="preview-fullscreen" type="button" disabled aria-label="Fullscreen preview">
+                            <span class="d-none d-lg-inline">Fullscreen</span>
+                            <span class="d-inline d-lg-none">Full</span>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" id="preview-metadata-toggle" type="button">Show details</button>
+                        <button class="btn btn-sm btn-outline-secondary" id="preview-close" type="button">Clear</button>
+                    </div>
+                </div>
+                <div class="p-3" id="preview-content"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+{% if use_minified_assets %}
+{% set main_js = 'dist/js/entrypoints/main.min.js' %}
+{% else %}
+{% set main_js = 'js/entrypoints/main.js' %}
+{% endif %}
+<script type="module" src="{{ url_for('static', filename=main_js) }}" defer></script>
+{% endblock %}

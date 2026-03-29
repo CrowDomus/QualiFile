@@ -1,0 +1,1 @@
+"""Linked notes feature utilities."""

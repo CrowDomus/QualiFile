@@ -1,0 +1,152 @@
+<div class="modal fade" id="modal-notes" tabindex="-1" aria-labelledby="modal-notes-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <p class="text-muted small mb-1" id="notes-target-path">Path</p>
+                    <h1 class="modal-title fs-5 d-flex align-items-center gap-2" id="modal-notes-label">
+                        <span id="notes-target-name">Notes</span>
+                        <span class="badge bg-danger-subtle text-danger-emphasis d-none" id="notes-priority-badge">High priority</span>
+                        <span class="badge bg-warning-subtle text-warning-emphasis d-none" id="notes-deadline-badge">Overdue</span>
+                    </h1>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="d-flex flex-column">
+                        <h3 class="h6 mb-0">Notes</h3>
+                        <small class="text-muted">Local to this folder/file.</small>
+                    </div>
+                    <button class="btn btn-primary btn-sm" type="button" id="notes-add-button">Add note</button>
+                </div>
+                <div class="mb-3">
+                    <h4 class="h6 mb-2">Open notes</h4>
+                    <div id="notes-open-list" class="notes-list"></div>
+                </div>
+                <div class="mt-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <button class="btn btn-link px-0" type="button" id="notes-closed-toggle" aria-expanded="false">Closed notes</button>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis" id="notes-closed-summary">No closed notes</span>
+                    </div>
+                    <div id="notes-closed-list" class="notes-list d-none mt-2"></div>
+                </div>
+                <p class="text-muted small mt-3 d-none" id="notes-empty">No notes yet. Add context or tasks for this item.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-note-create" tabindex="-1" aria-labelledby="modal-note-create-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" id="form-note-create">
+            <div class="modal-header">
+                <div>
+                    <p class="text-muted small mb-1" id="note-create-path">Path</p>
+                    <h1 class="modal-title fs-5" id="modal-note-create-label">Add note</h1>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="note-create-text">Note</label>
+                    <textarea class="form-control note-textarea" id="note-create-text" rows="8" placeholder="Capture tasks, decisions, or reminders" required></textarea>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="note-create-color-toggle">
+                        <label class="form-check-label" for="note-create-color-toggle">Custom background</label>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
+                        <input class="form-control form-control-color" type="color" id="note-create-color" value="#f3f4f6" title="Pick a background color for this note" disabled>
+                        <span class="form-text">Text color adjusts automatically for readability.</span>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label" for="note-create-deadline">Deadline (optional)</label>
+                        <input class="form-control" type="datetime-local" id="note-create-deadline">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="note-create-priority">Priority</label>
+                        <select class="form-select" id="note-create-priority">
+                            <option value="">None</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="note-create-status">Status</label>
+                        <select class="form-select" id="note-create-status">
+                            <option value="none">None</option>
+                            <option value="in_progress">In progress</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" type="submit">Add note</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-note-edit" tabindex="-1" aria-labelledby="modal-note-edit-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" id="form-note-edit">
+            <div class="modal-header">
+                <div>
+                    <p class="text-muted small mb-1" id="note-edit-path">Path</p>
+                    <h1 class="modal-title fs-5" id="modal-note-edit-label">Modify note</h1>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="note-edit-text">Note</label>
+                    <textarea class="form-control note-textarea" id="note-edit-text" rows="8" required></textarea>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="note-edit-color-toggle">
+                        <label class="form-check-label" for="note-edit-color-toggle">Custom background</label>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
+                        <input class="form-control form-control-color" type="color" id="note-edit-color" value="#f3f4f6" title="Pick a background color for this note" disabled>
+                        <span class="form-text">Text color adjusts automatically for readability.</span>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label" for="note-edit-deadline">Deadline (optional)</label>
+                        <input class="form-control" type="datetime-local" id="note-edit-deadline">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="note-edit-priority">Priority</label>
+                        <select class="form-select" id="note-edit-priority">
+                            <option value="">None</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="note-edit-status">Status</label>
+                        <select class="form-select" id="note-edit-status">
+                            <option value="none">None</option>
+                            <option value="in_progress">In progress</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" type="submit">Save changes</button>
+            </div>
+        </form>
+    </div>
+</div>

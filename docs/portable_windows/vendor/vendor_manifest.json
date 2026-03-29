@@ -1,0 +1,80 @@
+﻿{
+  "version": 1,
+  "files": [
+    {
+      "url": "https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js",
+      "dest": "app/static/vendor/prism/prism.min.js"
+    }
+  ],
+  "archives": [
+    {
+      "name": "bootstrap",
+      "version": "5.3.3",
+      "url": "https://registry.npmjs.org/bootstrap/-/bootstrap-5.3.3.tgz",
+      "extract": [
+        {
+          "source": "package/dist/css/bootstrap.min.css",
+          "dest": "app/static/vendor/bootstrap/bootstrap.min.css"
+        },
+        {
+          "source": "package/dist/js/bootstrap.bundle.min.js",
+          "dest": "app/static/vendor/bootstrap/bootstrap.bundle.min.js"
+        },
+        {
+          "source": "package/LICENSE",
+          "dest": "docs/portable_windows/licenses/bootstrap-LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "name": "prismjs",
+      "version": "1.29.0",
+      "url": "https://registry.npmjs.org/prismjs/-/prismjs-1.29.0.tgz",
+      "extract": [
+        {
+          "source": "package/plugins/autoloader/prism-autoloader.min.js",
+          "dest": "app/static/vendor/prism/plugins/autoloader/prism-autoloader.min.js"
+        },
+        {
+          "source": "package/components",
+          "dest": "app/static/vendor/prism/components",
+          "type": "dir"
+        },
+        {
+          "source": "package/LICENSE",
+          "dest": "docs/portable_windows/licenses/prismjs-LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "name": "html2canvas",
+      "version": "1.4.1",
+      "url": "https://registry.npmjs.org/html2canvas/-/html2canvas-1.4.1.tgz",
+      "extract": [
+        {
+          "source": "package/dist/html2canvas.esm.js",
+          "dest": "app/static/vendor/html2canvas/html2canvas.esm.js"
+        },
+        {
+          "source": "package/LICENSE",
+          "dest": "docs/portable_windows/licenses/html2canvas-LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "name": "konva",
+      "version": "9.3.1",
+      "url": "https://registry.npmjs.org/konva/-/konva-9.3.1.tgz",
+      "extract": [
+        {
+          "source": "package/konva.min.js",
+          "dest": "app/static/vendor/konva/konva.min.js"
+        },
+        {
+          "source": "package/LICENSE",
+          "dest": "docs/portable_windows/licenses/konva-LICENSE.txt"
+        }
+      ]
+    }
+  ]
+}

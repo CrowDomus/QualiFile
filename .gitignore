@@ -1,0 +1,14 @@
+# Generated assets and build outputs
+app/static/dist/
+app/static/vendor/
+dist/
+out/
+.tmp/
+
+# Local runtime state
+instance/
+
+# Local Python artifacts
+__pycache__/
+*.py[cod]
+venv_portable/

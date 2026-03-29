@@ -1,0 +1,80 @@
+<div class="modal fade" id="modal-capture" tabindex="-1" aria-labelledby="modal-capture-label" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="form-capture">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="modal-capture-label">Capture screenshot</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Choose what to capture. Rectangle mode supports on-screen selection with automatic fallback when the browser blocks desktop capture.</p>
+                <div class="list-group">
+                    <label class="list-group-item d-flex align-items-center gap-3">
+                        <input class="form-check-input" type="radio" name="capture-mode" value="rectangle">
+                        <span>
+                            <span class="fw-semibold d-block">Rectangle</span>
+                            <small class="text-muted">Capture a custom area. Works across monitors.</small>
+                        </span>
+                    </label>
+                    <label class="list-group-item d-flex align-items-center gap-3">
+                        <input class="form-check-input" type="radio" name="capture-mode" value="window">
+                        <span>
+                            <span class="fw-semibold d-block">Window</span>
+                            <small class="text-muted">Select an application window to capture.</small>
+                        </span>
+                    </label>
+                    <label class="list-group-item d-flex align-items-center gap-3">
+                        <input class="form-check-input" type="radio" name="capture-mode" value="screen">
+                        <span>
+                            <span class="fw-semibold d-block">Entire screen</span>
+                            <small class="text-muted">Capture a full monitor, including multi-screen setups.</small>
+                        </span>
+                    </label>
+                </div>
+                <div class="alert alert-info mt-3" role="status">
+                    Screenshots are saved in the active folder with a timestamped filename. Permissions are requested per capture.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-neutral" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Start capture</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-capture-details" tabindex="-1" aria-labelledby="modal-capture-details-label" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="form-capture-details">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="modal-capture-details-label">Save screenshot</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="capture-name">File name</label>
+                    <input class="form-control" type="text" id="capture-name" autocomplete="off">
+                    <div class="form-text">PNG extension is added automatically.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="capture-destination">Destination folder</label>
+                    <div class="input-group">
+                        <input class="form-control" type="text" id="capture-destination" readonly>
+                        <button class="btn btn-outline-secondary" type="button" data-folder-picker="capture-destination">Browse</button>
+                    </div>
+                    <div class="form-text">Defaults to the active folder.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Tags</label>
+                    <div class="capture-tag-list border rounded p-2" id="capture-tag-list" role="listbox" aria-label="Available tags">
+                        <p class="text-muted mb-0" id="capture-tag-empty">Create tags in Settings to organise screenshots.</p>
+                    </div>
+                    <div class="form-text">Selected tags are applied after the file is saved.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-neutral" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="capture-details-submit">Save screenshot</button>
+            </div>
+        </form>
+    </div>
+</div>
