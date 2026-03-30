@@ -1,24 +1,61 @@
-# QualiFile Production Source
+# QualiFile
 
-This repository contains the QualiFile application source plus the files required to create the Windows portable builds.
+QualiFile is a Flask application for managing a local file workspace with
+previews, metadata, validation flags, project tracking, and Windows portable
+packaging.
 
-## Run From Source
+## Features
+
+- Workspace explorer with folder navigation, filtering, sorting, and file operations
+- Preview support for text, code, images, PDFs, and Office documents
+- PDF and image utilities for merge, extraction, capture, and annotation flows
+- Notes, tags, sidecar metadata, and per-file validation tracking
+- Projects, linked roots, tasks/notes, timeline, reminders, and alerts
+- Git Sync Manager for project metadata export/import and repo actions
+
+## Requirements
+
+- Python 3.10 or newer for source runs
+- Source validated against Python 3.10 and 3.12 syntax
+- Windows is the primary platform, portable builds are Windows-only
+- Office previews require Windows, Microsoft Office, and `pywin32`
+
+## Install
 
 ```bash
-pip install -r requirements.txt
-flask --app run.py run
+python -m pip install -r requirements.txt
+python -m flask --app run.py --debug run
 ```
 
-## Build Portable Windows Packages
+Open `http://127.0.0.1:5000` and choose a workspace root.
+
+## Portable Builds
 
 ```bash
-pip install -r requirements/portable_build.txt
+python -m pip install -r requirements/portable_build.txt
 build_portable.bat
 build_portable_embedded.bat
 ```
 
-## Notes
+Portable builds bundle minified frontend assets, the user tutorial, and
+vendored offline web assets under `dist/`.
 
-- The portable build downloads the offline web assets declared in `docs/portable_windows/vendor/vendor_manifest.json` when they are not already present locally.
-- The in-app tutorial is served from `docs/user_tutorial/` and is bundled into the portable builds.
-- Portable outputs are generated under `dist/` and are not part of the repository.
+## Project Structure
+
+- `app/` Flask app, blueprints, feature modules, templates, and static assets
+- `docs/` tutorial assets, schema registry, portable notices, and third-party notices
+- `packaging/` Windows launchers and PyInstaller specs
+- `tools/` asset and portable build helpers
+- `requirements/` runtime and packaging dependency sets
+
+## License
+
+QualiFile is licensed under Business Source License 1.1. Personal and other
+non-production use is allowed before the Change Date. On `2030-03-29`, the
+license changes to Apache License 2.0.
+
+## Support
+
+QualiFile is currently maintained for personal use and is not accepting
+external contributions. Bug reports, questions, and feature requests should go
+through [GitHub Issues](https://github.com/CrowDomus/QualiFile/issues).

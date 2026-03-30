@@ -21,7 +21,7 @@ hiddenimports = collect_submodules("app")
 hiddenimports += collect_submodules("win32com")
 
 a = Analysis(
-    ["packaging/launchers/portable_server_embedded.py"],
+    [str(project_root / "packaging" / "launchers" / "portable_server_embedded.py")],
     pathex=[str(project_root)],
     binaries=[],
     datas=datas,

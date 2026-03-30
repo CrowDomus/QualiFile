@@ -203,6 +203,23 @@ def _normalize_profile_toggle(value: object) -> str:
     return "off"
 
 
+def _content_length_env(default: int = 100 * 1024 * 1024) -> int | None:
+    for key in ("QUALIFILE_MAX_CONTENT_LENGTH", "MAX_CONTENT_LENGTH"):
+        value = os.environ.get(key)
+        if value is None:
+            continue
+        raw = value.strip()
+        if not raw:
+            continue
+        try:
+            parsed = int(raw)
+        except ValueError:
+            continue
+        if parsed >= 0:
+            return parsed
+    return default
+
+
 def create_app(config: Mapping[str, Any] | None = None) -> Flask:
     """Create and configure the Flask application instance."""
 
@@ -239,7 +256,7 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
     )
 
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
-    app.config.setdefault("MAX_CONTENT_LENGTH", 100 * 1024 * 1024)
+    app.config["MAX_CONTENT_LENGTH"] = _content_length_env()
     app.config.setdefault("PORTABLE_MODE", _bool_env("QUALIFILE_PORTABLE", False))
     app.config.setdefault("USE_MINIFIED_ASSETS", use_minified_assets)
     app.config.setdefault("OFFLINE_ASSETS", _bool_env("QUALIFILE_OFFLINE_ASSETS", False))

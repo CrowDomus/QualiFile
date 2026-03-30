@@ -22,7 +22,7 @@ datas.append((str(licenses_dir), "licenses"))
 datas.append((str(tutorial_dir), "static/user_tutorial"))
 
 a = Analysis(
-    ["packaging/launchers/launcher.py"],
+    [str(project_root / "packaging" / "launchers" / "launcher.py")],
     pathex=[str(project_root)],
     binaries=[],
     datas=datas,

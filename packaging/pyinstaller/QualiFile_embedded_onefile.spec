@@ -17,7 +17,7 @@ datas = [
 ]
 
 a = Analysis(
-    ["packaging/launchers/launcher_embedded.py"],
+    [str(project_root / "packaging" / "launchers" / "launcher_embedded.py")],
     pathex=[str(project_root)],
     binaries=[],
     datas=datas,
