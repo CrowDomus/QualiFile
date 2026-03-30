@@ -1,0 +1,1 @@
+A Flask application for managing local file workspaces with previews, metadata validation, project tracking, and Windows portable packaging.
