@@ -13,6 +13,25 @@ packaging.
 - Projects, linked roots, tasks/notes, timeline, reminders, and alerts
 - Git Sync Manager for project metadata export/import and repo actions
 
+## Interface Preview
+
+QualiFile opens with a focused workspace selection flow, then expands into a
+project-centric dashboard for linked roots, tasks, notes, and timeline work.
+
+### Workspace Selection
+
+The first screen keeps setup minimal: choose the root folder QualiFile should
+manage and start working inside a contained local workspace.
+
+![Workspace selection](.github/assets/readme/workspace-selection.png)
+
+### Projects And Tasks Dashboard
+
+The projects view brings project tracking,
+status visibility, and task/note management into a single screen.
+
+![Projects and tasks dashboard](.github/assets/readme/projects-dashboard.png)
+
 ## Requirements
 
 - Python 3.10 or newer for source runs
