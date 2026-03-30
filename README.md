@@ -32,6 +32,9 @@ status visibility, and task/note management into a single screen.
 
 ![Projects and tasks dashboard](.github/assets/readme/projects-dashboard.png)
 
+- [Open screenshot 3](.github/assets/readme/sc3.png)
+- [Open screenshot 4](.github/assets/readme/sc4.png)
+
 ## Requirements
 
 - Python 3.10 or newer for source runs
