@@ -59,6 +59,11 @@ build_portable.bat
 build_portable_embedded.bat
 ```
 
+Download the packaged builds:
+
+- [QualiFile Portable](https://github.com/CrowDomus/QualiFile/releases/latest/download/QualiFile_Portable.zip)
+- [QualiFile Portable Embedded](https://github.com/CrowDomus/QualiFile/releases/latest/download/QualiFile_Portable_Embedded.zip)
+
 Portable builds bundle minified frontend assets, the user tutorial, and
 vendored offline web assets under `dist/`.
 
