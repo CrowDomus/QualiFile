@@ -1122,6 +1122,7 @@ function setupSettingsModal() {
     const includeProjectChildrenToggle = document.getElementById('settings-projects-include-children');
     const timelineOpenOnClickToggle = document.getElementById('settings-projects-timeline-open-on-click');
     const compactTaskPreviewToggle = document.getElementById('settings-projects-compact-task-preview');
+    const inlineComposerToggle = document.getElementById('settings-projects-inline-composer');
     const projectColorStyleSelect = document.getElementById('settings-projects-project-color-style');
     const timelineHierarchyLinksSelect = document.getElementById('settings-projects-timeline-hierarchy-links');
     const projectsNoteLinesInput = document.getElementById('settings-projects-note-lines');
@@ -1297,6 +1298,9 @@ function setupSettingsModal() {
                 compactTaskPreview: compactTaskPreviewToggle
                     ? !!compactTaskPreviewToggle.checked
                     : projects.compactTaskPreview !== false,
+                inlineComposerEnabled: inlineComposerToggle
+                    ? !!inlineComposerToggle.checked
+                    : !!projects.inlineComposerEnabled,
                 projectColorStyle: projectColorStyleSelect?.value || projects.projectColorStyle || 'pill',
                 timelineHierarchyLinkStyle:
                     timelineHierarchyLinksSelect?.value || projects.timelineHierarchyLinkStyle || 'hover',
@@ -1385,6 +1389,7 @@ function setupSettingsModal() {
                 nestedView: !!state.settings?.projects?.nestedView,
                 includeChildEntries: !!state.settings?.projects?.includeChildEntries,
                 compactTaskPreview: state.settings?.projects?.compactTaskPreview !== false,
+                inlineComposerEnabled: !!state.settings?.projects?.inlineComposerEnabled,
                 projectColorStyle: state.settings?.projects?.projectColorStyle || 'pill',
                 timelineHierarchyLinkStyle: state.settings?.projects?.timelineHierarchyLinkStyle || 'hover',
                 notePreviewLines: state.settings?.projects?.notePreviewLines ?? 1,
@@ -1439,6 +1444,7 @@ function setupSettingsModal() {
         settings.projects.includeChildEntries = snapshot.projects.includeChildEntries;
         settings.projects.timelineOpenTaskOnClick = snapshot.projects.timelineOpenTaskOnClick;
         settings.projects.compactTaskPreview = snapshot.projects.compactTaskPreview;
+        settings.projects.inlineComposerEnabled = snapshot.projects.inlineComposerEnabled;
         settings.projects.projectColorStyle = snapshot.projects.projectColorStyle;
         settings.projects.timelineHierarchyLinkStyle = snapshot.projects.timelineHierarchyLinkStyle;
         settings.projects.notePreviewLines = snapshot.projects.notePreviewLines;
@@ -1526,6 +1532,13 @@ function setupSettingsModal() {
             document.dispatchEvent(
                 new CustomEvent('qualifile:projects-compact-task-preview', {
                     detail: { enabled: snapshot.projects.compactTaskPreview },
+                }),
+            );
+        }
+        if (prev.projects.inlineComposerEnabled !== snapshot.projects.inlineComposerEnabled) {
+            document.dispatchEvent(
+                new CustomEvent('qualifile:projects-inline-composer', {
+                    detail: { enabled: snapshot.projects.inlineComposerEnabled },
                 }),
             );
         }
@@ -2182,6 +2195,9 @@ function focusSettingsSection(sectionId) {
         }
         if (compactTaskPreviewToggle) {
             compactTaskPreviewToggle.checked = state.settings.projects?.compactTaskPreview !== false;
+        }
+        if (inlineComposerToggle) {
+            inlineComposerToggle.checked = Boolean(state.settings.projects?.inlineComposerEnabled);
         }
         if (projectColorStyleSelect) {
             projectColorStyleSelect.value = state.settings.projects?.projectColorStyle || 'pill';

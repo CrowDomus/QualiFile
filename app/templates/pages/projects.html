@@ -226,6 +226,67 @@
                     </div>
                 </div>
                 <div class="projects-preview-list d-none" id="projects-preview-list"></div>
+                <form class="project-inline-composer d-none" id="project-inline-composer" novalidate aria-labelledby="project-inline-composer-title">
+                    <div class="project-inline-composer__header">
+                        <div class="project-inline-composer__heading">
+                            <h3 class="h6 mb-0" id="project-inline-composer-title">New entry</h3>
+                            <p class="text-muted small mb-0 text-truncate" id="project-inline-composer-context"></p>
+                        </div>
+                        <button type="button" class="btn-close" id="project-inline-composer-close" aria-label="Cancel inline composer"></button>
+                    </div>
+                    <div class="alert alert-danger d-none py-2 px-3 project-inline-composer__error" id="project-inline-composer-error" role="alert" aria-live="assertive"></div>
+                    <div class="project-inline-composer__body">
+                        <div class="row g-2">
+                            <div class="col-12 col-md-4">
+                                <label class="form-label form-label-sm" for="project-inline-entry-mode">Entry type</label>
+                                <select class="form-select form-select-sm" id="project-inline-entry-mode">
+                                    <option value="note">Note</option>
+                                    <option value="task">Task</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-8 d-none" id="project-inline-entry-title-wrap">
+                                <label class="form-label form-label-sm" for="project-inline-entry-title-input">Title <span class="text-danger">*</span></label>
+                                <input class="form-control form-control-sm" type="text" id="project-inline-entry-title-input" maxlength="200" placeholder="Required task title">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label form-label-sm" for="project-inline-entry-text">Description</label>
+                                <textarea class="form-control form-control-sm" id="project-inline-entry-text" rows="3" maxlength="4000" aria-describedby="project-inline-entry-text-help"></textarea>
+                                <div class="form-text" id="project-inline-entry-text-help">Notes require content. Tasks can use this for details.</div>
+                            </div>
+                        </div>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-6 col-md-3">
+                                <label class="form-label form-label-sm" for="project-inline-entry-priority">Priority</label>
+                                <select class="form-select form-select-sm" id="project-inline-entry-priority">
+                                    <option value="">None</option>
+                                    <option value="high">High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-3" id="project-inline-entry-status-wrap">
+                                <label class="form-label form-label-sm" for="project-inline-entry-status">Status</label>
+                                <select class="form-select form-select-sm" id="project-inline-entry-status">
+                                    <option value="none">None</option>
+                                    <option value="in_progress">In progress</option>
+                                    <option value="closed">Closed</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-3" id="project-inline-entry-start-wrap">
+                                <label class="form-label form-label-sm" for="project-inline-entry-start">Start date</label>
+                                <input class="form-control form-control-sm" type="date" id="project-inline-entry-start">
+                            </div>
+                            <div class="col-6 col-md-3" id="project-inline-entry-end-wrap">
+                                <label class="form-label form-label-sm" for="project-inline-entry-end">End date</label>
+                                <input class="form-control form-control-sm" type="date" id="project-inline-entry-end">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="project-inline-composer__actions">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="project-inline-entry-cancel">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm" id="project-inline-entry-save">Save</button>
+                    </div>
+                </form>
                 <div id="projects-aux-right-host" class="d-none"></div>
             </div>
         </div>
@@ -765,6 +826,39 @@
 }
 .project-entry-modal small.form-text {
     color: var(--bs-secondary-color);
+}
+.project-inline-composer {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    background: var(--bs-body-bg);
+    padding: 0.75rem;
+    box-shadow: var(--bs-box-shadow-sm);
+}
+.project-inline-composer__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+.project-inline-composer__heading {
+    min-width: 0;
+}
+.project-inline-composer__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+}
+.project-inline-composer__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+.project-inline-composer__error {
+    margin: 0.75rem 0 0;
 }
 .project-entry-color {
     width: 2rem;

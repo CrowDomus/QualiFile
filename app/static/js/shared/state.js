@@ -376,6 +376,7 @@ export const state = {
             const timelineShowBarLabels = !!raw.timelineShowBarLabels;
             const timelineHighlightRows = !!raw.timelineHighlightRows;
             const timelineOpenTaskOnClick = !!raw.timelineOpenTaskOnClick;
+            const inlineComposerEnabled = !!raw.inlineComposerEnabled;
             const timelineHierarchyLinkStyle = (() => {
                 const allowed = new Set(['hover', 'bracket', 'none']);
                 const candidate =
@@ -406,6 +407,7 @@ export const state = {
                 timelineShowBarLabels,
                 timelineHighlightRows,
                 timelineOpenTaskOnClick,
+                inlineComposerEnabled,
                 timelineHierarchyLinkStyle,
             };
         })(),

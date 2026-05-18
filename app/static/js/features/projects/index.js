@@ -153,6 +153,25 @@ const previewList = document.getElementById('projects-preview-list');
 const previewPlaceholder = document.getElementById('projects-preview-placeholder');
 const previewLoading = document.getElementById('projects-preview-loading');
 const previewError = document.getElementById('projects-preview-error');
+const inlineComposer = document.getElementById('project-inline-composer');
+const inlineComposerTitle = document.getElementById('project-inline-composer-title');
+const inlineComposerContext = document.getElementById('project-inline-composer-context');
+const inlineComposerError = document.getElementById('project-inline-composer-error');
+const inlineComposerClose = document.getElementById('project-inline-composer-close');
+const inlineModeSelect = document.getElementById('project-inline-entry-mode');
+const inlineTitleWrap = document.getElementById('project-inline-entry-title-wrap');
+const inlineTitleInput = document.getElementById('project-inline-entry-title-input');
+const inlineText = document.getElementById('project-inline-entry-text');
+const inlineTextHelp = document.getElementById('project-inline-entry-text-help');
+const inlinePriority = document.getElementById('project-inline-entry-priority');
+const inlineStatusWrap = document.getElementById('project-inline-entry-status-wrap');
+const inlineStatus = document.getElementById('project-inline-entry-status');
+const inlineStartWrap = document.getElementById('project-inline-entry-start-wrap');
+const inlineStart = document.getElementById('project-inline-entry-start');
+const inlineEndWrap = document.getElementById('project-inline-entry-end-wrap');
+const inlineEnd = document.getElementById('project-inline-entry-end');
+const inlineCancelButton = document.getElementById('project-inline-entry-cancel');
+const inlineSaveButton = document.getElementById('project-inline-entry-save');
 const MIN_PROJECTS_WIDTH = 320;
 const MIN_PREVIEW_WIDTH = 280;
 const MIN_TIMELINE_HEIGHT = 220;
@@ -203,6 +222,10 @@ let contextMenu = null;
 let contextMenuList = null;
 let activeEntryProject = null;
 let activeEntryId = null;
+let inlineComposerProjectId = null;
+let inlineComposerMode = 'note';
+let inlineComposerSaving = false;
+let inlineComposerReturnFocus = null;
 let selectedProjects = new Set();
 let currentPreviewProjectId = null;
 let currentPreviewMode = 'task';
@@ -419,6 +442,9 @@ function getProjectSettings() {
     prefs.notePreviewLines = clampNotePreviewLines(prefs.notePreviewLines);
     if (typeof prefs.compactTaskPreview !== 'boolean') {
         prefs.compactTaskPreview = true;
+    }
+    if (typeof prefs.inlineComposerEnabled !== 'boolean') {
+        prefs.inlineComposerEnabled = false;
     }
     const allowedProjectColorStyles = new Set(['none', 'row', 'pill']);
     const colorStyle =
@@ -2596,6 +2622,242 @@ function renderPreviewContent() {
     renderPreviewContentForSelection(selectedIds, effectiveIds);
 }
 
+function normalizeInlineEntryMode(mode) {
+    return mode === 'note' ? 'note' : 'task';
+}
+
+function isInlineProjectComposerEnabled() {
+    return Boolean(getProjectSettings().inlineComposerEnabled);
+}
+
+function isInlineProjectComposerVisible() {
+    return Boolean(inlineComposer && !inlineComposer.classList.contains('d-none'));
+}
+
+function clearInlineComposerError() {
+    inlineComposerError?.classList.add('d-none');
+    if (inlineComposerError) inlineComposerError.textContent = '';
+    inlineTitleInput?.classList.remove('is-invalid');
+    inlineText?.classList.remove('is-invalid');
+    inlineStart?.classList.remove('is-invalid');
+    inlineEnd?.classList.remove('is-invalid');
+}
+
+function showInlineComposerError(message) {
+    if (!inlineComposerError) {
+        showToast(message || 'Unable to save entry.', true);
+        return;
+    }
+    inlineComposerError.textContent = message || 'Unable to save entry.';
+    inlineComposerError.classList.remove('d-none');
+}
+
+function setInlineComposerSaving(saving) {
+    inlineComposerSaving = !!saving;
+    if (inlineSaveButton) {
+        inlineSaveButton.disabled = inlineComposerSaving;
+        inlineSaveButton.textContent = inlineComposerSaving ? 'Saving...' : 'Save';
+    }
+    inlineCancelButton?.toggleAttribute('disabled', inlineComposerSaving);
+    inlineComposerClose?.toggleAttribute('disabled', inlineComposerSaving);
+}
+
+function syncInlineComposerMode(mode) {
+    const normalized = normalizeInlineEntryMode(mode);
+    inlineComposerMode = normalized;
+    if (inlineModeSelect && inlineModeSelect.value !== normalized) {
+        inlineModeSelect.value = normalized;
+    }
+    const isTask = normalized === 'task';
+    inlineTitleWrap?.classList.toggle('d-none', !isTask);
+    inlineStatusWrap?.classList.toggle('d-none', !isTask);
+    inlineStartWrap?.classList.toggle('d-none', !isTask);
+    inlineEndWrap?.classList.toggle('d-none', !isTask);
+    if (inlineTitleInput) {
+        inlineTitleInput.required = isTask;
+    }
+    if (inlineText) {
+        inlineText.rows = isTask ? 3 : 4;
+        inlineText.placeholder = isTask ? 'Optional task details' : 'Required note text';
+    }
+    if (inlineTextHelp) {
+        inlineTextHelp.textContent = isTask
+            ? 'Optional for tasks.'
+            : 'Required for notes.';
+    }
+    if (inlineComposerTitle) {
+        inlineComposerTitle.textContent = isTask ? 'New task' : 'New note';
+    }
+}
+
+function resetInlineComposerFields(mode = inlineComposerMode) {
+    if (inlineTitleInput) inlineTitleInput.value = '';
+    if (inlineText) inlineText.value = '';
+    if (inlinePriority) inlinePriority.value = '';
+    if (inlineStatus) inlineStatus.value = 'none';
+    if (inlineStart) inlineStart.value = '';
+    if (inlineEnd) inlineEnd.value = '';
+    clearInlineComposerError();
+    setInlineComposerSaving(false);
+    syncInlineComposerMode(mode);
+}
+
+function focusInlineComposer() {
+    const target = inlineComposerMode === 'task' ? inlineTitleInput : inlineText;
+    setTimeout(() => target?.focus(), 0);
+}
+
+function ensurePreviewPaneForInlineComposer(mode) {
+    if (getAuxPlacement() === 'hidden') {
+        setAuxPlacement('right');
+    }
+    if (getAuxTab() !== 'tasks') {
+        setAuxTab('tasks');
+    }
+    const normalized = normalizeInlineEntryMode(mode);
+    if (currentPreviewMode !== normalized) {
+        setPreviewMode(normalized);
+    }
+}
+
+function selectProjectForInlineComposer(project) {
+    if (!project?.id) return;
+    const selectedIds = getSelectedProjectIdsForPreview();
+    if (selectedIds.length === 1 && selectedIds[0] === project.id) {
+        lastSelectedProjectId = project.id;
+        return;
+    }
+    selectedProjects.clear();
+    selectedProjects.add(project.id);
+    lastSelectedProjectId = project.id;
+    renderProjects();
+    updateSelectAllCheckbox();
+    updatePreviewSelection();
+}
+
+function showInlineProjectComposer(project, mode, { sourceElement = null } = {}) {
+    if (!project || !inlineComposer) {
+        openEntryModalForProject(project, mode);
+        return;
+    }
+    const normalized = normalizeInlineEntryMode(mode);
+    inlineComposerProjectId = project.id;
+    inlineComposerReturnFocus = sourceElement || document.activeElement || null;
+    selectProjectForInlineComposer(project);
+    ensurePreviewPaneForInlineComposer(normalized);
+    resetInlineComposerFields(normalized);
+    if (inlineComposerContext) {
+        inlineComposerContext.textContent = project.name || project.id || '';
+    }
+    inlineComposer.classList.remove('d-none');
+    inlineComposer.setAttribute('aria-hidden', 'false');
+    inlineComposer.scrollIntoView({ block: 'nearest' });
+    focusInlineComposer();
+}
+
+function hideInlineProjectComposer({ reset = true, restoreFocus = false } = {}) {
+    if (!inlineComposer) return;
+    inlineComposer.classList.add('d-none');
+    inlineComposer.setAttribute('aria-hidden', 'true');
+    inlineComposerProjectId = null;
+    setInlineComposerSaving(false);
+    if (reset) {
+        resetInlineComposerFields(inlineComposerMode);
+    }
+    if (restoreFocus && inlineComposerReturnFocus && typeof inlineComposerReturnFocus.focus === 'function') {
+        inlineComposerReturnFocus.focus({ preventScroll: true });
+    }
+    inlineComposerReturnFocus = null;
+}
+
+function syncInlineComposerForSelection(selectedIds) {
+    if (!isInlineProjectComposerVisible()) return;
+    const activeId = getActivePreviewProjectId();
+    if (selectedIds.length !== 1 || !activeId || activeId !== inlineComposerProjectId) {
+        hideInlineProjectComposer({ restoreFocus: false });
+    }
+}
+
+function buildInlineEntryPayload(project = null) {
+    const mode = normalizeInlineEntryMode(inlineModeSelect?.value || inlineComposerMode);
+    const text = inlineText?.value?.trim() || '';
+    const projectColor = normalizeHexColor(project?.color);
+    clearInlineComposerError();
+    if (mode === 'note' && !text) {
+        inlineText?.classList.add('is-invalid');
+        return { ok: false, message: 'Description is required.' };
+    }
+    const payload = {
+        type: mode,
+        text,
+        priority: inlinePriority?.value || null,
+        color: projectColor || null,
+    };
+    if (mode === 'task') {
+        const title = inlineTitleInput?.value?.trim() || '';
+        if (!title) {
+            inlineTitleInput?.classList.add('is-invalid');
+            return { ok: false, message: 'Title is required for tasks.' };
+        }
+        if (title.length > 200) {
+            inlineTitleInput?.classList.add('is-invalid');
+            return { ok: false, message: 'Task title must be 200 characters or fewer.' };
+        }
+        const startValue = inlineStart?.value || '';
+        const endValue = inlineEnd?.value || '';
+        if (startValue && endValue && new Date(endValue) < new Date(startValue)) {
+            inlineStart?.classList.add('is-invalid');
+            inlineEnd?.classList.add('is-invalid');
+            return { ok: false, message: 'End date cannot be earlier than start date.' };
+        }
+        payload.title = title;
+        payload.status = inlineStatus?.value || 'none';
+        payload.start_date = startValue || null;
+        payload.end_date = endValue || null;
+    } else {
+        payload.parent_project_id = null;
+        payload.parent_task_id = null;
+    }
+    return { ok: true, mode, payload };
+}
+
+async function handleInlineComposerSubmit(event) {
+    event.preventDefault();
+    if (inlineComposerSaving) return;
+    const project = inlineComposerProjectId ? projectById(inlineComposerProjectId) : null;
+    if (!project) {
+        showInlineComposerError('Select a project before saving.');
+        return;
+    }
+    const result = buildInlineEntryPayload(project);
+    if (!result.ok) {
+        showInlineComposerError(result.message);
+        return;
+    }
+    setInlineComposerSaving(true);
+    try {
+        await createProjectEntry(project.id, result.payload);
+        await refreshPreviewForCurrentSelection([project.id], true);
+        showToast(result.mode === 'task' ? 'Task created.' : 'Note created.');
+        resetInlineComposerFields(result.mode);
+        inlineComposerProjectId = project.id;
+        focusInlineComposer();
+    } catch (error) {
+        showInlineComposerError(error?.message || 'Unable to save entry.');
+    } finally {
+        setInlineComposerSaving(false);
+    }
+}
+
+function routeProjectEntryCreate(project, mode, sourceElement = null) {
+    const normalized = normalizeInlineEntryMode(mode);
+    if (isInlineProjectComposerEnabled()) {
+        showInlineProjectComposer(project, normalized, { sourceElement });
+        return;
+    }
+    openEntryModalForProject(project, normalized);
+}
+
 function openEntryModalForEntry(projectId, entry, type) {
     const project = projectById(projectId);
     if (!project) return;
@@ -2949,10 +3211,14 @@ function updatePreviewSelection() {
         renderTimelineProjectOptions();
         refreshTimeline();
     }
-    if (!isPreviewVisible()) return;
+    if (!isPreviewVisible()) {
+        hideInlineProjectComposer({ restoreFocus: false });
+        return;
+    }
     const effectiveIds = getEffectivePreviewProjectIds(selectedIds);
     const prevIds = new Set(previousPreviewScopeIds);
     currentPreviewProjectId = getActivePreviewProjectId();
+    syncInlineComposerForSelection(selectedIds);
     const settings = getProjectSettings();
     currentPreviewMode = settings.previewMode || currentPreviewMode;
     showArchivedTasks = !!settings.showArchivedTasks;
@@ -3793,13 +4059,43 @@ function setupPreviewControls() {
         applyPreviewHeaderForSelection(ids);
         renderPreviewContentForSelection(ids);
     });
-    previewNewButton?.addEventListener('click', () => {
+    previewNewButton?.addEventListener('click', (event) => {
         const projectId = getActivePreviewProjectId();
         const project = projectId ? projectById(projectId) : null;
         if (!project) return;
-        openEntryModalForEntry(project.id, null, currentPreviewMode);
+        routeProjectEntryCreate(project, currentPreviewMode, event.currentTarget);
     });
     setupPreviewFilters();
+}
+
+function setupInlineComposer() {
+    if (!inlineComposer) return;
+    inlineComposer.setAttribute('aria-hidden', 'true');
+    inlineModeSelect?.addEventListener('change', () => {
+        const mode = normalizeInlineEntryMode(inlineModeSelect.value);
+        syncInlineComposerMode(mode);
+        setPreviewMode(mode);
+        clearInlineComposerError();
+        focusInlineComposer();
+    });
+    inlineTitleInput?.addEventListener('input', clearInlineComposerError);
+    inlineText?.addEventListener('input', clearInlineComposerError);
+    inlineStart?.addEventListener('change', clearInlineComposerError);
+    inlineEnd?.addEventListener('change', clearInlineComposerError);
+    inlineCancelButton?.addEventListener('click', () => {
+        hideInlineProjectComposer({ restoreFocus: true });
+    });
+    inlineComposerClose?.addEventListener('click', () => {
+        hideInlineProjectComposer({ restoreFocus: true });
+    });
+    inlineComposer.addEventListener('submit', (event) => {
+        void handleInlineComposerSubmit(event);
+    });
+    inlineComposer.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape' || inlineComposerSaving) return;
+        event.preventDefault();
+        hideInlineProjectComposer({ restoreFocus: true });
+    });
 }
 
 function setupNotesSectionCollapsers() {
@@ -3839,7 +4135,7 @@ function handleHeaderAddNote() {
     }
     const project = projectById(selectedIds[0]);
     if (!project) return;
-    openEntryModalForProject(project, 'note');
+    routeProjectEntryCreate(project, 'note', document.getElementById('header-add-note-projects'));
 }
 
 function setupHeaderAddNote() {
@@ -3963,6 +4259,15 @@ function setupPreviewSettingsSync() {
     document.addEventListener('qualifile:projects-compact-task-preview', () => {
         if (currentPreviewMode === 'task') {
             renderPreviewContent();
+        }
+    });
+    document.addEventListener('qualifile:projects-inline-composer', (event) => {
+        const enabled = Boolean(event?.detail?.enabled);
+        const settings = getProjectSettings();
+        settings.inlineComposerEnabled = enabled;
+        persistPreferences();
+        if (!enabled) {
+            hideInlineProjectComposer({ restoreFocus: false });
         }
     });
     document.addEventListener('qualifile:projects-include-children', (event) => {
@@ -4787,11 +5092,11 @@ function buildProjectRowMenu(project) {
     });
     items.push({
         label: 'Add Task',
-        action: () => openEntryModalForProject(project, 'task'),
+        action: () => routeProjectEntryCreate(project, 'task'),
     });
     items.push({
         label: 'Add Note',
-        action: () => openEntryModalForProject(project, 'note'),
+        action: () => routeProjectEntryCreate(project, 'note'),
     });
     if (hasRoot) {
         items.push({
@@ -5307,6 +5612,7 @@ function init() {
     setupTimelineHierarchyControls();
     setupColumnSelector();
     setupPreviewControls();
+    setupInlineComposer();
     setupNotesSectionCollapsers();
     setupHeaderAddNote();
     updateHierarchyControls(getSelectedProjectIdsForPreview().length);

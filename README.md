@@ -10,7 +10,7 @@ packaging.
 - Preview support for text, code, images, PDFs, and Office documents
 - PDF and image utilities for merge, extraction, capture, and annotation flows
 - Notes, tags, sidecar metadata, and per-file validation tracking
-- Projects, linked roots, tasks/notes, timeline, reminders, and alerts
+- Projects, linked roots, tasks/notes, timeline, reminders, alerts, and opt-in inline entry composition
 - Git Sync Manager for project metadata export/import and repo actions
 
 ## Interface Preview
@@ -59,7 +59,7 @@ build_portable.bat
 build_portable_embedded.bat
 ```
 
-Download the packaged builds:
+Download the packaged builds for the latest release:
 
 - [QualiFile Portable](https://github.com/CrowDomus/QualiFile/releases/latest/download/QualiFile_Portable.zip)
 - [QualiFile Portable Embedded](https://github.com/CrowDomus/QualiFile/releases/latest/download/QualiFile_Portable_Embedded.zip)

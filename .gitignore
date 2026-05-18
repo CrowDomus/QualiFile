@@ -9,6 +9,7 @@
 app/static/dist/
 app/static/vendor/
 dist/
+build/
 out/
 .tmp/
 
