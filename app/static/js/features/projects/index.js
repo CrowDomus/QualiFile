@@ -87,6 +87,7 @@ const columnsToggleButton = document.getElementById('projects-columns-toggle');
 const columnsToggleGroup = document.getElementById('projects-columns-group');
 const columnToggleInputs = document.querySelectorAll('[data-column-toggle]');
 const selectAllCheckbox = document.getElementById('projects-select-all');
+const showArchivedProjectsToggle = document.getElementById('projects-show-archived');
 const projectsLayout = document.getElementById('projects-layout');
 const projectsTop = document.getElementById('projects-top');
 const projectsPane = document.getElementById('projects-pane');
@@ -446,6 +447,9 @@ function getProjectSettings() {
     if (typeof prefs.inlineComposerEnabled !== 'boolean') {
         prefs.inlineComposerEnabled = false;
     }
+    if (typeof prefs.showArchivedProjects !== 'boolean') {
+        prefs.showArchivedProjects = false;
+    }
     const allowedProjectColorStyles = new Set(['none', 'row', 'pill']);
     const colorStyle =
         typeof prefs.projectColorStyle === 'string' ? prefs.projectColorStyle.toLowerCase() : '';
@@ -745,10 +749,20 @@ function compareTasksByDate(a, b) {
     return aVal - bVal;
 }
 
-function buildProjectOrderNested() {
+function isProjectArchived(project) {
+    return project?.archived === true;
+}
+
+function getVisibleProjects() {
+    return getProjectSettings().showArchivedProjects
+        ? projects
+        : projects.filter((project) => !isProjectArchived(project));
+}
+
+function buildProjectOrderNested(sourceProjects = projects) {
     const byId = new Map();
     const children = new Map();
-    projects.forEach((project) => {
+    sourceProjects.forEach((project) => {
         byId.set(project.id, project);
         const parentKey = project.parent_id || null;
         if (!children.has(parentKey)) {
@@ -768,7 +782,7 @@ function buildProjectOrderNested() {
             }
         });
     };
-    const roots = projects
+    const roots = sourceProjects
         .filter((project) => {
             if (!project.parent_id) return true;
             return !byId.has(project.parent_id);
@@ -816,9 +830,14 @@ function renderProjects() {
     }
     if (!tableBody) return;
     tableBody.innerHTML = '';
-    if (!projects.length) {
+    const visibleProjects = getVisibleProjects();
+    if (!projects.length || !visibleProjects.length) {
         if (emptyRow) {
             emptyRow.classList.remove('d-none');
+            const archivedCount = projects.filter((project) => isProjectArchived(project)).length;
+            emptyRow.querySelector('td').textContent = projects.length && archivedCount
+                ? 'No active projects. Enable Show archived projects to view archived projects.'
+                : 'No projects yet. Create one to link a root folder.';
             tableBody.appendChild(emptyRow);
         }
         applyProjectsLayout(null, columnPrefs, nested);
@@ -828,10 +847,11 @@ function renderProjects() {
     if (emptyRow) {
         emptyRow.classList.add('d-none');
     }
-    const rows = nested ? buildProjectOrderNested() : projects.map((project) => ({ project, depth: 0 }));
+    const rows = nested ? buildProjectOrderNested(visibleProjects) : visibleProjects.map((project) => ({ project, depth: 0 }));
     rows.forEach(({ project, depth }) => {
         const tr = document.createElement('tr');
         tr.dataset.projectId = project.id;
+        tr.classList.toggle('project-row--archived', isProjectArchived(project));
         const normalizedColor = normalizeHexColor(project.color);
         if (normalizedColor) {
             tr.dataset.projectColor = normalizedColor;
@@ -871,6 +891,12 @@ function renderProjects() {
             nameLabel.appendChild(pill);
         } else {
             nameLabel.textContent = project.name;
+        }
+        if (isProjectArchived(project)) {
+            const archivedBadge = document.createElement('span');
+            archivedBadge.className = 'badge text-bg-secondary project-archived-badge';
+            archivedBadge.textContent = 'Archived';
+            nameLabel.appendChild(archivedBadge);
         }
         nameBlock.appendChild(nameLabel);
         if (project.root_path && isDualMode && !columnPrefs.root) {
@@ -940,6 +966,7 @@ function renderProjects() {
                     <button class="btn btn-outline-secondary btn-sm rounded-pill project-action-menu-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More actions">...</button>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><button class="dropdown-item" type="button" data-action="edit">Edit</button></li>
+                        <li><button class="dropdown-item" type="button" data-action="${isProjectArchived(project) ? 'unarchive' : 'archive'}">${isProjectArchived(project) ? 'Unarchive project' : 'Archive project'}</button></li>
                         <li><button class="dropdown-item text-danger" type="button" data-action="delete">Delete</button></li>
                     </ul>
                 </div>
@@ -3269,21 +3296,25 @@ function clearProjectSelection() {
 
 function updateSelectAllCheckbox() {
     if (!selectAllCheckbox) return;
-    const total = Array.isArray(projects) ? projects.length : 0;
-    const selectedCount = Array.from(selectedProjects).filter((id) => projects.find((p) => p.id === id)).length;
-    if (!total) {
+    const visibleProjects = getVisibleProjects();
+    const visibleIds = new Set(visibleProjects.map((project) => project.id));
+    const selectedCount = Array.from(selectedProjects).filter((id) => visibleIds.has(id)).length;
+    if (!visibleProjects.length) {
         selectedProjects.clear();
         selectAllCheckbox.checked = false;
         selectAllCheckbox.indeterminate = false;
         return;
     }
-    selectAllCheckbox.checked = selectedCount === total;
-    selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < total;
+    selectAllCheckbox.checked = selectedCount === visibleProjects.length;
+    selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < visibleProjects.length;
 }
 
 function pruneSelectedProjects() {
-    const ids = new Set(projects.map((p) => p.id));
+    const ids = new Set(getVisibleProjects().map((p) => p.id));
     selectedProjects = new Set([...selectedProjects].filter((id) => ids.has(id)));
+    if (lastSelectedProjectId && !ids.has(lastSelectedProjectId)) {
+        lastSelectedProjectId = null;
+    }
     updateSelectAllCheckbox();
 }
 
@@ -3904,6 +3935,31 @@ async function deleteProject(projectId) {
     }
 }
 
+async function setProjectArchived(project, archived) {
+    if (!project?.id) return;
+    if (archived) {
+        const confirmed = await showConfirm('Archive this project? It will be hidden from the active list.');
+        if (!confirmed) return;
+    }
+    const action = archived ? 'archive' : 'unarchive';
+    try {
+        const updated = await requestJson(`/api/projects/${encodeURIComponent(project.id)}/${action}`, { method: 'POST' });
+        projects = projects.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
+        pruneSelectedProjects();
+        renderProjects();
+        renderTagImportSourceOptions({
+            excludeProjectId: editingId,
+            selectedSourceId: tagsImportSource?.value || '',
+        });
+        renderTimelineProjectOptions();
+        refreshTimeline();
+        updatePreviewSelection();
+        showToast(archived ? 'Project archived' : 'Project restored');
+    } catch (error) {
+        showToast(error?.message || (archived ? 'Unable to archive project.' : 'Unable to restore project.'), true);
+    }
+}
+
 async function activateProject(projectId, { redirectUrl = '/workspace' } = {}) {
     try {
         await requestJson(`/api/projects/${encodeURIComponent(projectId)}/activate`, { method: 'POST' });
@@ -3952,6 +4008,10 @@ async function handleTableClick(event) {
     const action = actionButton.dataset.action;
     if (action === 'edit') {
         fillForm(project);
+    } else if (action === 'archive') {
+        setProjectArchived(project, true);
+    } else if (action === 'unarchive') {
+        setProjectArchived(project, false);
     } else if (action === 'delete') {
         deleteProject(projectId);
     } else if (action === 'open') {
@@ -5110,6 +5170,10 @@ function buildProjectRowMenu(project) {
     });
     items.push('divider');
     items.push({
+        label: isProjectArchived(project) ? 'Unarchive Project' : 'Archive Project',
+        action: () => setProjectArchived(project, !isProjectArchived(project)),
+    });
+    items.push({
         label: 'Delete Project',
         danger: true,
         action: () => deleteProject(project.id),
@@ -5615,12 +5679,23 @@ function init() {
     setupInlineComposer();
     setupNotesSectionCollapsers();
     setupHeaderAddNote();
+    if (showArchivedProjectsToggle) {
+        showArchivedProjectsToggle.checked = !!settings.showArchivedProjects;
+        showArchivedProjectsToggle.addEventListener('change', () => {
+            const prefs = getProjectSettings();
+            prefs.showArchivedProjects = showArchivedProjectsToggle.checked;
+            persistPreferences();
+            pruneSelectedProjects();
+            renderProjects();
+            updatePreviewSelection();
+        });
+    }
     updateHierarchyControls(getSelectedProjectIdsForPreview().length);
     tableBody?.addEventListener('click', handleProjectRowClick);
     document.addEventListener('click', handleBackgroundDeselect);
     selectAllCheckbox?.addEventListener('change', () => {
         if (selectAllCheckbox.checked) {
-            projects.forEach((project) => selectedProjects.add(project.id));
+            getVisibleProjects().forEach((project) => selectedProjects.add(project.id));
         } else {
             selectedProjects.clear();
         }

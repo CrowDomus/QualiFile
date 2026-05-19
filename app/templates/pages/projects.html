@@ -88,6 +88,10 @@
                             </div>
                         </div>
                     </div>
+                    <div class="form-check form-switch small m-0 project-archive-toggle">
+                        <input class="form-check-input" type="checkbox" role="switch" id="projects-show-archived">
+                        <label class="form-check-label" for="projects-show-archived">Show archived projects</label>
+                    </div>
                     <button class="btn btn-primary btn-sm" type="button" id="action-new-project-secondary">New Project</button>
                 </div>
             </div>
@@ -250,7 +254,7 @@
                             </div>
                             <div class="col-12">
                                 <label class="form-label form-label-sm" for="project-inline-entry-text">Description</label>
-                                <textarea class="form-control form-control-sm" id="project-inline-entry-text" rows="3" maxlength="4000" aria-describedby="project-inline-entry-text-help"></textarea>
+                                <textarea class="form-control form-control-sm" id="project-inline-entry-text" rows="3" maxlength="4000" aria-describedby="project-inline-entry-text-help" data-note-formatting="conditional" data-note-formatting-mode-select="#project-inline-entry-mode" data-note-formatting-note-value="note"></textarea>
                                 <div class="form-text" id="project-inline-entry-text-help">Notes require content. Tasks can use this for details.</div>
                             </div>
                         </div>
@@ -526,7 +530,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="project-entry-text">Description</label>
-                    <textarea class="form-control" id="project-entry-text" rows="3" maxlength="4000" placeholder="Optional"></textarea>
+                    <textarea class="form-control" id="project-entry-text" rows="3" maxlength="4000" placeholder="Optional" data-note-formatting="conditional" data-note-formatting-mode-select="#project-entry-mode" data-note-formatting-note-value="note"></textarea>
                     <div class="form-text">Optional for tasks. Notes still require content.</div>
                 </div>
                 <div class="row g-3">
@@ -809,6 +813,16 @@
 }
 #projects-table tr.project-row-colored .project-name-wrapper[data-depth]:not([data-depth="0"]) {
     border-left-color: color-mix(in srgb, var(--project-color, var(--bs-primary)) 65%, var(--bs-border-color));
+}
+#projects-table tr.project-row--archived td {
+    background-color: color-mix(in srgb, var(--bs-secondary-bg) 70%, var(--bs-body-bg));
+    color: var(--bs-secondary-color);
+}
+.project-archived-badge {
+    flex: 0 0 auto;
+}
+.project-archive-toggle {
+    white-space: nowrap;
 }
 .project-entry-alert {
     display: none;

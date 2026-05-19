@@ -24,7 +24,7 @@ schemas:
     title: SQLite persistence database
     kind: sqlite
     lifecycle: active
-    current_version: 5
+    current_version: 6
     version_field:
       type: schema_migrations_table
       table: schema_migrations
@@ -35,7 +35,8 @@ schemas:
         - "0003_index_schema"
         - "0004_user_profiles"
         - "0005_task_alert_state"
-      latest_id: "0005_task_alert_state"
+        - "0006_project_archive_state"
+      latest_id: "0006_project_archive_state"
     locations:
       - scope: data_dir
         pattern: ".qualifile_internal/qualifile.db"
@@ -61,9 +62,11 @@ schemas:
         description: "user profile tables"
       - id: "0005_task_alert_state"
         description: "task reminder alert state table"
+      - id: "0006_project_archive_state"
+        description: "project archive visibility state"
     privacy_class: P3
     notes:
-      - "Authoritative tables: roots, projects, entries, tag_definitions, profile_preferences, user_profiles, profile_portable_preferences, app_state, task_alert_state."
+      - "Authoritative tables: roots, projects (including archived/archived_at lifecycle fields), entries, tag_definitions, profile_preferences, user_profiles, profile_portable_preferences, app_state, task_alert_state."
       - "Derived tables: file_index, tag_index, entry_index."
       - "DB uses WAL and busy_timeout defaults from app/shared/db.py."
 

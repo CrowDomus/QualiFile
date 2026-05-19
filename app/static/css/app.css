@@ -3511,6 +3511,19 @@ main.container-fluid {
     max-height: 360px;
 }
 
+.note-format-toolbar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 0.35rem;
+}
+
+.note-format-toolbar__button {
+    min-width: 2rem;
+    padding-inline: 0.45rem;
+    line-height: 1.2;
+}
+
 #modal-note-create .note-textarea {
     max-height: 720px;
 }

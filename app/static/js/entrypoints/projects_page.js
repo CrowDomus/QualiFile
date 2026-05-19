@@ -7,6 +7,7 @@ import { initHeaderAddNoteProjects } from '../features/projects/header_add_note_
 import { initTaskAlertsHeader } from '../features/task_alerts/header_alert_icon.js';
 import { initModalStacking } from '../shared/modal_stack.js';
 import { initModalBackdropGuard } from '../shared/modal_backdrop_guard.js';
+import { initNoteFormattingToolbars } from '../features/notes/note_formatting_toolbar.js';
 
 async function bootstrap() {
     initModalStacking();
@@ -17,6 +18,7 @@ async function bootstrap() {
     initProfileController();
     initTaskAlertsHeader();
     await import('../features/projects/index.js');
+    initNoteFormattingToolbars();
     initHeaderAddNoteProjects();
 }
 

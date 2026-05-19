@@ -5,6 +5,7 @@ import { initTree, refreshTree, highlightTree, syncTreeSelection } from '../feat
 import { initList, loadList, getSelection, triggerRename, findItem, syncSelectionState } from '../shared/list.js';
 import { initModals, openMergeModal, openConflictDialog, openImportModal, openSettingsModal, openDeleteModal, openPdfExtractModal, openNoteCreateModal } from '../features/modals/modals.js';
 import { initHeaderAddNoteWorkspace } from '../features/notes/header_add_note_workspace.js';
+import { initNoteFormattingToolbars } from '../features/notes/note_formatting_toolbar.js';
 import { handleError, captureScreenshot, moveItems, copyItems, fetchFileUrl, launchGreenshot, assignTagsToPath } from '../shared/api.js';
 import { clearPreview, showPreview } from '../features/preview/preview.js';
 import { initContextMenu } from '../features/explorer/context_menu.js';
@@ -140,6 +141,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     initTaskAlertsHeader();
     initTheme();
     initModals();
+    initNoteFormattingToolbars();
     initHeaderAddNoteWorkspace();
     document.addEventListener('qualifile:workspace-add-note', (event) => {
         const detail = event.detail || {};

@@ -92,6 +92,23 @@ def _normalize_color(color: Optional[str]) -> Optional[str]:
     return f"#{text.lower()}"
 
 
+def _normalize_archived(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
+def _normalize_archived_at(value: object, archived: bool) -> Optional[str]:
+    if not archived:
+        return None
+    if value is None:
+        return _now()
+    text = str(value).strip()
+    return text or _now()
+
+
 @dataclass
 class Project:
     id: str
@@ -104,6 +121,8 @@ class Project:
     status: str = "new"
     color: Optional[str] = None
     entry_mode: str = "note"
+    archived: bool = False
+    archived_at: Optional[str] = None
 
     def as_dict(self) -> dict:
         return {
@@ -117,6 +136,8 @@ class Project:
             "status": self.status,
             "color": self.color,
             "entry_mode": self.entry_mode,
+            "archived": self.archived,
+            "archived_at": self.archived_at,
         }
 
 
@@ -187,6 +208,8 @@ class ProjectStore:
             status=cleaned_status,
             color=cleaned_color,
             entry_mode=cleaned_entry_mode,
+            archived=False,
+            archived_at=None,
         )
         self._state.setdefault("projects", []).append(project.as_dict())
         if persist:
@@ -204,6 +227,7 @@ class ProjectStore:
         status: Optional[str] = None,
         color: Optional[str] = None,
         entry_mode: Optional[str] = None,
+        archived: object = MISSING,
         persist: bool = True,
     ) -> dict:
         project = self._find(project_id)
@@ -219,6 +243,10 @@ class ProjectStore:
             project["color"] = _normalize_color(color)
         if entry_mode is not None:
             project["entry_mode"] = _normalize_entry_mode(entry_mode)
+        if archived is not MISSING:
+            archived_value = _normalize_archived(archived)
+            project["archived"] = archived_value
+            project["archived_at"] = _now() if archived_value else None
         if parent_id is not MISSING:
             cleaned_parent = _normalize_parent(parent_id)
             if cleaned_parent:
@@ -328,6 +356,11 @@ class ProjectStore:
                         "status": status_value,
                         "color": _normalize_color(entry.get("color")),
                         "entry_mode": _normalize_entry_mode(entry.get("entry_mode")),
+                        "archived": _normalize_archived(entry.get("archived", False)),
+                        "archived_at": _normalize_archived_at(
+                            entry.get("archived_at"),
+                            _normalize_archived(entry.get("archived", False)),
+                        ),
                     })
                     seen_ids.add(project_id)
                 except ValueError:

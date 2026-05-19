@@ -9,8 +9,8 @@ packaging.
 - Workspace explorer with folder navigation, filtering, sorting, and file operations
 - Preview support for text, code, images, PDFs, and Office documents
 - PDF and image utilities for merge, extraction, capture, and annotation flows
-- Notes, tags, sidecar metadata, and per-file validation tracking
-- Projects, linked roots, tasks/notes, timeline, reminders, alerts, and opt-in inline entry composition
+- Notes, tags, sidecar metadata, per-file validation tracking, and note formatting helpers
+- Projects, linked roots, tasks/notes, timeline, reminders, alerts, project archiving, and opt-in inline entry composition
 - Git Sync Manager for project metadata export/import and repo actions
 
 ## Interface Preview
@@ -59,10 +59,10 @@ build_portable.bat
 build_portable_embedded.bat
 ```
 
-Download the packaged builds for the latest release:
+Download the packaged builds for the `v1.2.0` release:
 
-- [QualiFile Portable](https://github.com/CrowDomus/QualiFile/releases/latest/download/QualiFile_Portable.zip)
-- [QualiFile Portable Embedded](https://github.com/CrowDomus/QualiFile/releases/latest/download/QualiFile_Portable_Embedded.zip)
+- [QualiFile Portable](https://github.com/CrowDomus/QualiFile/releases/download/v1.2.0/QualiFile_Portable.zip)
+- [QualiFile Portable Embedded](https://github.com/CrowDomus/QualiFile/releases/download/v1.2.0/QualiFile_Portable_Embedded.zip)
 
 Portable builds bundle minified frontend assets, the user tutorial, and
 vendored offline web assets under `dist/`.

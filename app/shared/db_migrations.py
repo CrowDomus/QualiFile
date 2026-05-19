@@ -196,6 +196,14 @@ MIGRATIONS: Sequence[Migration] = (
             ON task_alert_state (snooze_until);
         """,
     ),
+    Migration(
+        migration_id="0006_project_archive_state",
+        description="project archive visibility state",
+        sql="""
+        ALTER TABLE projects ADD COLUMN archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1));
+        ALTER TABLE projects ADD COLUMN archived_at TEXT;
+        """,
+    ),
 )
 
 

@@ -22,6 +22,8 @@ class ProjectDBStore:
             status,
             color,
             entry_mode,
+            archived,
+            archived_at,
         ) = row
         return {
             "id": project_id,
@@ -34,13 +36,15 @@ class ProjectDBStore:
             "status": status,
             "color": color,
             "entry_mode": entry_mode,
+            "archived": bool(archived),
+            "archived_at": archived_at,
         }
 
     def list_projects(self) -> List[dict]:
         rows = self._conn.execute(
             """
             SELECT project_id, name, description, parent_id, root_path, created_at, updated_at,
-                   status, color, entry_mode
+                   status, color, entry_mode, archived, archived_at
             FROM projects
             ORDER BY rowid ASC
             """
@@ -53,7 +57,7 @@ class ProjectDBStore:
         row = self._conn.execute(
             """
             SELECT project_id, name, description, parent_id, root_path, created_at, updated_at,
-                   status, color, entry_mode
+                   status, color, entry_mode, archived, archived_at
             FROM projects
             WHERE project_id = ?
             """,
@@ -69,9 +73,9 @@ class ProjectDBStore:
                 """
                 INSERT INTO projects (
                     project_id, root_id, name, description, parent_id, root_path,
-                    status, color, entry_mode, created_at, updated_at
+                    status, color, entry_mode, created_at, updated_at, archived, archived_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(project_id) DO UPDATE SET
                     root_id = excluded.root_id,
                     name = excluded.name,
@@ -82,7 +86,9 @@ class ProjectDBStore:
                     color = excluded.color,
                     entry_mode = excluded.entry_mode,
                     created_at = excluded.created_at,
-                    updated_at = excluded.updated_at
+                    updated_at = excluded.updated_at,
+                    archived = excluded.archived,
+                    archived_at = excluded.archived_at
                 """,
                 (
                     project.get("id"),
@@ -96,6 +102,8 @@ class ProjectDBStore:
                     project.get("entry_mode"),
                     project.get("created_at"),
                     project.get("updated_at"),
+                    1 if project.get("archived") is True else 0,
+                    project.get("archived_at"),
                 ),
             )
 

@@ -314,6 +314,8 @@ def api_projects() -> Response:
             "status": status,
             "color": color,
             "entry_mode": entry_mode,
+            "archived": False,
+            "archived_at": None,
         }
     except ValueError as exc:
         return jsonify({"error": str(exc), "code": "invalid"}), 400
@@ -399,6 +401,28 @@ def api_project_detail(project_id: str) -> Response:
     except ValueError as exc:
         return jsonify({"error": str(exc), "code": "invalid"}), 400
     return jsonify({"status": "deleted"})
+
+
+@api_bp.route("/projects/<project_id>/archive", methods=["POST"])
+@api_bp.route("/projects/<project_id>/unarchive", methods=["POST"])
+def api_project_archive_state(project_id: str) -> Response:
+    """Archive or restore a project without deleting related data."""
+
+    conn = get_db(current_app)
+    db_store = ProjectDBStore(conn)
+    try:
+        project = db_store.get_project(project_id)
+    except KeyError:
+        return jsonify({"error": "Project not found.", "code": "not-found"}), 404
+
+    archived = request.path.rsplit("/", 1)[-1] == "archive"
+    project["archived"] = archived
+    project["archived_at"] = _now() if archived else None
+    project["updated_at"] = _now()
+    payload = dict(project)
+    payload["root_id"] = ensure_root(conn, project.get("root_path"))
+    db_store.upsert_project(payload)
+    return jsonify(project)
 
 
 @api_bp.route("/projects/<project_id>/tags/import", methods=["POST"])
