@@ -1,177 +1,649 @@
-<div class="modal fade" id="modal-annotate" tabindex="-1" aria-labelledby="modal-annotate-label" aria-hidden="true">
-    <div class="modal-dialog modal-fullscreen">
-        <div class="modal-content annotate-modal">
-            <div class="annotate-header modal-header py-2">
-                <div class="annotate-header-left">
-                    <h1 class="modal-title fs-6 text-uppercase mb-0" id="modal-annotate-label">Annotate image</h1>
-                    <p class="mb-0 small text-muted" id="annotate-file-label"></p>
-                </div>
-                <div class="annotate-header-toolbar" role="toolbar" aria-label="Annotation controls">
-                    <div class="annotate-toolbar-group annotate-group-primary" aria-label="Canvas actions">
-                        <button class="annotate-icon-btn" type="button" id="annotate-action-undo" aria-label="Undo" disabled>
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <polyline points="9 6 5 10 9 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                                <path d="M5 10h8a5 5 0 1 1 0 10h-3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </button>
-                        <button class="annotate-icon-btn" type="button" id="annotate-action-redo" aria-label="Redo" disabled>
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <polyline points="15 6 19 10 15 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                                <path d="M19 10h-8a5 5 0 1 0 0 10h3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </button>
-                        <button class="annotate-icon-btn" type="button" id="annotate-action-delete" aria-label="Delete selection" disabled>
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M6 7h12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                                <path d="M10 7V5h4v2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                                <rect x="7" y="7" width="10" height="12" rx="1" ry="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
-                                <path d="M10 11v5M14 11v5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                            </svg>
-                        </button>
-                        <button class="annotate-icon-btn" type="button" id="annotate-action-reset" aria-label="Reset canvas">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M4 12a8 8 0 1 1 2.4 5.7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                                <polyline points="4 16 4 12 8 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </button>
-                        <button class="annotate-icon-btn annotate-accent" type="button" id="annotate-action-save" aria-label="Save annotations">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <rect x="6" y="5" width="12" height="14" rx="1" ry="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
-                                <path d="M14 5v5H10V5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                                <rect x="9" y="13" width="6" height="5" rx="1" ry="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="annotate-toolbar-spacer" aria-hidden="true"></div>
-                    <div class="annotate-toolbar-group" aria-label="Annotation tools">
-                        <button class="annotate-icon-btn active" type="button" data-annotate-tool="select" aria-pressed="true" title="Select">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M7 4l4.7 12.5 1.1-4.7 4.7-.6z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                            <span class="visually-hidden">Select</span>
-                        </button>
-                        <button class="annotate-icon-btn" type="button" data-annotate-tool="pan" aria-pressed="false" title="Pan">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M12 5v14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                                <path d="M12 5l-2 2m2-2l2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                                <path d="M12 19l-2-2m2 2l2-2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                                <path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                                <path d="M5 12l2-2m-2 2l2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                                <path d="M19 12l-2-2m2 2l-2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                            </svg>
-                            <span class="visually-hidden">Pan</span>
-                        </button>
-                        <button class="annotate-icon-btn" type="button" data-annotate-tool="highlight" aria-pressed="false" title="Highlight">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M6 17l4 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                                <path d="M8 14l8-8 4 4-8 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                                <path d="M5 19h6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                            </svg>
-                            <span class="visually-hidden">Highlight</span>
-                        </button>
-                        <button class="annotate-icon-btn" type="button" data-annotate-tool="rectangle" aria-pressed="false" title="Rectangle">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
-                            <span class="visually-hidden">Rectangle</span>
-                        </button>
-                        <button class="annotate-icon-btn" type="button" data-annotate-tool="circle" aria-pressed="false" title="Circle">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
-                            <span class="visually-hidden">Circle</span>
-                        </button>
-                        <button class="annotate-icon-btn" type="button" data-annotate-tool="line" aria-pressed="false" title="Line">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="6" y1="18" x2="18" y2="6" stroke="currentColor" stroke-width="1.4"/></svg>
-                            <span class="visually-hidden">Line</span>
-                        </button>
-                        <button class="annotate-icon-btn" type="button" data-annotate-tool="counter" aria-pressed="false" title="Counter">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.4"/>
-                                <text x="12" y="15" font-size="10" font-weight="600" text-anchor="middle" fill="currentColor">1</text>
-                            </svg>
-                            <span class="visually-hidden">Counter</span>
-                        </button>
-                    </div>
-                    <div class="annotate-toolbar-spacer" aria-hidden="true"></div>
-                    <div class="annotate-toolbar-group" aria-label="Brush settings">
-                        <label class="visually-hidden" for="annotate-stroke-color">Stroke color</label>
-                        <input class="annotate-color" type="color" id="annotate-stroke-color" value="#ff4f5e" title="Stroke color">
-                        <label class="visually-hidden" for="annotate-stroke-width">Stroke width</label>
-                        <input class="annotate-number" type="number" id="annotate-stroke-width" min="1" max="20" step="1" value="3" title="Stroke width (px)">
-                        <label class="visually-hidden" for="annotate-highlight-color">Highlight color</label>
-                        <input class="annotate-color" type="color" id="annotate-highlight-color" value="#ffee79" title="Highlight color">
-                        <label class="visually-hidden" for="annotate-highlight-opacity">Highlight opacity</label>
-                        <input class="annotate-opacity" type="range" id="annotate-highlight-opacity" min="0.1" max="0.95" step="0.05" value="0.35" title="Highlight opacity">
-                    </div>
-                    <div class="annotate-toolbar-spacer" aria-hidden="true"></div>
-                    <div class="annotate-toolbar-group" aria-label="Zoom controls">
-                        <button class="annotate-icon-btn" type="button" id="annotate-zoom-out" aria-label="Zoom out">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.4"/></svg>
-                        </button>
-                        <input class="annotate-zoom-header" type="range" id="annotate-zoom-slider" min="0.5" max="4" step="0.1" value="1" aria-label="Zoom level">
-                        <button class="annotate-icon-btn" type="button" id="annotate-zoom-in" aria-label="Zoom in">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.4"/><line x1="12" y1="7" x2="12" y2="17" stroke="currentColor" stroke-width="1.4"/></svg>
-                        </button>
-                        <button class="annotate-icon-btn" type="button" id="annotate-zoom-reset" aria-label="Reset zoom">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.4"/><polyline points="10 9 13 12 10 15" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
-                        </button>
-                    </div>
-                    <div class="annotate-toolbar-spacer d-none d-lg-inline-flex" aria-hidden="true"></div>
-                    <div class="annotate-toolbar-group annotate-group-status" aria-label="Canvas status">
-                        <span class="annotate-status text-muted small" id="annotate-status-message" aria-live="polite"></span>
-                    </div>
-                    <div class="annotate-toolbar-spacer" aria-hidden="true"></div>
-                </div>
-                <button class="annotate-icon-btn annotate-help-btn" type="button" aria-label="Keyboard help" title="Shortcuts: H highlight, I counter, L line, C circle, R rectangle">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.4"/>
-                        <path d="M12 8a2 2 0 0 1 2 2c0 1.5-2 1.5-2 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                        <circle cx="12" cy="16.5" r="0.8" fill="currentColor"/>
-                    </svg>
-                </button>
-                <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close" id="annotate-quit-button"></button>
-            </div>
-            <div class="modal-body annotate-body">
-                <div class="annotate-stage-area">
-                    <div class="annotate-stage-wrapper" id="annotate-stage-wrapper">
-                        <div class="annotate-stage" id="annotate-stage" role="region" aria-live="polite" aria-label="Annotation canvas"></div>
-                        <div class="annotate-stage-overlay" id="annotate-stage-overlay" role="status" aria-live="polite">
-                            <div class="text-center">
-                                <div class="spinner-border spinner-border-sm mb-2" role="status" aria-hidden="true"></div>
-                                <div id="annotate-stage-message">Preparing workspace...</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<div
+  class="modal fade"
+  id="modal-annotate"
+  tabindex="-1"
+  aria-labelledby="modal-annotate-label"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content annotate-modal">
+      <div class="annotate-header modal-header py-2">
+        <div class="annotate-header-left">
+          <h1 class="modal-title fs-6 text-uppercase mb-0" id="modal-annotate-label">
+            Annotate image
+          </h1>
+          <p class="mb-0 small text-muted" id="annotate-file-label"></p>
         </div>
+        <div class="annotate-header-toolbar" role="toolbar" aria-label="Annotation controls">
+          <div class="annotate-toolbar-group" aria-label="Image navigation">
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              id="annotate-action-previous"
+              aria-label="Previous image"
+              title="Previous image"
+            >
+              &#8592;
+            </button>
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              id="annotate-action-next"
+              aria-label="Next image"
+              title="Next image"
+            >
+              &#8594;
+            </button>
+          </div>
+          <div class="annotate-toolbar-group annotate-group-primary" aria-label="Canvas actions">
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              id="annotate-action-undo"
+              aria-label="Undo"
+              disabled
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <polyline
+                  points="9 6 5 10 9 14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M5 10h8a5 5 0 1 1 0 10h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              id="annotate-action-redo"
+              aria-label="Redo"
+              disabled
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <polyline
+                  points="15 6 19 10 15 14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M19 10h-8a5 5 0 1 0 0 10h3"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              id="annotate-action-delete"
+              aria-label="Delete selection"
+              disabled
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M6 7h12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M10 7V5h4v2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
+                <rect
+                  x="7"
+                  y="7"
+                  width="10"
+                  height="12"
+                  rx="1"
+                  ry="1"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                />
+                <path
+                  d="M10 11v5M14 11v5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              id="annotate-action-reset"
+              aria-label="Reset canvas"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M4 12a8 8 0 1 1 2.4 5.7"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <polyline
+                  points="4 16 4 12 8 12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm annotate-reference-btn"
+              id="annotate-apply-reference"
+              title="Copy editable annotations from another image"
+            >
+              Copy annotations
+            </button>
+            <button
+              class="annotate-icon-btn annotate-accent"
+              type="button"
+              id="annotate-action-save"
+              aria-label="Save annotations"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect
+                  x="6"
+                  y="5"
+                  width="12"
+                  height="14"
+                  rx="1"
+                  ry="1"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                />
+                <path
+                  d="M14 5v5H10V5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <rect
+                  x="9"
+                  y="13"
+                  width="6"
+                  height="5"
+                  rx="1"
+                  ry="1"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                />
+              </svg>
+            </button>
+          </div>
+          <div class="annotate-toolbar-spacer" aria-hidden="true"></div>
+          <div class="annotate-toolbar-group" aria-label="Annotation tools">
+            <button
+              class="annotate-icon-btn active"
+              type="button"
+              data-annotate-tool="select"
+              aria-pressed="true"
+              title="Select"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M7 4l4.7 12.5 1.1-4.7 4.7-.6z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span class="visually-hidden">Select</span>
+            </button>
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              data-annotate-tool="pan"
+              aria-pressed="false"
+              title="Pan"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 5v14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M12 5l-2 2m2-2l2 2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M12 19l-2-2m2 2l2-2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M5 12h14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M5 12l2-2m-2 2l2 2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M19 12l-2-2m2 2l-2 2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <span class="visually-hidden">Pan</span>
+            </button>
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              data-annotate-tool="highlight"
+              aria-pressed="false"
+              title="Highlight"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M6 17l4 4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M8 14l8-8 4 4-8 8"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M5 19h6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <span class="visually-hidden">Highlight</span>
+            </button>
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              data-annotate-tool="rectangle"
+              aria-pressed="false"
+              title="Rectangle"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect
+                  x="6"
+                  y="6"
+                  width="12"
+                  height="12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                />
+              </svg>
+              <span class="visually-hidden">Rectangle</span>
+            </button>
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              data-annotate-tool="circle"
+              aria-pressed="false"
+              title="Circle"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                />
+              </svg>
+              <span class="visually-hidden">Circle</span>
+            </button>
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              data-annotate-tool="line"
+              aria-pressed="false"
+              title="Line"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <line x1="6" y1="18" x2="18" y2="6" stroke="currentColor" stroke-width="1.4" />
+              </svg>
+              <span class="visually-hidden">Line</span>
+            </button>
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              data-annotate-tool="counter"
+              aria-pressed="false"
+              title="Counter"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                />
+                <text
+                  x="12"
+                  y="15"
+                  font-size="10"
+                  font-weight="600"
+                  text-anchor="middle"
+                  fill="currentColor"
+                >
+                  1
+                </text>
+              </svg>
+              <span class="visually-hidden">Counter</span>
+            </button>
+          </div>
+          <div class="annotate-toolbar-spacer" aria-hidden="true"></div>
+          <div class="annotate-toolbar-group" aria-label="Brush settings">
+            <label class="visually-hidden" for="annotate-stroke-color">Stroke color</label>
+            <input
+              class="annotate-color"
+              type="color"
+              id="annotate-stroke-color"
+              value="#ff4f5e"
+              title="Stroke color"
+            />
+            <label class="visually-hidden" for="annotate-stroke-width">Stroke width</label>
+            <input
+              class="annotate-number"
+              type="number"
+              id="annotate-stroke-width"
+              min="1"
+              max="20"
+              step="1"
+              value="3"
+              title="Stroke width (px)"
+            />
+            <label class="visually-hidden" for="annotate-highlight-color">Highlight color</label>
+            <input
+              class="annotate-color"
+              type="color"
+              id="annotate-highlight-color"
+              value="#ffee79"
+              title="Highlight color"
+            />
+            <label class="visually-hidden" for="annotate-highlight-opacity"
+              >Highlight opacity</label
+            >
+            <input
+              class="annotate-opacity"
+              type="range"
+              id="annotate-highlight-opacity"
+              min="0.1"
+              max="0.95"
+              step="0.05"
+              value="0.35"
+              title="Highlight opacity"
+            />
+          </div>
+          <div class="annotate-toolbar-spacer" aria-hidden="true"></div>
+          <div class="annotate-toolbar-group" aria-label="Zoom controls">
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              id="annotate-zoom-out"
+              aria-label="Zoom out"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.4" />
+              </svg>
+            </button>
+            <input
+              class="annotate-zoom-header"
+              type="range"
+              id="annotate-zoom-slider"
+              min="0.5"
+              max="4"
+              step="0.1"
+              value="1"
+              aria-label="Zoom level"
+            />
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              id="annotate-zoom-in"
+              aria-label="Zoom in"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.4" />
+                <line x1="12" y1="7" x2="12" y2="17" stroke="currentColor" stroke-width="1.4" />
+              </svg>
+            </button>
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              id="annotate-zoom-reset"
+              aria-label="Reset zoom"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                />
+                <polyline
+                  points="10 9 13 12 10 15"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                />
+              </svg>
+            </button>
+          </div>
+          <div class="annotate-toolbar-spacer d-none d-lg-inline-flex" aria-hidden="true"></div>
+          <div class="annotate-toolbar-group annotate-group-status" aria-label="Canvas status">
+            <span
+              class="annotate-status text-muted small"
+              id="annotate-status-message"
+              aria-live="polite"
+            ></span>
+          </div>
+          <div class="annotate-toolbar-spacer" aria-hidden="true"></div>
+        </div>
+        <button
+          class="annotate-icon-btn annotate-help-btn"
+          type="button"
+          aria-label="Keyboard help"
+          title="Shortcuts: H highlight, I counter, L line, C circle, R rectangle"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.4" />
+            <path
+              d="M12 8a2 2 0 0 1 2 2c0 1.5-2 1.5-2 3.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linecap="round"
+            />
+            <circle cx="12" cy="16.5" r="0.8" fill="currentColor" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          class="btn-close ms-2"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+          id="annotate-quit-button"
+        ></button>
+      </div>
+      <div class="modal-body annotate-body">
+        <div class="annotate-stage-area">
+          <div class="annotate-stage-wrapper" id="annotate-stage-wrapper">
+            <div
+              class="annotate-stage"
+              id="annotate-stage"
+              role="region"
+              aria-live="polite"
+              aria-label="Annotation canvas"
+            ></div>
+            <div
+              class="annotate-stage-overlay"
+              id="annotate-stage-overlay"
+              role="status"
+              aria-live="polite"
+            >
+              <div class="text-center">
+                <div
+                  class="spinner-border spinner-border-sm mb-2"
+                  role="status"
+                  aria-hidden="true"
+                ></div>
+                <div id="annotate-stage-message">Preparing workspace...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
 
-<div class="modal fade" id="modal-annotate-save" tabindex="-1" aria-labelledby="modal-annotate-save-label" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h1 class="modal-title fs-6" id="modal-annotate-save-label">Save annotations</h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted small mb-3">Choose how you want to store this annotated image.</p>
-                <div class="form-check mb-2">
-                    <input class="form-check-input" type="radio" name="annotate-save-choice" id="annotate-dialog-overwrite" value="overwrite" checked>
-                    <label class="form-check-label" for="annotate-dialog-overwrite">Overwrite the existing file</label>
-                </div>
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="radio" name="annotate-save-choice" id="annotate-dialog-copy" value="copy">
-                    <label class="form-check-label" for="annotate-dialog-copy">Save as a new image</label>
-                </div>
-                <div class="mb-2">
-                    <label class="form-label" for="annotate-dialog-name">New filename</label>
-                    <input class="form-control" type="text" id="annotate-dialog-name" placeholder="example-annotated.png" disabled>
-                    <div class="form-text">Leave blank to use a suggested filename.</div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="annotate-dialog-save">Save</button>
-            </div>
-        </div>
+<div
+  class="modal fade"
+  id="modal-annotate-navigate"
+  tabindex="-1"
+  aria-labelledby="modal-annotate-navigate-label"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="modal-annotate-navigate-label">Unsaved annotations</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Save your changes before moving to another image? Save updates the current image.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-outline-danger" id="annotate-navigate-discard">
+          Discard
+        </button>
+        <button type="button" class="btn btn-primary" id="annotate-navigate-save">Save</button>
+      </div>
     </div>
+  </div>
+</div>
+
+<div
+  class="modal fade"
+  id="modal-annotate-save"
+  tabindex="-1"
+  aria-labelledby="modal-annotate-save-label"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-6" id="modal-annotate-save-label">Save annotations</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Choose how you want to store this annotated image.</p>
+        <div class="form-check mb-2">
+          <input
+            class="form-check-input"
+            type="radio"
+            name="annotate-save-choice"
+            id="annotate-dialog-overwrite"
+            value="overwrite"
+            checked
+          />
+          <label class="form-check-label" for="annotate-dialog-overwrite"
+            >Overwrite the existing file</label
+          >
+        </div>
+        <div class="form-check mb-3">
+          <input
+            class="form-check-input"
+            type="radio"
+            name="annotate-save-choice"
+            id="annotate-dialog-copy"
+            value="copy"
+          />
+          <label class="form-check-label" for="annotate-dialog-copy">Save as a new image</label>
+        </div>
+        <div class="mb-2">
+          <label class="form-label" for="annotate-dialog-name">New filename</label>
+          <input
+            class="form-control"
+            type="text"
+            id="annotate-dialog-name"
+            placeholder="example-annotated.png"
+            disabled
+          />
+          <div class="form-text">Leave blank to use a suggested filename.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary" id="annotate-dialog-save">Save</button>
+      </div>
+    </div>
+  </div>
 </div>

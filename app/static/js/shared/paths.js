@@ -9,12 +9,12 @@
  * @returns {string} A trimmed path without leading './' or trailing '/'.
  */
 export function normalizePath(path) {
-    if (!path || path === '.') return '';
-    return String(path)
-        .replace(/\\/g, '/')
-        .replace(/^\.\/?/, '')
-        .replace(/\/+/g, '/')
-        .replace(/\/+$/, '');
+  if (!path || path === '.') return '';
+  return String(path)
+    .replace(/\\/g, '/')
+    .replace(/^\.\/?/, '')
+    .replace(/\/+/g, '/')
+    .replace(/\/+$/, '');
 }
 
 /**
@@ -26,11 +26,11 @@ export function normalizePath(path) {
  * @returns {boolean} True when the move would be invalid.
  */
 export function isInvalidDestination(items, destination) {
-    const target = normalizePath(destination);
-    if (!target) return false;
-    return items.some((item) => {
-        const source = normalizePath(item);
-        if (!source) return false;
-        return source === target || target.startsWith(`${source}/`);
-    });
+  const target = normalizePath(destination);
+  if (!target) return false;
+  return items.some((item) => {
+    const source = normalizePath(item);
+    if (!source) return false;
+    return source === target || target.startsWith(`${source}/`);
+  });
 }

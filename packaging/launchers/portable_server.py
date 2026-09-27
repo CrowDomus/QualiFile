@@ -18,6 +18,7 @@ from app.portable.startup_shared.constants import EVENT_PREFIX
 from app.portable.startup_shared.diagnostics_text import build_diagnostics_text_from_paths
 from app.portable.startup_shared.startup_log import StartupLogWriter
 from app.shared.data_dir import resolve_paths
+from app.shared.http_logging import PrivacyRequestHandler
 
 
 def _portable_root() -> Path:
@@ -205,10 +206,10 @@ def _create_server(host: str, app, explicit_port: int | None, preferred_port: in
     fallback_from: int | None = None
     if explicit_port is not None:
         if explicit_port == 0:
-            server = make_server(host, 0, app, threaded=True)
+            server = make_server(host, 0, app, threaded=True, request_handler=PrivacyRequestHandler)
             return server, server.server_address[1], fallback_from
         fd = _bind_exclusive_socket(host, explicit_port)
-        server = make_server(host, explicit_port, app, threaded=True, fd=fd)
+        server = make_server(host, explicit_port, app, threaded=True, fd=fd, request_handler=PrivacyRequestHandler)
         return server, server.server_address[1], fallback_from
 
     try:
@@ -217,10 +218,10 @@ def _create_server(host: str, app, explicit_port: int | None, preferred_port: in
         if not _is_address_in_use(exc):
             raise
         fallback_from = preferred_port
-        server = make_server(host, 0, app, threaded=True)
+        server = make_server(host, 0, app, threaded=True, request_handler=PrivacyRequestHandler)
         return server, server.server_address[1], fallback_from
 
-    server = make_server(host, preferred_port, app, threaded=True, fd=fd)
+    server = make_server(host, preferred_port, app, threaded=True, fd=fd, request_handler=PrivacyRequestHandler)
     return server, server.server_address[1], fallback_from
 
 

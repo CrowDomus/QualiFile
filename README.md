@@ -7,7 +7,8 @@ packaging.
 ## Features
 
 - Workspace explorer with folder navigation, filtering, sorting, and file operations
-- Preview support for text, code, images, PDFs, and Office documents
+- Preview support for text, code, images, PDFs, and accelerated Office documents
+- Persistent workspace navigation, reusable image annotations, and automatic image version history
 - PDF and image utilities for merge, extraction, capture, and annotation flows
 - Notes, tags, sidecar metadata, per-file validation tracking, and note formatting helpers
 - Projects, linked roots, tasks/notes, timeline, reminders, alerts, project archiving, and opt-in inline entry composition
@@ -58,6 +59,8 @@ python -m pip install -r requirements/portable_build.txt
 build_portable.bat
 build_portable_embedded.bat
 ```
+
+The latest published download links remain below. Version `1.3.0` is prepared locally and has not been published:
 
 Download the packaged builds for the `v1.2.0` release:
 

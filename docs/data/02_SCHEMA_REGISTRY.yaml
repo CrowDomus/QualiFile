@@ -24,7 +24,7 @@ schemas:
     title: SQLite persistence database
     kind: sqlite
     lifecycle: active
-    current_version: 6
+    current_version: 7
     version_field:
       type: schema_migrations_table
       table: schema_migrations
@@ -36,7 +36,8 @@ schemas:
         - "0004_user_profiles"
         - "0005_task_alert_state"
         - "0006_project_archive_state"
-      latest_id: "0006_project_archive_state"
+        - "0007_image_history"
+      latest_id: "0007_image_history"
     locations:
       - scope: data_dir
         pattern: ".qualifile_internal/qualifile.db"
@@ -64,8 +65,11 @@ schemas:
         description: "task reminder alert state table"
       - id: "0006_project_archive_state"
         description: "project archive visibility state"
+      - id: "0007_image_history"
+        description: "editable image documents, focused settings, immutable versions and save journal"
     privacy_class: P3
     notes:
+      - "Image history tables: image_documents, focused_settings, image_versions, image_pending_writes. Annotation document JSON is version 1."
       - "Authoritative tables: roots, projects (including archived/archived_at lifecycle fields), entries, tag_definitions, profile_preferences, user_profiles, profile_portable_preferences, app_state, task_alert_state."
       - "Derived tables: file_index, tag_index, entry_index."
       - "DB uses WAL and busy_timeout defaults from app/shared/db.py."
@@ -195,7 +199,7 @@ schemas:
     title: Diagnostics data state snapshot
     kind: json
     lifecycle: active
-    current_version: 1
+    current_version: 2
     version_field:
       type: json_field
       field: schema_version
@@ -252,9 +256,10 @@ schemas:
     title: Support bundle zip
     kind: file
     lifecycle: tooling
-    current_version: 1
+    current_version: 2
     version_field:
-      type: none
+      type: json_field
+      field: support_bundle_manifest.json.schema_version
     locations:
       - scope: data_dir
         pattern: "support/support_bundle_<timestamp>.zip"
@@ -266,7 +271,8 @@ schemas:
     migrations: []
     privacy_class: P1
     notes:
-      - "May include P3 content when include_p3 is enabled."
+      - "P1 sources are redacted and bounded before inclusion."
+      - "P3 requires an exact, fresh, one-time preflight consent token."
 
   - id: preview_cache
     title: Preview cache
@@ -485,5 +491,45 @@ schemas:
     rebuildable: false
     validator:
       type: none
+    migrations: []
+    privacy_class: P3
+
+  - id: image_annotation_assets
+    title: Clean image bases and transparent annotation layers
+    kind: directory
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: none
+    locations:
+      - scope: data_dir
+        pattern: ".qualifile_internal/image_assets/**"
+    authoritative: true
+    rebuildable: false
+    validator:
+      type: custom
+      description: "SHA-256 named immutable blobs verified before read and publication"
+    migrations: []
+    privacy_class: P3
+
+  - id: focused_image_archives
+    title: Automatic immutable image history
+    kind: directory
+    lifecycle: active
+    current_version: 1
+    version_field:
+      type: none
+    locations:
+      - scope: data_dir
+        pattern: ".qualifile_internal/image_history/**"
+        note: "Default archive location for image changes. New SQLite blob references are relative to DATA_DIR for portability."
+      - scope: any
+        pattern: ".qualifile_internal/image_history/**"
+        note: "Existing versions may remain in earlier user-selected archive folders with absolute SQLite references."
+    authoritative: true
+    rebuildable: false
+    validator:
+      type: custom
+      description: "SHA-256 integrity verification and SQLite image_versions references"
     migrations: []
     privacy_class: P3

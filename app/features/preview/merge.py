@@ -13,8 +13,8 @@ from textwrap import wrap
 from typing import Dict, Iterable, List, Mapping, Tuple
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
-from PyPDF2 import PdfReader, PdfWriter
-from PyPDF2.generic import (
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import (
     ArrayObject,
     DecodedStreamObject,
     DictionaryObject,

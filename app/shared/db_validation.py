@@ -27,6 +27,10 @@ REQUIRED_TABLES: tuple[str, ...] = (
     "profile_portable_preferences",
     "app_state",
     "task_alert_state",
+    "image_documents",
+    "focused_settings",
+    "image_versions",
+    "image_pending_writes",
 )
 INVARIANT_REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
     "entries": ("payload_json",),

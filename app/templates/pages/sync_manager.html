@@ -1,403 +1,657 @@
-{% extends "layouts/layout.html" %}
-{% block title %}Sync Manager - QualiFile{% endblock %}
-{% block extra_head %}
-<style>
+{% extends "layouts/layout.html" %} {% block title %}Sync Manager - QualiFile{% endblock %} {% block
+extra_head %}
+<style nonce="{{ csp_nonce }}">
+  #sync-manager-page-root {
+    min-height: clamp(32rem, calc(100dvh - 10.5rem), 100dvh);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  #sync-manager-page-root > .card {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  #sync-manager-page-root > .card > .card-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  #sync-manager-page-root .sync-manager-workspace {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  #sync-manager-page-root .sync-manager-table-region {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  #sync-manager-page-root .sync-manager-table-region .table-responsive {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+  #sync-manager-page-root .sync-manager-project-name {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+  }
+  #sync-manager-page-root .sync-manager-header-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+  }
+  #sync-manager-page-root .sync-manager-header-status .spinner-border {
+    width: 0.85rem;
+    height: 0.85rem;
+    border-width: 0.12em;
+  }
+  #sync-manager-page-root .sync-manager-project-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.15rem 0.6rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+    background-color: var(--sync-project-color, var(--bs-secondary-bg));
+    border-color: color-mix(
+      in srgb,
+      var(--bs-border-color) 70%,
+      var(--sync-project-color, var(--bs-secondary-bg)) 30%
+    );
+    color: var(--sync-project-pill-text, var(--bs-body-color));
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #sync-manager-page-root #sync-manager-table tr.sync-manager-row-colored {
+    background: color-mix(
+      in srgb,
+      var(--sync-project-color, var(--bs-primary)) 14%,
+      var(--bs-body-bg)
+    );
+  }
+  #sync-manager-page-root #sync-manager-table tr.sync-manager-row-colored td {
+    background-color: inherit;
+    border-color: color-mix(
+      in srgb,
+      var(--sync-project-color, var(--bs-primary)) 35%,
+      var(--bs-border-color)
+    );
+  }
+  #sync-manager-page-root #sync-manager-table tr.sync-manager-row-colored td:first-child {
+    box-shadow: inset 3px 0
+      color-mix(
+        in srgb,
+        var(--sync-project-color, var(--bs-primary)) 70%,
+        var(--sync-project-color, var(--bs-primary))
+      );
+  }
+  #sync-manager-page-root .sync-manager-legend details summary {
+    cursor: pointer;
+  }
+  #sync-manager-page-root .sync-manager-activity-resizer {
+    width: 0.35rem;
+    cursor: col-resize;
+    border-radius: 999px;
+    background: var(--bs-border-color);
+    opacity: 0.85;
+    flex: 0 0 auto;
+  }
+  #sync-manager-page-root .sync-manager-activity-panel {
+    width: 22.5rem;
+    min-width: 18rem;
+    max-width: 34rem;
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+  #sync-manager-page-root .sync-manager-activity-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+  #sync-manager-page-root .sync-manager-activity-entry details summary {
+    cursor: pointer;
+  }
+  #sync-manager-page-root .sync-manager-settings-dialog {
+    width: min(48rem, calc(100vw - 2rem));
+    max-width: 48rem;
+    max-height: calc(100vh - 2rem);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.6rem;
+    padding: 0;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+  }
+  #sync-manager-page-root .sync-manager-settings-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.35);
+  }
+  #sync-manager-page-root .sync-manager-settings-scroll {
+    max-height: min(34rem, calc(100vh - 8rem));
+    overflow: auto;
+  }
+  #sync-manager-page-root .sync-manager-settings-tablist {
+    border-bottom: 1px solid var(--bs-border-color);
+    padding-bottom: 0.5rem;
+  }
+  #sync-manager-page-root .sync-manager-settings-tablist .sync-manager-settings-tab {
+    min-width: 6.75rem;
+  }
+  #sync-manager-page-root .sync-manager-settings-tabpanel[aria-hidden='true'] {
+    display: none;
+  }
+  #sync-manager-page-root .sync-manager-settings-actions {
+    min-height: 2.25rem;
+  }
+  #sync-manager-page-root .sync-manager-settings-diagnostics-preview {
+    max-height: 10rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #sync-manager-page-root .sync-manager-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 0.6rem 1rem;
+  }
+  #sync-manager-page-root .sync-manager-settings-grid dt {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+    margin: 0;
+  }
+  #sync-manager-page-root .sync-manager-settings-grid dd {
+    margin: 0;
+  }
+  #sync-manager-page-root
+    #sync-manager-context-menu
+    .context-menu-item.sync-manager-context-menu-recommended:not(:disabled) {
+    font-weight: 600;
+    background-color: var(--bs-primary-bg-subtle, rgba(13, 110, 253, 0.16));
+    color: var(--bs-primary-text-emphasis, var(--bs-primary));
+  }
+  @media (max-width: 70rem) {
     #sync-manager-page-root {
-        min-height: clamp(32rem, calc(100dvh - 10.5rem), 100dvh);
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-    }
-    #sync-manager-page-root > .card {
-        flex: 1 1 auto;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-    }
-    #sync-manager-page-root > .card > .card-body {
-        flex: 1 1 auto;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
+      min-height: auto;
     }
     #sync-manager-page-root .sync-manager-workspace {
-        flex: 1 1 auto;
-        min-height: 0;
+      flex-direction: column;
     }
     #sync-manager-page-root .sync-manager-table-region {
-        min-width: 0;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-    }
-    #sync-manager-page-root .sync-manager-table-region .table-responsive {
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow: auto;
-    }
-    #sync-manager-page-root .sync-manager-project-name {
-        display: inline-flex;
-        align-items: center;
-        min-width: 0;
-    }
-    #sync-manager-page-root .sync-manager-header-status {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        white-space: nowrap;
-    }
-    #sync-manager-page-root .sync-manager-header-status .spinner-border {
-        width: 0.85rem;
-        height: 0.85rem;
-        border-width: 0.12em;
-    }
-    #sync-manager-page-root .sync-manager-project-pill {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        padding: 0.15rem 0.6rem;
-        font-weight: 600;
-        border: 1px solid transparent;
-        background-color: var(--sync-project-color, var(--bs-secondary-bg));
-        border-color: color-mix(
-            in srgb,
-            var(--bs-border-color) 70%,
-            var(--sync-project-color, var(--bs-secondary-bg)) 30%
-        );
-        color: var(--sync-project-pill-text, var(--bs-body-color));
-        max-width: 100%;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    #sync-manager-page-root #sync-manager-table tr.sync-manager-row-colored {
-        background: color-mix(in srgb, var(--sync-project-color, var(--bs-primary)) 14%, var(--bs-body-bg));
-    }
-    #sync-manager-page-root #sync-manager-table tr.sync-manager-row-colored td {
-        background-color: inherit;
-        border-color: color-mix(in srgb, var(--sync-project-color, var(--bs-primary)) 35%, var(--bs-border-color));
-    }
-    #sync-manager-page-root #sync-manager-table tr.sync-manager-row-colored td:first-child {
-        box-shadow: inset 3px 0 color-mix(
-            in srgb,
-            var(--sync-project-color, var(--bs-primary)) 70%,
-            var(--sync-project-color, var(--bs-primary))
-        );
-    }
-    #sync-manager-page-root .sync-manager-legend details summary {
-        cursor: pointer;
+      min-height: 16rem;
     }
     #sync-manager-page-root .sync-manager-activity-resizer {
-        width: 0.35rem;
-        cursor: col-resize;
-        border-radius: 999px;
-        background: var(--bs-border-color);
-        opacity: 0.85;
-        flex: 0 0 auto;
+      display: none;
     }
     #sync-manager-page-root .sync-manager-activity-panel {
-        width: 22.5rem;
-        min-width: 18rem;
-        max-width: 34rem;
-        flex: 0 0 auto;
-        min-height: 0;
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+      max-height: 20rem;
     }
-    #sync-manager-page-root .sync-manager-activity-list {
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow: auto;
-    }
-    #sync-manager-page-root .sync-manager-activity-entry details summary {
-        cursor: pointer;
-    }
-    #sync-manager-page-root .sync-manager-settings-dialog {
-        width: min(48rem, calc(100vw - 2rem));
-        max-width: 48rem;
-        max-height: calc(100vh - 2rem);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 0.6rem;
-        padding: 0;
-        background: var(--bs-body-bg);
-        color: var(--bs-body-color);
-    }
-    #sync-manager-page-root .sync-manager-settings-dialog::backdrop {
-        background: rgba(0, 0, 0, 0.35);
-    }
-    #sync-manager-page-root .sync-manager-settings-scroll {
-        max-height: min(34rem, calc(100vh - 8rem));
-        overflow: auto;
-    }
-    #sync-manager-page-root .sync-manager-settings-tablist {
-        border-bottom: 1px solid var(--bs-border-color);
-        padding-bottom: 0.5rem;
-    }
-    #sync-manager-page-root .sync-manager-settings-tablist .sync-manager-settings-tab {
-        min-width: 6.75rem;
-    }
-    #sync-manager-page-root .sync-manager-settings-tabpanel[aria-hidden="true"] {
-        display: none;
-    }
-    #sync-manager-page-root .sync-manager-settings-actions {
-        min-height: 2.25rem;
-    }
-    #sync-manager-page-root .sync-manager-settings-diagnostics-preview {
-        max-height: 10rem;
-        overflow: auto;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-    #sync-manager-page-root .sync-manager-settings-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
-        gap: 0.6rem 1rem;
-    }
-    #sync-manager-page-root .sync-manager-settings-grid dt {
-        font-size: 0.8rem;
-        color: var(--bs-secondary-color);
-        margin: 0;
-    }
-    #sync-manager-page-root .sync-manager-settings-grid dd {
-        margin: 0;
-    }
-    #sync-manager-page-root #sync-manager-context-menu .context-menu-item.sync-manager-context-menu-recommended:not(:disabled) {
-        font-weight: 600;
-        background-color: var(--bs-primary-bg-subtle, rgba(13, 110, 253, 0.16));
-        color: var(--bs-primary-text-emphasis, var(--bs-primary));
-    }
-    @media (max-width: 70rem) {
-        #sync-manager-page-root {
-            min-height: auto;
-        }
-        #sync-manager-page-root .sync-manager-workspace {
-            flex-direction: column;
-        }
-        #sync-manager-page-root .sync-manager-table-region {
-            min-height: 16rem;
-        }
-        #sync-manager-page-root .sync-manager-activity-resizer {
-            display: none;
-        }
-        #sync-manager-page-root .sync-manager-activity-panel {
-            width: 100%;
-            min-width: 0;
-            max-width: none;
-            max-height: 20rem;
-        }
-    }
+  }
 </style>
-{% endblock %}
-{% block nav_actions %}
+{% endblock %} {% block nav_actions %}
 <div class="toolbar-container align-items-center">
-    <div class="toolbar-brand">
-        <span class="fw-semibold text-body-emphasis">Sync Manager</span>
-    </div>
+  <div class="toolbar-brand">
+    <span class="fw-semibold text-body-emphasis">Sync Manager</span>
+  </div>
 </div>
-{% endblock %}
-{% block content %}
+{% endblock %} {% block content %}
 <section id="sync-manager-page-root">
-    <div class="card shadow-sm">
-        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div>
-                <h1 class="h5 mb-0">Git Sync Manager</h1>
-                <p class="text-muted mb-0 small">Review each project's sync readiness and run safe Git Sync actions.</p>
-            </div>
-            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-                <div class="sync-manager-header-status text-muted small d-none" id="sync-manager-header-status" aria-live="polite" aria-hidden="true">
-                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    <span id="sync-manager-header-status-text">Loading project sync status...</span>
-                </div>
-                <span class="text-muted small" id="sync-manager-last-refreshed" aria-live="polite">Last refreshed: --</span>
-                <button
-                    type="button"
-                    class="btn btn-outline-warning btn-sm d-none"
-                    id="sync-manager-stale-indicator"
-                    aria-live="polite"
-                    title="Status may be stale. Click to refresh."
-                >
-                    Status may be stale
-                </button>
-                <span class="badge text-bg-warning d-none" id="sync-manager-auto-refresh-off-hint" aria-live="polite">Auto refresh OFF</span>
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="sync-manager-activity-toggle" aria-expanded="true" aria-controls="sync-manager-activity-panel">Hide Activity</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="sync-manager-refresh">Refresh</button>
-            </div>
+  <div class="card shadow-sm">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h1 class="h5 mb-0">Git Sync Manager</h1>
+        <p class="text-muted mb-0 small">
+          Review each project's sync readiness and run safe Git Sync actions.
+        </p>
+      </div>
+      <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+        <div
+          class="sync-manager-header-status text-muted small d-none"
+          id="sync-manager-header-status"
+          aria-live="polite"
+          aria-hidden="true"
+        >
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+          <span id="sync-manager-header-status-text">Loading project sync status...</span>
         </div>
-        <div class="card-body">
-            <div class="alert alert-danger py-2 px-3 d-none" id="sync-manager-error" role="alert"></div>
-            <div class="sync-manager-legend small border rounded bg-body-tertiary p-2 mb-2" id="sync-manager-legend">
-                <details>
-                    <summary class="fw-semibold">Status legend and help</summary>
-                    <ul class="mb-1 mt-2 ps-3">
-                        <li><strong>Git repo</strong>: readiness of the repository and branch sync state.</li>
-                        <li><strong>Metadata snapshot</strong>: health of the exported metadata snapshot used for sync.</li>
-                        <li><strong>Local metadata</strong>: local edit state, including uncommitted changes.</li>
-                    </ul>
-                    <p class="text-muted mb-0">Badge colors: green is ready, yellow needs review, red needs action, gray is unavailable.</p>
-                </details>
-            </div>
-            <div class="sync-manager-workspace d-flex align-items-stretch gap-2">
-                <div class="sync-manager-table-region flex-grow-1">
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-0" id="sync-manager-table">
-                            <thead class="table-light">
-                                <tr>
-                                    <th scope="col">Project</th>
-                                    <th scope="col">Git repo</th>
-                                    <th scope="col">Metadata snapshot</th>
-                                    <th scope="col">Local metadata</th>
-                                    <th scope="col">Local files</th>
-                                    <th scope="col" class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="sync-manager-body">
-                                <tr id="sync-manager-empty-row">
-                                    <td colspan="6" class="text-muted text-center py-4">No projects available for sync.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="sync-manager-activity-resizer" id="sync-manager-activity-resizer" role="separator" aria-orientation="vertical" aria-label="Resize activity panel"></div>
-                <aside class="sync-manager-activity-panel border rounded bg-body-tertiary d-flex flex-column" id="sync-manager-activity-panel" aria-label="Sync activity panel">
-                    <div class="d-flex align-items-center justify-content-between gap-2 border-bottom px-3 py-2">
-                        <div>
-                            <h2 class="h6 mb-0">Activity</h2>
-                            <p class="text-muted small mb-0">Action timeline for this tab session.</p>
-                        </div>
-                        <div class="btn-group btn-group-sm" role="group" aria-label="Activity controls">
-                            <button type="button" class="btn btn-outline-secondary" id="sync-manager-activity-copy">Copy</button>
-                            <button type="button" class="btn btn-outline-secondary" id="sync-manager-activity-clear">Clear</button>
-                        </div>
-                    </div>
-                    <div class="px-3 pb-2 border-bottom">
-                        <label for="sync-manager-activity-filter" class="form-label form-label-sm mb-1">Filter by project</label>
-                        <input
-                            type="search"
-                            class="form-control form-control-sm"
-                            id="sync-manager-activity-filter"
-                            placeholder="Filter by project..."
-                            autocomplete="off"
-                            spellcheck="false"
-                        >
-                    </div>
-                    <div class="sync-manager-activity-list px-3 py-2 d-flex flex-column gap-2" id="sync-manager-activity-list" aria-live="polite"></div>
-                    <div class="text-muted small px-3 pb-3 d-none" id="sync-manager-activity-empty">No activity yet.</div>
-                </aside>
-            </div>
-        </div>
+        <span class="text-muted small" id="sync-manager-last-refreshed" aria-live="polite"
+          >Last refreshed: --</span
+        >
+        <button
+          type="button"
+          class="btn btn-outline-warning btn-sm d-none"
+          id="sync-manager-stale-indicator"
+          aria-live="polite"
+          title="Status may be stale. Click to refresh."
+        >
+          Status may be stale
+        </button>
+        <span
+          class="badge text-bg-warning d-none"
+          id="sync-manager-auto-refresh-off-hint"
+          aria-live="polite"
+          >Auto refresh OFF</span
+        >
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm"
+          id="sync-manager-activity-toggle"
+          aria-expanded="true"
+          aria-controls="sync-manager-activity-panel"
+        >
+          Hide Activity
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="sync-manager-refresh">
+          Refresh
+        </button>
+      </div>
     </div>
-    <dialog id="sync-manager-settings-dialog" class="sync-manager-settings-dialog shadow-sm" aria-labelledby="sync-manager-settings-title">
-        <div class="border-bottom px-3 py-2 d-flex align-items-center justify-content-between gap-2">
+    <div class="card-body">
+      <div class="alert alert-danger py-2 px-3 d-none" id="sync-manager-error" role="alert"></div>
+      <div
+        class="sync-manager-legend small border rounded bg-body-tertiary p-2 mb-2"
+        id="sync-manager-legend"
+      >
+        <details>
+          <summary class="fw-semibold">Status legend and help</summary>
+          <ul class="mb-1 mt-2 ps-3">
+            <li><strong>Git repo</strong>: readiness of the repository and branch sync state.</li>
+            <li>
+              <strong>Metadata snapshot</strong>: health of the exported metadata snapshot used for
+              sync.
+            </li>
+            <li>
+              <strong>Local metadata</strong>: local edit state, including uncommitted changes.
+            </li>
+          </ul>
+          <p class="text-muted mb-0">
+            Badge colors: green is ready, yellow needs review, red needs action, gray is
+            unavailable.
+          </p>
+        </details>
+      </div>
+      <div class="sync-manager-workspace d-flex align-items-stretch gap-2">
+        <div class="sync-manager-table-region flex-grow-1">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0" id="sync-manager-table">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">Project</th>
+                  <th scope="col">Git repo</th>
+                  <th scope="col">Metadata snapshot</th>
+                  <th scope="col">Local metadata</th>
+                  <th scope="col">Local files</th>
+                  <th scope="col" class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="sync-manager-body">
+                <tr id="sync-manager-empty-row">
+                  <td colspan="6" class="text-muted text-center py-4">
+                    No projects available for sync.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div
+          class="sync-manager-activity-resizer"
+          id="sync-manager-activity-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize activity panel"
+        ></div>
+        <aside
+          class="sync-manager-activity-panel border rounded bg-body-tertiary d-flex flex-column"
+          id="sync-manager-activity-panel"
+          aria-label="Sync activity panel"
+        >
+          <div
+            class="d-flex align-items-center justify-content-between gap-2 border-bottom px-3 py-2"
+          >
             <div>
-                <h2 id="sync-manager-settings-title" class="h6 mb-0">Sync settings</h2>
-                <p id="sync-manager-settings-summary" class="text-muted small mb-0">Review this project's sync details, remote setup, and diagnostics.</p>
+              <h2 class="h6 mb-0">Activity</h2>
+              <p class="text-muted small mb-0">Action timeline for this tab session.</p>
             </div>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="sync-manager-settings-close" aria-label="Close settings">Close</button>
-        </div>
-        <div class="sync-manager-settings-scroll px-3 py-3 d-flex flex-column gap-3">
-            <div class="sync-manager-settings-tablist d-flex flex-wrap gap-2" role="tablist" aria-label="Sync settings sections" id="sync-manager-settings-tablist">
-                <button type="button" class="btn btn-sm btn-primary sync-manager-settings-tab" role="tab" id="sync-manager-settings-tab-overview" aria-controls="sync-manager-settings-panel-overview" aria-selected="true" tabindex="0" data-settings-tab="overview">Overview</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary sync-manager-settings-tab" role="tab" id="sync-manager-settings-tab-remote" aria-controls="sync-manager-settings-panel-remote" aria-selected="false" tabindex="-1" data-settings-tab="remote">Remote</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary sync-manager-settings-tab" role="tab" id="sync-manager-settings-tab-diagnostics" aria-controls="sync-manager-settings-panel-diagnostics" aria-selected="false" tabindex="-1" data-settings-tab="diagnostics">Diagnostics</button>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Activity controls">
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                id="sync-manager-activity-copy"
+              >
+                Copy
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                id="sync-manager-activity-clear"
+              >
+                Clear
+              </button>
             </div>
-
-            <section class="sync-manager-settings-tabpanel d-flex flex-column gap-3" role="tabpanel" id="sync-manager-settings-panel-overview" aria-labelledby="sync-manager-settings-tab-overview" aria-hidden="false" data-settings-panel="overview">
-                <dl class="sync-manager-settings-grid mb-0">
-                    <div>
-                        <dt>Project folder</dt>
-                        <dd id="sync-manager-settings-root">--</dd>
-                    </div>
-                    <div>
-                        <dt>Branch and tracking</dt>
-                        <dd id="sync-manager-settings-branch">--</dd>
-                    </div>
-                    <div>
-                        <dt>Metadata snapshot</dt>
-                        <dd id="sync-manager-settings-pps">--</dd>
-                    </div>
-                    <div>
-                        <dt>Local metadata</dt>
-                        <dd id="sync-manager-settings-local">--</dd>
-                    </div>
-                </dl>
-                <div>
-                    <h3 class="h6 mb-2">Recommended actions</h3>
-                    <p class="text-muted small mb-2">Use context menu and row actions for the full action set.</p>
-                    <div id="sync-manager-settings-actions" class="sync-manager-settings-actions d-flex flex-wrap gap-2"></div>
-                </div>
-            </section>
-
-            <section class="sync-manager-settings-tabpanel d-flex flex-column gap-3" role="tabpanel" id="sync-manager-settings-panel-remote" aria-labelledby="sync-manager-settings-tab-remote" aria-hidden="true" data-settings-panel="remote">
-                <div>
-                    <h3 class="h6 mb-2">Repository tracking</h3>
-                    <p class="small mb-1" id="sync-manager-settings-tracking">--</p>
-                    <p class="text-muted small mb-0">Remote URLs are always redacted in this UI preview.</p>
-                </div>
-                <div class="row g-2">
-                    <div class="col-sm-4">
-                        <label for="sync-manager-settings-remote-name" class="form-label form-label-sm mb-1">Remote name</label>
-                        <input type="text" class="form-control form-control-sm" id="sync-manager-settings-remote-name" value="origin" autocomplete="off" spellcheck="false">
-                    </div>
-                    <div class="col-sm-8">
-                        <label for="sync-manager-settings-remote-url" class="form-label form-label-sm mb-1">Remote URL</label>
-                        <input type="text" class="form-control form-control-sm" id="sync-manager-settings-remote-url" value="" autocomplete="off" spellcheck="false" placeholder="https://..., ssh://..., or git@host:path">
-                    </div>
-                </div>
-                <p class="small mb-0" id="sync-manager-settings-remote-url-preview">Remote URL preview: --</p>
-                <p class="text-muted small mb-0" id="sync-manager-settings-remote-status">Set Remote is enabled when remote name or URL changes.</p>
-                <div>
-                    <button type="button" class="btn btn-primary btn-sm" id="sync-manager-settings-set-remote" disabled>Set Remote</button>
-                </div>
-            </section>
-
-            <section class="sync-manager-settings-tabpanel d-flex flex-column gap-2" role="tabpanel" id="sync-manager-settings-panel-diagnostics" aria-labelledby="sync-manager-settings-tab-diagnostics" aria-hidden="true" data-settings-panel="diagnostics">
-                <p class="small mb-1" id="sync-manager-settings-diagnostics-hint">No recent sync failures for this project.</p>
-                <p class="text-muted small mb-2" id="sync-manager-settings-diagnostics-code">Last code: --</p>
-                <ul class="small mb-2 ps-3 d-none" id="sync-manager-settings-diagnostics-steps"></ul>
-                <details class="mb-2 d-none" id="sync-manager-settings-diagnostics-details-wrap">
-                    <summary class="small">Last failure details</summary>
-                    <ul class="small mb-0 mt-1 ps-3" id="sync-manager-settings-diagnostics-details"></ul>
-                </details>
-                <div class="d-flex flex-column gap-2">
-                    <button type="button" class="btn btn-outline-secondary btn-sm align-self-start" id="sync-manager-settings-copy-diagnostics">Copy diagnostics template</button>
-                    <pre class="sync-manager-settings-diagnostics-preview small border rounded bg-body-tertiary p-2 mb-0" id="sync-manager-settings-diagnostics-preview"></pre>
-                </div>
-            </section>
-        </div>
-    </dialog>
-    <div id="sync-manager-context-menu" class="context-menu" aria-hidden="true" style="left:-9999px; top:-9999px;">
-        <ul class="context-menu-list" role="menu" aria-label="Project row context menu">
-            <li class="context-menu-entry" role="none">
-                <button type="button" class="context-menu-item" id="sync-manager-context-menu-settings" role="menuitem" data-context-action="settings">Sync settings...</button>
-            </li>
-            <li class="context-menu-entry" role="none">
-                <button type="button" class="context-menu-item" id="sync-manager-context-menu-refresh" role="menuitem" data-context-action="status">Refresh status</button>
-            </li>
-            <li class="context-menu-divider" role="separator" aria-hidden="true"></li>
-            <li class="context-menu-entry" role="none">
-                <button type="button" class="context-menu-item" id="sync-manager-context-menu-commit-push" role="menuitem" data-context-action="commit_push">Commit &amp; Push</button>
-            </li>
-            <li class="context-menu-entry" role="none">
-                <button type="button" class="context-menu-item" id="sync-manager-context-menu-pull-import" role="menuitem" data-context-action="pull_import">Pull &amp; Import</button>
-            </li>
-            <li class="context-menu-divider" role="separator" aria-hidden="true"></li>
-            <li class="context-menu-entry" role="none">
-                <button type="button" class="context-menu-item" id="sync-manager-context-menu-export" role="menuitem" data-context-action="export_metadata">Export metadata</button>
-            </li>
-            <li class="context-menu-entry" role="none">
-                <button type="button" class="context-menu-item" id="sync-manager-context-menu-import" role="menuitem" data-context-action="import_metadata">Import metadata</button>
-            </li>
-            <li class="context-menu-entry" role="none">
-                <button type="button" class="context-menu-item" id="sync-manager-context-menu-open-folder" role="menuitem" data-context-action="open_folder">Open folder</button>
-            </li>
-        </ul>
+          </div>
+          <div class="px-3 pb-2 border-bottom">
+            <label for="sync-manager-activity-filter" class="form-label form-label-sm mb-1"
+              >Filter by project</label
+            >
+            <input
+              type="search"
+              class="form-control form-control-sm"
+              id="sync-manager-activity-filter"
+              placeholder="Filter by project..."
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <div
+            class="sync-manager-activity-list px-3 py-2 d-flex flex-column gap-2"
+            id="sync-manager-activity-list"
+            aria-live="polite"
+          ></div>
+          <div class="text-muted small px-3 pb-3 d-none" id="sync-manager-activity-empty">
+            No activity yet.
+          </div>
+        </aside>
+      </div>
     </div>
+  </div>
+  <dialog
+    id="sync-manager-settings-dialog"
+    class="sync-manager-settings-dialog shadow-sm"
+    aria-labelledby="sync-manager-settings-title"
+  >
+    <div class="border-bottom px-3 py-2 d-flex align-items-center justify-content-between gap-2">
+      <div>
+        <h2 id="sync-manager-settings-title" class="h6 mb-0">Sync settings</h2>
+        <p id="sync-manager-settings-summary" class="text-muted small mb-0">
+          Review this project's sync details, remote setup, and diagnostics.
+        </p>
+      </div>
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm"
+        id="sync-manager-settings-close"
+        aria-label="Close settings"
+      >
+        Close
+      </button>
+    </div>
+    <div class="sync-manager-settings-scroll px-3 py-3 d-flex flex-column gap-3">
+      <div
+        class="sync-manager-settings-tablist d-flex flex-wrap gap-2"
+        role="tablist"
+        aria-label="Sync settings sections"
+        id="sync-manager-settings-tablist"
+      >
+        <button
+          type="button"
+          class="btn btn-sm btn-primary sync-manager-settings-tab"
+          role="tab"
+          id="sync-manager-settings-tab-overview"
+          aria-controls="sync-manager-settings-panel-overview"
+          aria-selected="true"
+          tabindex="0"
+          data-settings-tab="overview"
+        >
+          Overview
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary sync-manager-settings-tab"
+          role="tab"
+          id="sync-manager-settings-tab-remote"
+          aria-controls="sync-manager-settings-panel-remote"
+          aria-selected="false"
+          tabindex="-1"
+          data-settings-tab="remote"
+        >
+          Remote
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary sync-manager-settings-tab"
+          role="tab"
+          id="sync-manager-settings-tab-diagnostics"
+          aria-controls="sync-manager-settings-panel-diagnostics"
+          aria-selected="false"
+          tabindex="-1"
+          data-settings-tab="diagnostics"
+        >
+          Diagnostics
+        </button>
+      </div>
+
+      <section
+        class="sync-manager-settings-tabpanel d-flex flex-column gap-3"
+        role="tabpanel"
+        id="sync-manager-settings-panel-overview"
+        aria-labelledby="sync-manager-settings-tab-overview"
+        aria-hidden="false"
+        data-settings-panel="overview"
+      >
+        <dl class="sync-manager-settings-grid mb-0">
+          <div>
+            <dt>Project folder</dt>
+            <dd id="sync-manager-settings-root">--</dd>
+          </div>
+          <div>
+            <dt>Branch and tracking</dt>
+            <dd id="sync-manager-settings-branch">--</dd>
+          </div>
+          <div>
+            <dt>Metadata snapshot</dt>
+            <dd id="sync-manager-settings-pps">--</dd>
+          </div>
+          <div>
+            <dt>Local metadata</dt>
+            <dd id="sync-manager-settings-local">--</dd>
+          </div>
+        </dl>
+        <div>
+          <h3 class="h6 mb-2">Recommended actions</h3>
+          <p class="text-muted small mb-2">
+            Use context menu and row actions for the full action set.
+          </p>
+          <div
+            id="sync-manager-settings-actions"
+            class="sync-manager-settings-actions d-flex flex-wrap gap-2"
+          ></div>
+        </div>
+      </section>
+
+      <section
+        class="sync-manager-settings-tabpanel d-flex flex-column gap-3"
+        role="tabpanel"
+        id="sync-manager-settings-panel-remote"
+        aria-labelledby="sync-manager-settings-tab-remote"
+        aria-hidden="true"
+        data-settings-panel="remote"
+      >
+        <div>
+          <h3 class="h6 mb-2">Repository tracking</h3>
+          <p class="small mb-1" id="sync-manager-settings-tracking">--</p>
+          <p class="text-muted small mb-0">Remote URLs are always redacted in this UI preview.</p>
+        </div>
+        <div class="row g-2">
+          <div class="col-sm-4">
+            <label for="sync-manager-settings-remote-name" class="form-label form-label-sm mb-1"
+              >Remote name</label
+            >
+            <input
+              type="text"
+              class="form-control form-control-sm"
+              id="sync-manager-settings-remote-name"
+              value="origin"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <div class="col-sm-8">
+            <label for="sync-manager-settings-remote-url" class="form-label form-label-sm mb-1"
+              >Remote URL</label
+            >
+            <input
+              type="text"
+              class="form-control form-control-sm"
+              id="sync-manager-settings-remote-url"
+              value=""
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="https://..., ssh://..., or git@host:path"
+            />
+          </div>
+        </div>
+        <p class="small mb-0" id="sync-manager-settings-remote-url-preview">
+          Remote URL preview: --
+        </p>
+        <p class="text-muted small mb-0" id="sync-manager-settings-remote-status">
+          Set Remote is enabled when remote name or URL changes.
+        </p>
+        <div>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            id="sync-manager-settings-set-remote"
+            disabled
+          >
+            Set Remote
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="sync-manager-settings-tabpanel d-flex flex-column gap-2"
+        role="tabpanel"
+        id="sync-manager-settings-panel-diagnostics"
+        aria-labelledby="sync-manager-settings-tab-diagnostics"
+        aria-hidden="true"
+        data-settings-panel="diagnostics"
+      >
+        <p class="small mb-1" id="sync-manager-settings-diagnostics-hint">
+          No recent sync failures for this project.
+        </p>
+        <p class="text-muted small mb-2" id="sync-manager-settings-diagnostics-code">
+          Last code: --
+        </p>
+        <ul class="small mb-2 ps-3 d-none" id="sync-manager-settings-diagnostics-steps"></ul>
+        <details class="mb-2 d-none" id="sync-manager-settings-diagnostics-details-wrap">
+          <summary class="small">Last failure details</summary>
+          <ul class="small mb-0 mt-1 ps-3" id="sync-manager-settings-diagnostics-details"></ul>
+        </details>
+        <div class="d-flex flex-column gap-2">
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm align-self-start"
+            id="sync-manager-settings-copy-diagnostics"
+          >
+            Copy diagnostics template
+          </button>
+          <pre
+            class="sync-manager-settings-diagnostics-preview small border rounded bg-body-tertiary p-2 mb-0"
+            id="sync-manager-settings-diagnostics-preview"
+          ></pre>
+        </div>
+      </section>
+    </div>
+  </dialog>
+  <div
+    id="sync-manager-context-menu"
+    class="context-menu"
+    aria-hidden="true"
+    style="left: -9999px; top: -9999px"
+  >
+    <ul class="context-menu-list" role="menu" aria-label="Project row context menu">
+      <li class="context-menu-entry" role="none">
+        <button
+          type="button"
+          class="context-menu-item"
+          id="sync-manager-context-menu-settings"
+          role="menuitem"
+          data-context-action="settings"
+        >
+          Sync settings...
+        </button>
+      </li>
+      <li class="context-menu-entry" role="none">
+        <button
+          type="button"
+          class="context-menu-item"
+          id="sync-manager-context-menu-refresh"
+          role="menuitem"
+          data-context-action="status"
+        >
+          Refresh status
+        </button>
+      </li>
+      <li class="context-menu-divider" role="separator" aria-hidden="true"></li>
+      <li class="context-menu-entry" role="none">
+        <button
+          type="button"
+          class="context-menu-item"
+          id="sync-manager-context-menu-commit-push"
+          role="menuitem"
+          data-context-action="commit_push"
+        >
+          Commit &amp; Push
+        </button>
+      </li>
+      <li class="context-menu-entry" role="none">
+        <button
+          type="button"
+          class="context-menu-item"
+          id="sync-manager-context-menu-pull-import"
+          role="menuitem"
+          data-context-action="pull_import"
+        >
+          Pull &amp; Import
+        </button>
+      </li>
+      <li class="context-menu-divider" role="separator" aria-hidden="true"></li>
+      <li class="context-menu-entry" role="none">
+        <button
+          type="button"
+          class="context-menu-item"
+          id="sync-manager-context-menu-export"
+          role="menuitem"
+          data-context-action="export_metadata"
+        >
+          Export metadata
+        </button>
+      </li>
+      <li class="context-menu-entry" role="none">
+        <button
+          type="button"
+          class="context-menu-item"
+          id="sync-manager-context-menu-import"
+          role="menuitem"
+          data-context-action="import_metadata"
+        >
+          Import metadata
+        </button>
+      </li>
+      <li class="context-menu-entry" role="none">
+        <button
+          type="button"
+          class="context-menu-item"
+          id="sync-manager-context-menu-open-folder"
+          role="menuitem"
+          data-context-action="open_folder"
+        >
+          Open folder
+        </button>
+      </li>
+    </ul>
+  </div>
 </section>
-{% endblock %}
-{% block extra_scripts %}
-{% if use_minified_assets %}
-{% set sync_manager_js = 'dist/js/entrypoints/sync_manager_page.min.js' %}
-{% else %}
-{% set sync_manager_js = 'js/entrypoints/sync_manager_page.js' %}
-{% endif %}
+{% endblock %} {% block extra_scripts %} {% if use_minified_assets %} {% set sync_manager_js =
+'dist/js/entrypoints/sync_manager_page.min.js' %} {% else %} {% set sync_manager_js =
+'js/entrypoints/sync_manager_page.js' %} {% endif %}
 <script type="module" src="{{ url_for('static', filename=sync_manager_js) }}" defer></script>
 {% endblock %}

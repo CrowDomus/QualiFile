@@ -602,6 +602,9 @@ class MetadataService:
         return self._sidecar_set_validation(relative, not current)
 
     def reassign_path(self, old_path: str | Path, new_path: str | Path, *, is_dir: bool | None = None) -> None:
+        if self._db_conn is not None:
+            from ..preview.image_history import ImageHistory
+            ImageHistory(self._db_conn, self.root, self.data_dir).reassign(old_path, new_path)
         is_directory = bool(is_dir)
         self._sidecar_reassign_tags(old_path, new_path, is_directory)
         self._sidecar_reassign_notes(old_path, new_path, is_directory)

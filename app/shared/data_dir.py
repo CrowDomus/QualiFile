@@ -22,7 +22,7 @@ class DataDirPaths:
 
 
 def resolve_data_dir(instance_path: Path, env: Mapping[str, str] | None = None) -> Path:
-    env_values = env or os.environ
+    env_values = os.environ if env is None else env
     override = env_values.get("QUALIFILE_DATA_DIR")
     if override:
         return Path(override)
@@ -30,7 +30,7 @@ def resolve_data_dir(instance_path: Path, env: Mapping[str, str] | None = None) 
 
 
 def resolve_paths(data_dir: Path, env: Mapping[str, str] | None = None) -> DataDirPaths:
-    env_values = env or os.environ
+    env_values = os.environ if env is None else env
     data_dir = Path(data_dir)
     preview_cache_dir = Path(env_values.get("QUALIFILE_PREVIEW_CACHE", data_dir / "preview_cache"))
     office_cache_dir = Path(env_values.get("QUALIFILE_OFFICE_CACHE", data_dir / "office_cache"))

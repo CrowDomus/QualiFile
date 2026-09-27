@@ -45,7 +45,7 @@ def _prepare_env() -> None:
 
 
 def _render_pages() -> list[str]:
-    app = create_app()
+    app = create_app({"SERVER_PORT": 80})
     client = app.test_client()
     pages = ["/", "/workspace"]
     html_outputs: list[str] = []

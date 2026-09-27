@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>QualiFile User Tutorial (Offline)</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230d6efd'/%3E%3Cpath d='M4 4h8v2H6v2h5v2H6v2H4z' fill='white'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
@@ -81,6 +82,7 @@
         <section id="getting-started">
           <h2>Getting started</h2>
           <p>QualiFile manages documentation inside a single root folder. All file operations (create, rename, delete, copy/move) are constrained to that root. If you need to work with a different folder, update the root in <a href="#settings-workspace">Settings -> Workspace</a> or from the first-run screen.</p>
+          <p>The root itself, internal application files, linked paths, and overlapping parent/child selections cannot be changed through file operations. Overwrite preserves the prior destination until the replacement is ready. If an operation reports recovery is needed, stop retrying and preserve its hidden recovery folder for support.</p>
           <div class="callout">
             <strong>Why a root folder?</strong> It keeps qualification evidence contained and reduces accidental edits outside scope.
           </div>
@@ -118,7 +120,7 @@
             <li><strong>Status pill</strong>: shows "Saved/Idle", "Loading...", "Moving...", etc.</li>
             <li><strong>Filter</strong>: quick search within the current folder.</li>
             <li><strong>Advanced filters</strong>: scope (current/root), folder name, tags, and date ranges.</li>
-            <li><strong>Workspace root pill</strong>: click the current project pill to open a quick menu and switch to another linked project root.</li>
+            <li><strong>Workspace switcher</strong>: click the current project name in the toolbar to open a quick menu and switch to another linked project root.</li>
           </ul>
           <div class="callout">
             <strong>Advanced filter tips:</strong> use "Scope: All folders (root)" to search the entire root, filter by tags, and set modified date ranges (including custom start/end dates).
@@ -137,7 +139,7 @@
             <li><strong>Add note</strong>: add a note tied to the current folder or selection.</li>
             <li><strong>PDF Tools</strong>: merge PDFs, merge images into a PDF, or extract pages.</li>
             <li><strong>Capture</strong>: screenshot capture workflow (rectangle/window/screen).</li>
-            <li><strong>Greenshot</strong>: launch external Greenshot with optional hotkey automation.</li>
+                <li><strong>Greenshot</strong>: use the server-approved Greenshot installation with optional server-managed hotkey automation.</li>
             <li><strong>Import Structure</strong>: create folder trees from a template file.</li>
             <li><strong>Rename / Delete</strong>: operate on selected items.</li>
           </ul>
@@ -177,6 +179,7 @@
             <li>Metadata panel includes type, size, modified/created, validation state, and full path.</li>
             <li>Image controls: zoom, rotate, reset, annotate.</li>
             <li>PDF controls: page count + Extract button.</li>
+            <li>Embedded PDF previews, including converted Office documents, are limited to 32 MiB. Use Open to view larger documents externally.</li>
           </ul>
           <p class="note">Unsupported file types show a download/notice card rather than preview content.</p>
         </section>
@@ -318,7 +321,7 @@
             <li><strong>Notes</strong>: manage notes linked to the file or folder.</li>
             <li><strong>Fullscreen</strong>: enlarge the preview.</li>
             <li><strong>Show/Hide details</strong>: toggle metadata panel.</li>
-            <li><strong>Annotate</strong> (images): open annotation workspace.</li>
+            <li><strong>Annotate</strong> (images): open the annotation workspace. After saving, the selected image preview updates automatically.</li>
             <li><strong>Extract pages</strong> (PDFs): open extract modal.</li>
           </ul>
 
@@ -334,8 +337,23 @@
           <ul>
             <li><strong>Capture screenshot</strong>: rectangle, window, or full screen.</li>
             <li>Optional details prompt (filename, folder, tags).</li>
-            <li><strong>Greenshot</strong>: external integration with optional hotkey automation.</li>
+            <li><strong>Greenshot</strong>: external integration using only the executable configured before server startup.</li>
           </ul>
+        </section>
+
+        <section id="image-history">
+          <h2>Folder memory, reusable annotations, and image history</h2>
+          <p>Refreshing the browser keeps the displayed folder. Each tab remembers its own location. If that folder was removed, QualiFile opens its nearest available parent.</p>
+          <h3>Apply annotations from another image</h3>
+          <p>In the annotation editor, choose <strong>Copy annotations</strong>. Select an annotated reference, or choose <strong>Show</strong> to inspect an image with its saved annotations. The selected row is highlighted. To keep the target image's current annotations and add the reference annotations above them, select <strong>Keep existing annotations and add reference annotations on top</strong>. Leave it unchecked to replace the current annotations. Choose <strong>Use reference</strong>, review the result, and save. Undo reverses applying the reference before saving.</p>
+          <p>Choose <strong>Show</strong> beside an image in the reference picker to inspect it without closing the picker. In the annotation editor, use the left and right arrows to move between images in the same folder. If the current annotations have changed, choose <strong>Save</strong>, <strong>Discard</strong>, or <strong>Cancel</strong> before moving. The arrows wrap between the first and last image. If the folder has only one image, QualiFile shows an information message.</p>
+          <p>For multiple images, select them in the workspace, right-click, and choose <strong>Apply annotations from reference...</strong>. Select the reference, choose whether to keep existing annotations with the same checkbox, and confirm with <strong>Apply annotations</strong>. The result reports saved, skipped, and failed files.</p>
+          <p>Exact duplication preserves the full annotation layer and requires matching image dimensions. Existing editable annotations are replaced unless the keep-existing option is selected. The reference is skipped if it is also selected. Images with annotations flattened by older versions cannot serve as editable references until new annotations are saved.</p>
+          <h3>Image history</h3>
+          <p>Image history is available automatically. QualiFile stores new archives inside its internal data folder. Open <strong>Settings</strong>, then <strong>File management</strong> to see the full archive location. The header <strong>Capture</strong> button is light green and <strong>PDF Tools</strong> is light red.</p>
+          <p>Before an image is changed, its previous bytes and editable annotations are archived. Renaming does not create a version. If internal storage is unavailable, the protected change is stopped. Versions created with an older, manually selected archive folder remain there and can still be restored while that folder is available. File management shows the earlier location when applicable.</p>
+          <p>Right-click an image and choose <strong>Restore previous version...</strong>. One version restores directly. Multiple versions open a list with a <strong>Thumbnails</strong> view and a <strong>Show</strong> preview with zoom. Restoring preserves current tags and archives the current image so that the restore can itself be reversed.</p>
+          <p>Back up the application data directory and any earlier manually selected archive folders. Image history protects changes performed through QualiFile. Edits made directly by external programs are not automatically versioned.</p>
         </section>
 
         <section id="context-menus">
@@ -491,16 +509,22 @@
           <h3 id="settings-capture">Capture &amp; automation</h3>
           <ul>
             <li>Enable Greenshot integration toggle (shows/hides Greenshot actions).</li>
-            <li>Greenshot executable path.</li>
-            <li>Greenshot hotkey string (e.g. <span class="kbd">Ctrl</span> + <span class="kbd">PrintScreen</span>).</li>
+            <li>Greenshot executable and hotkey are server-managed; browser content cannot change them.</li>
+            <li>Administrators configure <code>QUALIFILE_GREENSHOT_EXECUTABLE</code>, optional <code>QUALIFILE_GREENSHOT_HOTKEY</code>, and a 0–2000 ms <code>QUALIFILE_GREENSHOT_DELAY_MS</code> before launch.</li>
             <li>Hotkey delay in milliseconds (default 350).</li>
             <li>Prompt for screenshot details after capture.</li>
           </ul>
-          <p class="note">Defaults: capture mode = Rectangle, prompt details = off, Greenshot delay = 350 ms, Greenshot enabled when an executable path is configured.</p>
+          <p class="note">Defaults: capture mode = Rectangle, prompt details = off, server hotkey delay = 350 ms, and Greenshot disabled until explicitly enabled.</p>
 
           <h3 id="settings-utilities">Utilities</h3>
           <ul>
             <li>Office preview quality: Standard (better fidelity) or Fast (quicker Office previews).</li>
+            <li>Accelerated Office previews: enabled by default, keeps one Office application ready
+              while previewing new documents. It closes after two minutes of inactivity or when you
+              exit QualiFile. This works with both quality settings. Disable it and save preferences
+              to return to starting Office for each conversion. The first document still needs Office
+              startup time. Each accelerated conversion has a two-minute time limit. Source documents
+              are opened read-only.</li>
             <li>Copy TOC extraction helper to clipboard.</li>
             <li>Clear preview cache (frees disk space).</li>
             <li>Portable mode: view data folder location and open it.</li>
@@ -535,7 +559,7 @@
           <ul>
             <li>Check <strong>Settings -> About</strong> for version info.</li>
             <li>Use logs in the data folder when reporting issues.</li>
-            <li>If support requests a bundle, follow their instructions to generate a support bundle and share only that bundle.</li>
+            <li>If support requests a bundle, review its manifest and share only that bundle. P3 user content requires typing <code>INCLUDE-P3</code> after reviewing exact names, sizes, privacy classes, and digests.</li>
           </ul>
         </section>
 

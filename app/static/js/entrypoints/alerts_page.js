@@ -8,14 +8,14 @@ import { initModalStacking } from '../shared/modal_stack.js';
 import { initModalBackdropGuard } from '../shared/modal_backdrop_guard.js';
 
 async function bootstrap() {
-    initModalStacking();
-    initModalBackdropGuard();
-    await initProfilePreferencesBridge();
-    void initProfileHeaderAvatar();
-    initProfileModal();
-    initProfileController();
-    initTaskAlertsHeader();
-    initTaskAlertsPage();
+  initModalStacking();
+  initModalBackdropGuard();
+  await initProfilePreferencesBridge();
+  void initProfileHeaderAvatar();
+  initProfileModal();
+  initProfileController();
+  initTaskAlertsHeader();
+  initTaskAlertsPage();
 }
 
 bootstrap();

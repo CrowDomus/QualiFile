@@ -23,6 +23,7 @@ INTERNAL_EXACT_NAMES = frozenset(
 )
 
 INTERNAL_PREFIXES = (
+    ".qualifile-operation-",
     ".qualifile_meta.json",
     "qualifile.db",
     ".qualifile_sync.tmp-",

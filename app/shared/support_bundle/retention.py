@@ -35,7 +35,7 @@ def _read_int(config: Mapping[str, object] | None, key: str, env_key: str, defau
     else:
         raw = os.environ.get(env_key)
     try:
-        return int(raw)  # type: ignore[arg-type]
+        return min(max(int(raw), 1), 3650)  # type: ignore[arg-type]
     except Exception:
         return default
 

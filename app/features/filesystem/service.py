@@ -6,10 +6,12 @@ without requiring HTTP round-trips.
 """
 from __future__ import annotations
 
+import errno
 import os
 import re
 import shutil
 import stat
+import tempfile
 import time
 import zipfile
 from dataclasses import dataclass
@@ -102,8 +104,11 @@ def resolve_within_root(root: Path, relative: str | os.PathLike[str]) -> Path:
 
     if not Path(root).exists():
         raise FileNotFoundError(f"Root folder '{root}' is not available.")
-    base = root.resolve()
-    candidate = (base / Path(relative)).resolve()
+    base = Path(root).resolve()
+    # Inspect the lexical path before resolve() can erase a link or junction.
+    lexical = base / Path(relative)
+    _ensure_no_symlink(base, lexical)
+    candidate = lexical.resolve()
     if not is_within_root(base, candidate):
         raise PathOutsideRootError(f"Path '{candidate}' escapes root '{root}'.")
     _ensure_no_symlink(base, candidate)
@@ -115,8 +120,13 @@ def _ensure_no_symlink(root: Path, path: Path) -> None:
 
     current = path
     while True:
-        if current.exists() and current.is_symlink():
-            raise ValueError(f"Symlinks are not permitted: '{current}'.")
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            info = None
+        if info is not None and (stat.S_ISLNK(info.st_mode) or
+                getattr(info, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)):
+            raise ValueError(f"Links and reparse points are not permitted: '{current}'.")
         if current == root or current == current.parent:
             break
         current = current.parent
@@ -128,6 +138,8 @@ def validate_name(name: str) -> str:
     name = name.strip()
     if not name:
         raise ValueError("Name cannot be empty.")
+    if name in {".", ".."} or name.endswith(".") or "\x00" in name:
+        raise ValueError("Name is not a regular file or folder name.")
     if ILLEGAL_CHARS.search(name):
         raise ValueError("Name contains illegal characters.")
     if os.name == "nt" and name.split(".")[0].upper() in RESERVED_NAMES:
@@ -177,7 +189,7 @@ def create_folder(root: Path, relative: str, name: str) -> Path:
 
     name = validate_name(name)
     base = resolve_within_root(root, relative)
-    target = base / name
+    target = _mutation_target(root, base / name, must_exist=False)
     target.mkdir(parents=False, exist_ok=False)
     return target
 
@@ -187,7 +199,7 @@ def create_file(root: Path, relative: str, name: str) -> Path:
 
     name = validate_name(name)
     base = resolve_within_root(root, relative)
-    target = base / name
+    target = _mutation_target(root, base / name, must_exist=False)
     target.touch(exist_ok=False)
     return target
 
@@ -200,58 +212,197 @@ def rename_entry(root: Path, relative: str, new_name: str) -> Path:
     """
 
     new_name = validate_name(new_name)
-    target = resolve_within_root(root, relative)
+    target = _mutation_target(root, relative)
     final_name = new_name
     if target.is_file():
         current_suffix = ''.join(Path(target.name).suffixes)
         requested_suffix = ''.join(Path(new_name).suffixes)
         if current_suffix and not requested_suffix:
             final_name = validate_name(f"{new_name}{current_suffix}")
-    destination = target.with_name(final_name)
+    destination = _mutation_target(root, target.with_name(final_name), must_exist=False)
+    _validate_tree(root, target)
+    if destination.exists() and destination != target:
+        raise FileExistsError(str(destination))
+    _mutation_target(root, target)
     target.rename(destination)
     return destination
+
+
+def _mutation_target(root: Path, relative, *, must_exist=True, allow_root=False) -> Path:
+    target = resolve_within_root(root, relative)
+    if (target == Path(root).resolve() and not allow_root) or is_internal_path(Path(root), target):
+        raise ValueError("The selected root and internal application paths cannot be changed.")
+    if must_exist and not target.exists():
+        raise FileNotFoundError(str(target))
+    return target
+
+
+def _validate_tree(root: Path, target: Path) -> None:
+    """Reject links anywhere in a selected tree, without following them."""
+    resolve_within_root(root, target)
+    if target.is_dir():
+        for directory, dirs, files in os.walk(target, followlinks=False):
+            resolve_within_root(root, directory)
+            for name in dirs + files:
+                resolve_within_root(root, Path(directory) / name)
+
+
+def _preflight_sources(root: Path, items: Iterable[str]) -> list[Path]:
+    sources = [_mutation_target(root, item) for item in items]
+    for index, source in enumerate(sources):
+        for other in sources[:index]:
+            if is_within_root(source, other) or is_within_root(other, source) or os.path.samefile(source, other):
+                raise ValueError("Duplicate or ancestor/descendant selections are not allowed.")
+        _validate_tree(root, source)
+    return sources
+
+
+def _copy_checked(root: Path, source: Path, destination: Path) -> None:
+    resolve_within_root(root, source)
+    resolve_within_root(root, destination)
+    if source.is_dir():
+        destination.mkdir()
+        for child in source.iterdir():
+            _copy_checked(root, child, destination / child.name)
+        shutil.copystat(source, destination, follow_symlinks=False)
+    else:
+        shutil.copy2(source, destination, follow_symlinks=False)
+    # A source changed to a link during a copy must never be published.
+    resolve_within_root(root, source)
+    resolve_within_root(root, destination)
+
+
+def _entry_identity(path: Path):
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return None
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
+
+
+def _staged_transfer(root: Path, source: Path, destination: Path, *, move: bool, expected_destination) -> None:
+    from ..preview.image_history import IMAGE_LOCK
+    with IMAGE_LOCK:
+        return _staged_image_transfer(root, source, destination, move=move, expected_destination=expected_destination)
+
+
+def _staged_image_transfer(root: Path, source: Path, destination: Path, *, move: bool, expected_destination) -> None:
+    """Stage on the destination volume, retaining the old entry until commit."""
+    _mutation_target(root, source)
+    _mutation_target(root, destination, must_exist=False)
+    if _entry_identity(destination) != expected_destination:
+        raise FileExistsError("Destination changed after preflight. Reload and retry.")
+    from ..preview.image_history import prepare_image_transfer, finish_image_transfer
+    image_transfer = prepare_image_transfer(root, source, destination)
+    stage = Path(tempfile.mkdtemp(prefix=".qualifile-operation-", dir=destination.parent))
+    payload, backup = stage / "payload", stage / "previous"
+    retained = False
+    source_staged = False
+    try:
+        if move:
+            _validate_tree(root, source)
+            try:
+                source.replace(payload)
+                source_staged = True
+            except OSError as exc:
+                if exc.errno != errno.EXDEV:
+                    raise
+        if not source_staged:
+            _copy_checked(root, source, payload)
+            _validate_tree(root, source)
+        _validate_tree(root, payload)
+        _mutation_target(root, destination, must_exist=False)
+        if _entry_identity(destination) != expected_destination:
+            raise FileExistsError("Destination changed during transfer. Reload and retry.")
+        if destination.exists():
+            _validate_tree(root, destination)
+            destination.replace(backup)
+        try:
+            payload.replace(destination)
+            finish_image_transfer(image_transfer, move)
+        except BaseException:
+            # Keep the published source available for the outer rollback if
+            # recording image ownership fails after the filesystem commit.
+            if not payload.exists() and destination.exists():
+                destination.replace(payload)
+            if backup.exists():
+                backup.replace(destination)
+            raise
+        if move and not source_staged:
+            try:
+                _mutation_target(root, source)
+                _validate_tree(root, source)
+                _delete_path_permanently(source)
+            except Exception as exc:
+                # A cross-volume move cannot be one atomic rename. Keep both
+                # recoverable copies and identify the recovery location.
+                retained = True
+                raise OSError(f"Move destination is complete but source cleanup failed. Recovery data: {stage}") from exc
+    except BaseException as exc:
+        if backup.exists() and not destination.exists():
+            try:
+                backup.replace(destination)
+            except OSError:
+                retained = True
+        if source_staged and payload.exists():
+            try:
+                if source.exists():
+                    retained = True
+                else:
+                    payload.rename(source)
+            except OSError:
+                retained = True
+        if retained:
+            raise OSError(f"Operation needs recovery. Preserved data: {stage}") from exc
+        raise
+    finally:
+        if not retained:
+            _validate_tree(root, stage)
+            shutil.rmtree(stage)
 
 
 def _copy_or_move(items: Iterable[str], root: Path, destination: str, *, move: bool, on_conflict: str = "rename") -> List[dict]:
     """Shared implementation for move/copy operations."""
 
-    dest_path = resolve_within_root(root, destination)
-    results = []
-    for rel in items:
-        src = resolve_within_root(root, rel)
-        dest_item = dest_path / Path(rel).name
+    if on_conflict not in {"rename", "skip", "overwrite"}:
+        raise ValueError("Unknown conflict policy.")
+    dest_path = _mutation_target(root, destination, allow_root=True)
+    if not dest_path.is_dir():
+        raise NotADirectoryError(str(dest_path))
+    sources = _preflight_sources(root, items)
+    planned = []
+    reserved = set()
+    for src in sources:
+        dest_item = _mutation_target(root, dest_path / src.name, must_exist=False)
         final_dest = dest_item
-        if dest_item.exists():
+        if src.is_dir() and is_within_root(src, dest_path):
+            raise ValueError("A folder cannot be transferred into itself.")
+        if on_conflict == "overwrite" and dest_item.exists() and os.path.samefile(src, dest_item):
+            raise ValueError("Source and overwrite destination are the same entry.")
+        if dest_item.exists() or dest_item in reserved:
             if on_conflict == "skip":
-                results.append({"source": str(src), "status": "skipped"})
+                planned.append((src, None, None))
                 continue
             elif on_conflict == "overwrite":
-                if dest_item.is_dir():
-                    shutil.rmtree(dest_item)
-                else:
-                    dest_item.unlink()
+                _validate_tree(root, dest_item)
             else:  # rename
                 stem = dest_item.stem
                 suffix = dest_item.suffix
                 counter = 1
-                while final_dest.exists():
+                while final_dest.exists() or final_dest in reserved:
                     final_dest = dest_item.with_name(f"{stem} ({counter}){suffix}")
                     counter += 1
-        try:
-            if move:
-                if src.is_dir():
-                    shutil.move(str(src), final_dest)
-                else:
-                    shutil.move(str(src), final_dest)
-                results.append({"source": str(src), "status": "moved", "destination": str(final_dest)})
-            else:
-                if src.is_dir():
-                    shutil.copytree(src, final_dest)
-                else:
-                    shutil.copy2(src, final_dest)
-                results.append({"source": str(src), "status": "copied", "destination": str(final_dest)})
-        except PermissionError as exc:
-            raise PermissionError(f"Unable to access '{src}': {exc}") from exc
+        if final_dest in reserved or any(is_within_root(final_dest, other) for other in sources):
+            raise ValueError("Batch destinations overlap another selected source or destination.")
+        reserved.add(final_dest)
+        planned.append((src, final_dest, _entry_identity(final_dest)))
+    results = []
+    for src, final_dest, expected_destination in planned:
+        if final_dest is None:
+            results.append({"source": str(src), "status": "skipped"})
+            continue
+        _staged_transfer(root, src, final_dest, move=move, expected_destination=expected_destination)
+        results.append({"source": str(src), "status": "moved" if move else "copied", "destination": str(final_dest)})
     return results
 
 
@@ -270,9 +421,12 @@ def copy_items(root: Path, items: Iterable[str], destination: str, on_conflict: 
 def delete_items(root: Path, items: Iterable[str], permanent: bool = False) -> List[dict]:
     """Delete entries, optionally via a soft-delete trash folder."""
 
+    targets = _preflight_sources(root, items)
     results = []
-    for rel in items:
-        target = resolve_within_root(root, rel)
+    trash_root = resolve_within_root(root, ".qualifile_trash")
+    for target in targets:
+        _mutation_target(root, target)
+        _validate_tree(root, target)
         if permanent:
             try:
                 _delete_path_permanently(target)
@@ -280,13 +434,15 @@ def delete_items(root: Path, items: Iterable[str], permanent: bool = False) -> L
                 raise PermissionError(f"Cannot delete '{target}': {exc}") from exc
         else:
             # Basic soft delete: move to trash subdirectory within root
-            trash_root = root / ".qualifile_trash"
+            resolve_within_root(root, trash_root)
             trash_root.mkdir(exist_ok=True)
             dest = trash_root / target.name
             counter = 1
             while dest.exists():
                 dest = trash_root / f"{target.stem} ({counter}){target.suffix}"
                 counter += 1
+            resolve_within_root(root, dest)
+            _mutation_target(root, target)
             shutil.move(str(target), dest)
             results.append({"path": str(target), "status": "soft-deleted", "destination": str(dest)})
             continue
@@ -359,6 +515,7 @@ def _iter_archive_members(
     seen_dirs: set[str] = set()
     added_files: set[str] = set()
     for item in sorted(items, key=lambda p: p.as_posix()):
+        resolve_within_root(root_resolved, item)
         if _is_internal_name(item.name) or is_internal_path(root_resolved, item):
             continue
         if item.resolve() in excluded_paths:
@@ -366,6 +523,7 @@ def _iter_archive_members(
         if item.is_dir():
             for walk_root, dirs, files in os.walk(item):
                 root_path = Path(walk_root)
+                resolve_within_root(root_resolved, root_path)
                 if root_path.resolve() in excluded_paths:
                     continue
                 if is_internal_path(root_resolved, root_path):
@@ -376,8 +534,11 @@ def _iter_archive_members(
                     seen_dirs.add(rel_root)
                     yield root_path, f"{rel_root}/", True
                 dirs[:] = [d for d in sorted(dirs) if not _is_internal_name(d)]
+                for directory in dirs:
+                    resolve_within_root(root_resolved, root_path / directory)
                 for file in sorted(files):
                     candidate = root_path / file
+                    resolve_within_root(root_resolved, candidate)
                     if candidate.resolve() in excluded_paths:
                         continue
                     if is_internal_path(root_resolved, candidate):
@@ -423,10 +584,9 @@ def create_zip_archive(root: Path, items: Iterable[str], destination: str, name:
     """Create a ZIP archive containing ``items`` under ``destination``."""
 
     root_resolved = Path(root).resolve()
-    dest_dir = resolve_within_root(root_resolved, destination or ".")
+    dest_dir = _mutation_target(root_resolved, destination or ".", must_exist=False, allow_root=True)
     if dest_dir.exists() and not dest_dir.is_dir():
         raise ValueError(f"Destination '{dest_dir}' is not a folder.")
-    dest_dir.mkdir(parents=True, exist_ok=True)
 
     resolved: list[Path] = []
     for rel in items:
@@ -435,6 +595,7 @@ def create_zip_archive(root: Path, items: Iterable[str], destination: str, name:
         candidate = resolve_within_root(root_resolved, rel)
         if not candidate.exists():
             raise FileNotFoundError(str(candidate))
+        _validate_tree(root_resolved, candidate)
         resolved.append(candidate)
     if not resolved:
         raise ValueError("No items selected to archive.")
@@ -443,19 +604,34 @@ def create_zip_archive(root: Path, items: Iterable[str], destination: str, name:
     anchor = _determine_archive_anchor(filtered)
     archive_name = _normalise_archive_name(name, filtered)
     target = _increment_archive_name(dest_dir, archive_name)
+    _mutation_target(root_resolved, target, must_exist=False)
     members = list(_iter_archive_members(filtered, anchor, root_resolved, {target}))
     if not members:
         raise ValueError("No items selected to archive.")
 
     compression = zipfile.ZIP_DEFLATED if hasattr(zipfile, "ZIP_DEFLATED") else zipfile.ZIP_STORED
-    with zipfile.ZipFile(target, "w", compression=compression, allowZip64=True) as archive:
-        for source, arcname, is_dir in members:
-            if is_dir:
-                info = zipfile.ZipInfo(arcname if arcname.endswith("/") else f"{arcname}/")
-                info.external_attr = (0o755 << 16)  # mark as directory
-                archive.writestr(info, b"")
-            else:
-                archive.write(source, arcname)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    _mutation_target(root_resolved, dest_dir, allow_root=True)
+    stage = Path(tempfile.mkdtemp(prefix=".qualifile-operation-", dir=dest_dir))
+    try:
+        payload = stage / "archive.zip"
+        with zipfile.ZipFile(payload, "w", compression=compression, allowZip64=True) as archive:
+            for source, arcname, is_dir in members:
+                resolve_within_root(root_resolved, source)
+                if is_dir:
+                    info = zipfile.ZipInfo(arcname if arcname.endswith("/") else f"{arcname}/")
+                    info.external_attr = (0o755 << 16)  # mark as directory
+                    archive.writestr(info, b"")
+                else:
+                    archive.write(source, arcname)
+                resolve_within_root(root_resolved, source)
+        _mutation_target(root_resolved, target, must_exist=False)
+        if target.exists():
+            raise FileExistsError(str(target))
+        payload.rename(target)
+    finally:
+        _validate_tree(root_resolved, stage)
+        shutil.rmtree(stage)
     return target
 
 

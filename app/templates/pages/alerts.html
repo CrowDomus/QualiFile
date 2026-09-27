@@ -1,36 +1,32 @@
-{% extends "layouts/layout.html" %}
-{% block title %}Alerts - QualiFile{% endblock %}
-{% block nav_actions %}
+{% extends "layouts/layout.html" %} {% block title %}Alerts - QualiFile{% endblock %} {% block
+nav_actions %}
 <div class="toolbar-container align-items-center">
-    <div class="toolbar-brand">
-        <span class="fw-semibold text-body-emphasis">Alerts</span>
-    </div>
+  <div class="toolbar-brand">
+    <span class="fw-semibold text-body-emphasis">Alerts</span>
+  </div>
 </div>
-{% endblock %}
-{% block content %}
+{% endblock %} {% block content %}
 <section class="task-alerts-page" id="task-alerts-page-root">
-    <div class="card shadow-sm">
-        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div>
-                <h1 class="h5 mb-0">Task alerts</h1>
-                <p class="text-muted mb-0 small">Active reminders grouped by attention state.</p>
-            </div>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="alerts-page-refresh">Refresh</button>
-        </div>
-        <div class="card-body task-alerts-page-body">
-            <div class="text-muted small" id="alerts-page-loading">Loading alerts...</div>
-            <div class="alert alert-danger py-2 px-3 d-none" id="alerts-page-error" role="alert"></div>
-            <div class="text-muted small d-none" id="alerts-page-empty">No active alerts.</div>
-            <div class="task-alerts-page-list d-none" id="alerts-page-list" aria-live="polite"></div>
-        </div>
+  <div class="card shadow-sm">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h1 class="h5 mb-0">Task alerts</h1>
+        <p class="text-muted mb-0 small">Active reminders grouped by attention state.</p>
+      </div>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="alerts-page-refresh">
+        Refresh
+      </button>
     </div>
+    <div class="card-body task-alerts-page-body">
+      <div class="text-muted small" id="alerts-page-loading">Loading alerts...</div>
+      <div class="alert alert-danger py-2 px-3 d-none" id="alerts-page-error" role="alert"></div>
+      <div class="text-muted small d-none" id="alerts-page-empty">No active alerts.</div>
+      <div class="task-alerts-page-list d-none" id="alerts-page-list" aria-live="polite"></div>
+    </div>
+  </div>
 </section>
-{% endblock %}
-{% block extra_scripts %}
-{% if use_minified_assets %}
-{% set alerts_page_js = 'dist/js/entrypoints/alerts_page.min.js' %}
-{% else %}
-{% set alerts_page_js = 'js/entrypoints/alerts_page.js' %}
-{% endif %}
+{% endblock %} {% block extra_scripts %} {% if use_minified_assets %} {% set alerts_page_js =
+'dist/js/entrypoints/alerts_page.min.js' %} {% else %} {% set alerts_page_js =
+'js/entrypoints/alerts_page.js' %} {% endif %}
 <script type="module" src="{{ url_for('static', filename=alerts_page_js) }}" defer></script>
 {% endblock %}

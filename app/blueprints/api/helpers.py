@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+import hmac
 import json
 import logging
 import os
@@ -10,8 +11,6 @@ import subprocess
 import threading
 from pathlib import Path
 from typing import Any, Dict, List
-from urllib.parse import urlsplit
-
 from flask import Response, current_app, jsonify, request, g
 
 from ...features.filesystem.service import (
@@ -23,6 +22,7 @@ from ...features.notes.store import NoteStore
 from ...features.tags.store import TagStore
 from ...features.validation.store import ValidationStore
 from ...shared.internal_paths import is_internal_name, is_internal_rel_path
+from ...shared.request_security import is_safe_method, validate_request_origin
 
 
 def _fs_error_response(exc: Exception) -> Response:
@@ -74,23 +74,19 @@ def _csrf_token() -> str | None:
 def _validate_origin_and_csrf() -> Response | None:
     """Enforce same-origin and CSRF token for mutating API requests."""
 
-    if request.method in {"GET", "HEAD", "OPTIONS"}:
+    origin_error = validate_request_origin()
+    if origin_error is not None:
+        return origin_error
+    if is_safe_method():
         return None
 
-    # Origin/Host check
-    origin = request.headers.get("Origin")
-    if origin:
-        origin_parts = urlsplit(origin)
-        host_parts = urlsplit(request.host_url)
-        if (origin_parts.scheme, origin_parts.netloc) != (host_parts.scheme, host_parts.netloc):
-            return _error_response("forbidden", "Cross-origin requests are not allowed.", 403, log_level=logging.WARNING)
-    else:
-        # No Origin: fall back to Host header sanity
-        if not request.host:
-            return _error_response("forbidden", "Host header missing.", 403, log_level=logging.WARNING)
-
     token = request.headers.get("X-CSRF-Token")
-    if not token or token != _csrf_token():
+    expected_token = _csrf_token()
+    if (
+        not isinstance(token, str)
+        or not isinstance(expected_token, str)
+        or not hmac.compare_digest(token, expected_token)
+    ):
         return _error_response("csrf-invalid", "Invalid or missing CSRF token.", 403, log_level=logging.WARNING)
 
     content_len = request.content_length

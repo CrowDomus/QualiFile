@@ -1,497 +1,973 @@
-<div class="modal fade" id="modal-settings" tabindex="-1" aria-labelledby="modal-settings-label" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content" id="settings-panel">
-            <div class="modal-header">
-                <h1 class="modal-title fs-5" id="modal-settings-label">Settings</h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="settings-shell">
-                    <nav class="settings-nav" aria-label="Settings sections">
-                        <p class="text-muted fw-semibold text-uppercase small mb-2">Navigation</p>
-                        <button class="settings-nav-item active" type="button" data-settings-nav="general" aria-current="true">General</button>
-                        <button class="settings-nav-item" type="button" data-settings-nav="profile">Profile</button>
-                        <button class="settings-nav-item" type="button" data-settings-nav="workspace">Workspace</button>
-                        <button class="settings-nav-item" type="button" data-settings-nav="tags">Tags &amp; categories</button>
-                        <button class="settings-nav-item" type="button" data-settings-nav="projects">Projects</button>
-                        <button class="settings-nav-item" type="button" data-settings-nav="sync">Sync</button>
-                        <button class="settings-nav-item" type="button" data-settings-nav="files">File management</button>
-                        <button class="settings-nav-item" type="button" data-settings-nav="merge">Merge defaults</button>
-                        <button class="settings-nav-item" type="button" data-settings-nav="capture">Capture &amp; automation</button>
-                        <button class="settings-nav-item" type="button" data-settings-nav="utilities">Utilities</button>
-                        <button class="settings-nav-item" type="button" data-settings-nav="about">About</button>
-                    </nav>
-                    <div class="settings-content">
-                        <section class="settings-pane is-active" data-settings-pane="general" aria-label="General preferences">
-                            <header class="settings-pane-header">
-                                <h2 class="h5 mb-1">General</h2>
-                                <p class="text-muted mb-3">App-wide preferences for appearance and layout.</p>
-                            </header>
-                            <div class="row g-3">
-                                <div class="col-lg-6">
-                                    <div class="card border-0 shadow-sm h-100">
-                                        <div class="card-body">
-                                            <h3 class="h6">Theme</h3>
-                                            <p class="text-muted small mb-2">Choose how QualiFile looks across light, dark, and the new teal-forward palettes.</p>
-                                            <div class="btn-group flex-wrap" role="group" aria-label="Theme selection">
-                                                <button class="btn btn-outline-secondary theme-button" type="button" id="theme-light">Light</button>
-                                                <button class="btn btn-outline-secondary theme-button" type="button" id="theme-light-plus">Light+</button>
-                                                <button class="btn btn-outline-secondary theme-button" type="button" id="theme-dark">Dark</button>
-                                                <button class="btn btn-outline-secondary theme-button" type="button" id="theme-dark-plus">Dark+</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-6">
-                                    <div class="card border-0 shadow-sm h-100">
-                                        <div class="card-body">
-                                            <h3 class="h6">Workspace chrome</h3>
-                                            <p class="text-muted small mb-2">Toggle between the full toolbar or a compact header.</p>
-                                            <div class="btn-group w-100" role="group" aria-label="Design mode">
-                                                <input class="btn-check" type="radio" name="design-mode" id="design-mode-expanded" value="expanded" autocomplete="off">
-                                                <label class="btn btn-outline-secondary" for="design-mode-expanded">Expanded view</label>
-                                                <input class="btn-check" type="radio" name="design-mode" id="design-mode-compact" value="compact" autocomplete="off">
-                                                <label class="btn btn-outline-secondary" for="design-mode-compact">Compact view</label>
-                                            </div>
-                                            <div class="form-check form-switch mt-3">
-                                                <input class="form-check-input" type="checkbox" id="settings-sidebar-compact-lock">
-                                                <label class="form-check-label fw-semibold" for="settings-sidebar-compact-lock">Lock sidebar in compact mode (disable hover expand)</label>
-                                                <div class="form-text">When enabled, the sidebar stays compact and won’t expand on hover.</div>
-                                            </div>
-                                            <button class="btn btn-outline-secondary mt-3" type="button" id="settings-reset-layout">Reset layout</button>
-                                            <p class="form-text mt-2 mb-0">Restore the default pane arrangement if the workspace feels crowded.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                        <section class="settings-pane" data-settings-pane="profile" aria-label="Profile">
-                            <header class="settings-pane-header">
-                                <h2 class="h5 mb-1">Profile</h2>
-                                <p class="text-muted mb-3">Create and manage your local profile identity.</p>
-                            </header>
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body d-flex flex-column gap-2">
-                                    <p class="text-muted small mb-0">Profiles store portable preferences and optional contact info on this device.</p>
-                                    <p class="text-muted small mb-0" data-profile-settings-note>Profile mode is disabled by configuration.</p>
-                                    <div>
-                                        <button class="btn btn-outline-primary" type="button" data-profile-modal-toggle>Open profile details</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                        <section class="settings-pane" data-settings-pane="workspace" aria-label="Workspace">
-                            <header class="settings-pane-header">
-                                <h2 class="h5 mb-1">Workspace</h2>
-                                <p class="text-muted mb-3">Select or clear the root folder QualiFile manages.</p>
-                            </header>
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body">
-                                    <div class="row g-3 align-items-end">
-                                        <div class="col-lg-8">
-                                            <label class="form-label" for="settings-root">Root path</label>
-                                            <div class="input-group">
-                                                <input class="form-control" id="settings-root" type="text" placeholder="/path/to/folder">
-                                                <button class="btn btn-outline-secondary folder-picker-btn" type="button" data-folder-picker="settings-root">Browse</button>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-4 d-flex gap-2">
-                                            <button class="btn btn-outline-primary flex-grow-1" type="button" id="settings-root-apply">Apply</button>
-                                            <button class="btn btn-outline-danger" type="button" id="settings-root-clear">Clear</button>
-                                        </div>
-                                    </div>
-                                    <p class="form-text mt-2 mb-0">Enter an absolute path. The folder must be accessible to the server.</p>
-                                </div>
-                            </div>
-                        </section>
-                        <section class="settings-pane" data-settings-pane="tags" aria-label="Tags and categories">
-                            <header class="settings-pane-header">
-                                <h2 class="h5 mb-1">Tags &amp; categories</h2>
-                                <p class="text-muted mb-3">Create reusable labels for organising files.</p>
-                            </header>
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body tag-management-wrapper">
-                                    <div>
-                                        <form class="row g-3 align-items-center mb-3" id="settings-tag-create-form">
-                                            <div class="col-md-8">
-                                                <label class="form-label" for="settings-tag-name">New tag name</label>
-                                                <input class="form-control" id="settings-tag-name" maxlength="60" placeholder="Quality review">
-                                                <div class="invalid-feedback" id="settings-tag-feedback"></div>
-                                                <div class="form-text" id="settings-tag-limit">0 / 50 tags used</div>
-                                            </div>
-                                            <div class="col-md-4 text-md-end d-flex align-items-end">
-                                                <button class="btn btn-primary ms-md-auto w-100" type="submit" id="settings-tag-create-submit">Create tag</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-2 mb-2">
-                                        <input type="search" class="form-control form-control-sm" id="settings-tag-search" placeholder="Search tags…">
-                                    </div>
-                                    <div id="settings-tag-root-drop" class="tag-root-drop-zone text-muted small mb-2">Drop here to move tag to root</div>
-                                    <div id="settings-tag-list" class="tag-management-list d-flex flex-column gap-3"></div>
-                                    <div class="form-check form-switch mt-3">
-                                        <input class="form-check-input" type="checkbox" role="switch" id="settings-tags-hierarchy">
-                                        <label class="form-check-label" for="settings-tags-hierarchy">Show tag hierarchy in Workspace file pane</label>
-                                        <div class="form-text">When enabled, tag headers will be grouped in parent/child order in categorized view.</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                        <section class="settings-pane" data-settings-pane="projects" aria-label="Projects">
-                            <header class="settings-pane-header">
-                                <h2 class="h5 mb-1">Projects</h2>
-                                <p class="text-muted mb-3">Control how projects are displayed.</p>
-                            </header>
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body d-flex flex-column gap-2">
-                                    <div class="form-check form-switch m-0">
-                                        <input class="form-check-input" type="checkbox" id="settings-projects-nested">
-                                        <label class="form-check-label fw-semibold" for="settings-projects-nested">Show projects as a hierarchy</label>
-                                    </div>
-                                    <p class="text-muted small mb-0">When off, projects are listed flat. When on, children appear directly under their parent with indentation.</p>
-                                    <div class="form-check form-switch m-0">
-                                        <input class="form-check-input" type="checkbox" id="settings-projects-include-children">
-                                        <label class="form-check-label fw-semibold" for="settings-projects-include-children">Include child project tasks/notes</label>
-                                    </div>
-                                    <p class="text-muted small mb-0">When enabled, selecting a project also previews entries from its descendants.</p>
-                                    <div class="form-check form-switch m-0">
-                                        <input class="form-check-input" type="checkbox" id="settings-projects-timeline-open-on-click">
-                                        <label class="form-check-label fw-semibold" for="settings-projects-timeline-open-on-click">Open task on click in timeline</label>
-                                    </div>
-                                    <p class="text-muted small mb-0">When disabled (default), clicking a task only selects it. Use right-click for actions.</p>
-                                    <div class="form-check form-switch m-0">
-                                        <input class="form-check-input" type="checkbox" id="settings-projects-compact-task-preview">
-                                        <label class="form-check-label fw-semibold" for="settings-projects-compact-task-preview">Compact task cards</label>
-                                    </div>
-                                    <p class="text-muted small mb-0">Show status/priority/date indicators on the title line when space allows.</p>
-                                    <div class="form-check form-switch m-0">
-                                        <input class="form-check-input" type="checkbox" id="settings-projects-inline-composer">
-                                        <label class="form-check-label fw-semibold" for="settings-projects-inline-composer">Use inline note/task composer on project page</label>
-                                    </div>
-                                    <p class="text-muted small mb-0">When enabled, Add Note and Add Task open a compact form in the project pane instead of a modal.</p>
-                                    <div class="row g-2 align-items-center">
-                                        <div class="col-auto">
-                                            <label class="form-label mb-0" for="settings-projects-project-color-style">Project color style</label>
-                                        </div>
-                                        <div class="col-auto">
-                                            <select class="form-select form-select-sm" id="settings-projects-project-color-style">
-                                                <option value="pill">Name pill (recommended)</option>
-                                                <option value="row">Full row</option>
-                                                <option value="none">None</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-12">
-                                            <p class="text-muted small mb-0">Choose how project colors are displayed in the projects table.</p>
-                                        </div>
-                                    </div>
-                                    <div class="row g-2 align-items-center">
-                                        <div class="col-auto">
-                                            <label class="form-label mb-0" for="settings-projects-timeline-hierarchy-links">Timeline hierarchy links</label>
-                                        </div>
-                                        <div class="col-auto">
-                                            <select class="form-select form-select-sm" id="settings-projects-timeline-hierarchy-links">
-                                                <option value="hover">Highlight on hover (recommended)</option>
-                                                <option value="bracket">Bracket connector</option>
-                                                <option value="none">None</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-12">
-                                            <p class="text-muted small mb-0">Controls how parent/child relationships are hinted inside the timeline bars area when Hierarchy is enabled.</p>
-                                        </div>
-                                    </div>
-                                    <h3 class="h6 mt-2 mb-0">Timeline Settings</h3>
-                                    <div class="form-check form-switch m-0">
-                                        <input class="form-check-input" type="checkbox" id="timeline-setting-bar-labels">
-                                        <label class="form-check-label fw-semibold" for="timeline-setting-bar-labels">Show task name after bar</label>
-                                    </div>
-                                    <div class="form-check form-switch m-0">
-                                        <input class="form-check-input" type="checkbox" id="timeline-setting-highlight-rows">
-                                        <label class="form-check-label fw-semibold" for="timeline-setting-highlight-rows">Highlight rows with task color</label>
-                                    </div>
-                                    <div class="form-check form-switch m-0">
-                                        <input class="form-check-input" type="checkbox" id="timeline-hierarchy-enabled">
-                                        <label class="form-check-label fw-semibold" for="timeline-hierarchy-enabled">Tree rows (hierarchy)</label>
-                                    </div>
-                                    <p class="text-muted small mb-0">Use right-click in Timeline/Tasks list to Expand/Collapse when hierarchy is enabled.</p>
-                                    <hr class="my-2">
-                                    <div class="row g-2 align-items-center">
-                                        <div class="col-auto">
-                                            <label class="form-label mb-0" for="settings-projects-note-lines">Note preview lines</label>
-                                        </div>
-                                        <div class="col-auto">
-                                            <input class="form-control form-control-sm" type="number" id="settings-projects-note-lines" min="1" max="10" style="width: 5rem;">
-                                        </div>
-                                        <div class="col-12">
-                                            <p class="text-muted small mb-0">Controls how many lines of each note are shown in the Projects preview cards.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                        <section class="settings-pane" data-settings-pane="sync" aria-label="Sync preferences">
-                            <header class="settings-pane-header">
-                                <h2 class="h5 mb-1">Sync</h2>
-                                <p class="text-muted mb-3">Global Sync Manager preferences that apply to all projects.</p>
-                            </header>
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body d-flex flex-column gap-3">
-                                    <div class="form-check form-switch m-0">
-                                        <input class="form-check-input" type="checkbox" id="settings-sync-auto-refresh-toggle">
-                                        <label class="form-check-label fw-semibold" for="settings-sync-auto-refresh-toggle">Enable live status refresh while the tab is visible</label>
-                                    </div>
-                                    <div class="row g-2 align-items-center">
-                                        <div class="col-auto">
-                                            <label class="form-label mb-0" for="settings-sync-auto-refresh-interval">Refresh interval</label>
-                                        </div>
-                                        <div class="col-auto">
-                                            <select class="form-select form-select-sm" id="settings-sync-auto-refresh-interval">
-                                                <option value="7000">Every 7 seconds</option>
-                                                <option value="10000">Every 10 seconds</option>
-                                                <option value="15000">Every 15 seconds</option>
-                                                <option value="30000">Every 30 seconds</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="row g-2 align-items-center">
-                                        <div class="col-auto">
-                                            <label class="form-label mb-0" for="settings-sync-project-color-style">Project color style on Sync Manager</label>
-                                        </div>
-                                        <div class="col-auto">
-                                            <select class="form-select form-select-sm" id="settings-sync-project-color-style">
-                                                <option value="pill">Project pills</option>
-                                                <option value="row">Row colored</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="form-check form-switch m-0">
-                                        <input class="form-check-input" type="checkbox" id="settings-sync-advanced-row-actions-toggle">
-                                        <label class="form-check-label fw-semibold" for="settings-sync-advanced-row-actions-toggle">Show advanced actions inline in each Sync Manager row</label>
-                                    </div>
-                                    <div class="form-check form-switch m-0">
-                                        <input class="form-check-input" type="checkbox" id="settings-sync-activity-panel-visible-toggle">
-                                        <label class="form-check-label fw-semibold" for="settings-sync-activity-panel-visible-toggle">Show Activity panel by default on Sync Manager page</label>
-                                    </div>
-                                    <p class="text-muted small mb-0">These preferences are device-local only and are not written into metadata snapshots or Git payloads.</p>
-                                </div>
-                            </div>
-                        </section>
-                        <section class="settings-pane" data-settings-pane="files" aria-label="File management">
-                            <header class="settings-pane-header">
-                                <h2 class="h5 mb-1">File management</h2>
-                                <p class="text-muted mb-3">Control how delete operations behave.</p>
-                            </header>
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body d-flex flex-column flex-md-row align-items-start gap-3">
-                                    <div class="form-check form-switch m-0">
-                                        <input class="form-check-input" type="checkbox" id="settings-soft-delete">
-                                        <label class="form-check-label fw-semibold" for="settings-soft-delete">Soft delete (move to trash)</label>
-                                    </div>
-                                    <p class="text-muted small mb-0">When enabled, files are moved to the system recycle bin instead of being permanently removed.</p>
-                                </div>
-                            </div>
-                        </section>
-                        <section class="settings-pane" data-settings-pane="merge" aria-label="Merge defaults">
-                            <header class="settings-pane-header">
-                                <h2 class="h5 mb-1">Merge defaults</h2>
-                                <p class="text-muted mb-3">Preconfigure the options applied when merging documents.</p>
-                            </header>
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body">
-                                    <div class="row g-3">
-                                        <div class="col-md-4">
-                                            <label class="form-label" for="settings-merge-paper">Paper size</label>
-                                            <select class="form-select" id="settings-merge-paper">
-                                                <option value="A4">A4</option>
-                                                <option value="Letter">Letter</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label" for="settings-merge-orientation">Orientation</label>
-                                            <select class="form-select" id="settings-merge-orientation">
-                                                <option value="portrait">Portrait</option>
-                                                <option value="landscape">Landscape</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label" for="settings-merge-margin">Margin (mm)</label>
-                                            <input class="form-control" type="number" id="settings-merge-margin" min="0" max="50">
-                                        </div>
-                                    </div>
-                                    <div class="row g-3 mt-2">
-                                        <div class="col-md-4">
-                                            <label class="form-label" for="settings-merge-fit">Image fit</label>
-                                            <select class="form-select" id="settings-merge-fit">
-                                                <option value="contain">Contain</option>
-                                                <option value="cover">Cover</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label" for="settings-merge-alignment">Phrase alignment</label>
-                                            <select class="form-select" id="settings-merge-alignment">
-                                                <option value="left">Left</option>
-                                                <option value="center">Center</option>
-                                                <option value="right">Right</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-check mt-4">
-                                                <input class="form-check-input" type="checkbox" id="settings-merge-page-numbers">
-                                                <label class="form-check-label" for="settings-merge-page-numbers">Include page numbers</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                        <section class="settings-pane" data-settings-pane="capture" aria-label="Capture and automation">
-                            <header class="settings-pane-header">
-                                <h2 class="h5 mb-1">Capture &amp; automation</h2>
-                                <p class="text-muted mb-3">Configure Greenshot integration, shortcuts, and capture prompts.</p>
-                            </header>
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="settings-greenshot-enabled">
-                                        <label class="form-check-label fw-semibold" for="settings-greenshot-enabled">Enable Greenshot integration</label>
-                                        <div class="form-text">When disabled, the Greenshot button is hidden and automation is turned off.</div>
-                                    </div>
-                                    <div id="settings-greenshot-config" class="mt-3">
-                                        <div class="row g-3">
-                                            <div class="col-12">
-                                                <label class="form-label" for="settings-greenshot-path">Greenshot executable</label>
-                                                <input class="form-control" type="text" id="settings-greenshot-path" placeholder="C:\Program Files\Greenshot\Greenshot.exe">
-                                                <div class="form-text">Provide the full path to <code>Greenshot.exe</code>.</div>
-                                            </div>
-                                        </div>
-                                        <div class="row g-3 mt-2">
-                                            <div class="col-lg-6">
-                                                <label class="form-label" for="settings-greenshot-hotkey">Capture hotkey</label>
-                                                <input class="form-control" type="text" id="settings-greenshot-hotkey" placeholder="Ctrl+PrintScreen">
-                                                <div class="form-text">Match the shortcut configured in Greenshot (leave blank to skip automation).</div>
-                                            </div>
-                                            <div class="col-lg-6">
-                                                <label class="form-label" for="settings-greenshot-delay">Hotkey delay (ms)</label>
-                                                <input class="form-control" type="number" id="settings-greenshot-delay" min="0" step="50">
-                                                <div class="form-text">Wait before sending the hotkey so Greenshot can focus (default 350 ms).</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="form-check mt-4">
-                                        <input class="form-check-input" type="checkbox" id="settings-screenshot-details">
-                                        <label class="form-check-label" for="settings-screenshot-details">Prompt for name, folder, and tags after capturing</label>
-                                        <div class="form-text">When enabled, screenshots open a confirmation dialog so you can adjust metadata before saving.</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                        <section class="settings-pane" data-settings-pane="utilities" aria-label="Utilities">
-                            <header class="settings-pane-header">
-                                <h2 class="h5 mb-1">Utilities</h2>
-                                <p class="text-muted mb-3">Handy helpers that speed up documentation tasks.</p>
-                            </header>
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body">
-                                    <h3 class="h6 mb-1">Office preview quality</h3>
-                                    <p class="text-muted small mb-2">Choose the rendering profile used when Office files are converted for preview.</p>
-                                    <label class="form-label" for="settings-preview-office-quality">Office preview quality</label>
-                                    <select class="form-select" id="settings-preview-office-quality">
-                                        <option value="standard">Standard (better fidelity, slower)</option>
-                                        <option value="fast">Fast (faster preview, smaller PDF)</option>
-                                    </select>
-                                    <p class="form-text mb-0">Fast reduces export quality for quicker previews. Only preview artifacts are affected.</p>
-                                </div>
-                            </div>
-                            <div class="card border-0 shadow-sm mt-3">
-                                <div class="card-body">
-                                    <p class="text-muted small">Copy the TOC extraction helper script to your clipboard for quick reuse.</p>
-                                    <button class="btn btn-outline-secondary" type="button" id="settings-copy-toc">Copy code to clipboard</button>
-                                    <div class="form-text" id="settings-copy-toc-feedback" role="status" aria-live="polite"></div>
-                                </div>
-                            </div>
-                            <div class="card border-0 shadow-sm mt-3">
-                                <div class="card-body d-flex flex-column gap-2">
-                                    <div>
-                                        <h3 class="h6 mb-1">Preview cache</h3>
-                                        <p class="text-muted small mb-0">Clearing cache frees disk space. Previews will regenerate automatically.</p>
-                                    </div>
-                                    <div class="d-flex flex-column flex-lg-row align-items-start gap-2">
-                                        <button class="btn btn-outline-danger" type="button" id="settings-clear-preview-cache">Clear preview cache</button>
-                                        <div class="spinner-border spinner-border-sm text-muted d-none" role="status" aria-hidden="true" id="settings-clear-preview-cache-spinner"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% if portable_mode %}
-                            <div class="card border-0 shadow-sm mt-3" id="portable-data-location-card">
-                                <div class="card-body d-flex flex-column gap-2">
-                                    <div>
-                                        <h3 class="h6 mb-1">Portable data location</h3>
-                                        <p class="text-muted small mb-1">
-                                            Data location:
-                                            <span class="fw-semibold" id="settings-data-dir">{{ data_dir }}</span>
-                                        </p>
-                                        {% if portable_data_in_root is sameas(false) %}
-                                        <p class="text-warning small mb-0">
-                                            This data folder is outside the portable app directory.
-                                        </p>
-                                        {% endif %}
-                                    </div>
-                                    <div class="d-flex flex-column flex-lg-row align-items-start gap-2">
-                                        <button class="btn btn-outline-secondary" type="button" id="settings-open-data-dir">Open data folder</button>
-                                        <div class="form-text" id="settings-data-dir-status" role="status" aria-live="polite"></div>
-                                    </div>
-                                    <p class="form-text mb-0">
-                                        To keep data portable, move QualiFile to a writable folder or set QUALIFILE_DATA_DIR.
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="card border-0 shadow-sm mt-3">
-                                <div class="card-body d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-3">
-                                    <div>
-                                        <h3 class="h6 mb-1">Exit QualiFile</h3>
-                                        <p class="text-muted small mb-0">Shut down the local server and close the portable app safely.</p>
-                                    </div>
-                                    <button class="btn btn-danger ms-lg-auto" type="button" id="settings-exit-app">Exit QualiFile</button>
-                                </div>
-                            </div>
-                            {% endif %}
-                        </section>
-                        <section class="settings-pane" data-settings-pane="about" aria-label="About QualiFile">
-                            <header class="settings-pane-header">
-                                <h2 class="h5 mb-1">About</h2>
-                                <p class="text-muted mb-3">Version information for support and diagnostics.</p>
-                            </header>
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-3">
-                                    <div>
-                                        <h3 class="h6 mb-1">QualiFile version</h3>
-                                        <p class="text-muted small mb-1">Use this when reporting issues or comparing data migrations.</p>
-                                        <p class="mb-0 fw-semibold" id="settings-app-version">{{ app_version }}</p>
-                                    </div>
-                                    <div class="ms-lg-auto d-flex flex-column align-items-start">
-                                        <button class="btn btn-outline-secondary" type="button" id="settings-copy-version">Copy version</button>
-                                        <div class="form-text" id="settings-copy-version-feedback" role="status" aria-live="polite"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="card border-0 shadow-sm mt-3">
-                                <div class="card-body d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-3">
-                                    <div>
-                                        <h3 class="h6 mb-1">User guide</h3>
-                                        <p class="text-muted small mb-0">Open the offline QualiFile tutorial in your browser.</p>
-                                    </div>
-                                    <button class="btn btn-outline-primary ms-lg-auto" type="button" id="settings-open-user-guide">
-                                        Open User Guide
-                                    </button>
-                                </div>
-                            </div>
-                        </section>
+<div
+  class="modal fade"
+  id="modal-settings"
+  tabindex="-1"
+  aria-labelledby="modal-settings-label"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content" id="settings-panel">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="modal-settings-label">Settings</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-shell">
+          <nav class="settings-nav" aria-label="Settings sections">
+            <p class="text-muted fw-semibold text-uppercase small mb-2">Navigation</p>
+            <button
+              class="settings-nav-item active"
+              type="button"
+              data-settings-nav="general"
+              aria-current="true"
+            >
+              General
+            </button>
+            <button class="settings-nav-item" type="button" data-settings-nav="profile">
+              Profile
+            </button>
+            <button class="settings-nav-item" type="button" data-settings-nav="workspace">
+              Workspace
+            </button>
+            <button class="settings-nav-item" type="button" data-settings-nav="tags">
+              Tags &amp; categories
+            </button>
+            <button class="settings-nav-item" type="button" data-settings-nav="projects">
+              Projects
+            </button>
+            <button class="settings-nav-item" type="button" data-settings-nav="sync">Sync</button>
+            <button class="settings-nav-item" type="button" data-settings-nav="files">
+              File management
+            </button>
+            <button class="settings-nav-item" type="button" data-settings-nav="merge">
+              Merge defaults
+            </button>
+            <button class="settings-nav-item" type="button" data-settings-nav="capture">
+              Capture &amp; automation
+            </button>
+            <button class="settings-nav-item" type="button" data-settings-nav="utilities">
+              Utilities
+            </button>
+            <button class="settings-nav-item" type="button" data-settings-nav="about">About</button>
+          </nav>
+          <div class="settings-content">
+            <section
+              class="settings-pane is-active"
+              data-settings-pane="general"
+              aria-label="General preferences"
+            >
+              <header class="settings-pane-header">
+                <h2 class="h5 mb-1">General</h2>
+                <p class="text-muted mb-3">App-wide preferences for appearance and layout.</p>
+              </header>
+              <div class="row g-3">
+                <div class="col-lg-6">
+                  <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                      <h3 class="h6">Theme</h3>
+                      <p class="text-muted small mb-2">
+                        Choose how QualiFile looks across light, dark, and the new teal-forward
+                        palettes.
+                      </p>
+                      <div class="btn-group flex-wrap" role="group" aria-label="Theme selection">
+                        <button
+                          class="btn btn-outline-secondary theme-button"
+                          type="button"
+                          id="theme-light"
+                        >
+                          Light
+                        </button>
+                        <button
+                          class="btn btn-outline-secondary theme-button"
+                          type="button"
+                          id="theme-light-plus"
+                        >
+                          Light+
+                        </button>
+                        <button
+                          class="btn btn-outline-secondary theme-button"
+                          type="button"
+                          id="theme-dark"
+                        >
+                          Dark
+                        </button>
+                        <button
+                          class="btn btn-outline-secondary theme-button"
+                          type="button"
+                          id="theme-dark-plus"
+                        >
+                          Dark+
+                        </button>
+                      </div>
                     </div>
+                  </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="settings-save">Save Preferences</button>
-            </div>
+                <div class="col-lg-6">
+                  <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                      <h3 class="h6">Workspace chrome</h3>
+                      <p class="text-muted small mb-2">
+                        Toggle between the full toolbar or a compact header.
+                      </p>
+                      <div class="btn-group w-100" role="group" aria-label="Design mode">
+                        <input
+                          class="btn-check"
+                          type="radio"
+                          name="design-mode"
+                          id="design-mode-expanded"
+                          value="expanded"
+                          autocomplete="off"
+                        />
+                        <label class="btn btn-outline-secondary" for="design-mode-expanded"
+                          >Expanded view</label
+                        >
+                        <input
+                          class="btn-check"
+                          type="radio"
+                          name="design-mode"
+                          id="design-mode-compact"
+                          value="compact"
+                          autocomplete="off"
+                        />
+                        <label class="btn btn-outline-secondary" for="design-mode-compact"
+                          >Compact view</label
+                        >
+                      </div>
+                      <div class="form-check form-switch mt-3">
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          id="settings-sidebar-compact-lock"
+                        />
+                        <label
+                          class="form-check-label fw-semibold"
+                          for="settings-sidebar-compact-lock"
+                          >Lock sidebar in compact mode (disable hover expand)</label
+                        >
+                        <div class="form-text">
+                          When enabled, the sidebar stays compact and won’t expand on hover.
+                        </div>
+                      </div>
+                      <button
+                        class="btn btn-outline-secondary mt-3"
+                        type="button"
+                        id="settings-reset-layout"
+                      >
+                        Reset layout
+                      </button>
+                      <p class="form-text mt-2 mb-0">
+                        Restore the default pane arrangement if the workspace feels crowded.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="settings-pane" data-settings-pane="profile" aria-label="Profile">
+              <header class="settings-pane-header">
+                <h2 class="h5 mb-1">Profile</h2>
+                <p class="text-muted mb-3">Create and manage your local profile identity.</p>
+              </header>
+              <div class="card border-0 shadow-sm">
+                <div class="card-body d-flex flex-column gap-2">
+                  <p class="text-muted small mb-0">
+                    Profiles store portable preferences and optional contact info on this device.
+                  </p>
+                  <p class="text-muted small mb-0" data-profile-settings-note>
+                    Profile mode is disabled by configuration.
+                  </p>
+                  <div>
+                    <button class="btn btn-outline-primary" type="button" data-profile-modal-toggle>
+                      Open profile details
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="settings-pane" data-settings-pane="workspace" aria-label="Workspace">
+              <header class="settings-pane-header">
+                <h2 class="h5 mb-1">Workspace</h2>
+                <p class="text-muted mb-3">Select or clear the root folder QualiFile manages.</p>
+              </header>
+              <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                  <div class="row g-3 align-items-end">
+                    <div class="col-lg-8">
+                      <label class="form-label" for="settings-root">Root path</label>
+                      <div class="input-group">
+                        <input
+                          class="form-control"
+                          id="settings-root"
+                          type="text"
+                          placeholder="/path/to/folder"
+                        />
+                        <button
+                          class="btn btn-outline-secondary folder-picker-btn"
+                          type="button"
+                          data-folder-picker="settings-root"
+                        >
+                          Browse
+                        </button>
+                      </div>
+                    </div>
+                    <div class="col-lg-4 d-flex gap-2">
+                      <button
+                        class="btn btn-outline-primary flex-grow-1"
+                        type="button"
+                        id="settings-root-apply"
+                      >
+                        Apply
+                      </button>
+                      <button class="btn btn-outline-danger" type="button" id="settings-root-clear">
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                  <p class="form-text mt-2 mb-0">
+                    Enter an absolute path. The folder must be accessible to the server.
+                  </p>
+                </div>
+              </div>
+            </section>
+            <section
+              class="settings-pane"
+              data-settings-pane="tags"
+              aria-label="Tags and categories"
+            >
+              <header class="settings-pane-header">
+                <h2 class="h5 mb-1">Tags &amp; categories</h2>
+                <p class="text-muted mb-3">Create reusable labels for organising files.</p>
+              </header>
+              <div class="card border-0 shadow-sm">
+                <div class="card-body tag-management-wrapper">
+                  <div>
+                    <form class="row g-3 align-items-center mb-3" id="settings-tag-create-form">
+                      <div class="col-md-8">
+                        <label class="form-label" for="settings-tag-name">New tag name</label>
+                        <input
+                          class="form-control"
+                          id="settings-tag-name"
+                          maxlength="60"
+                          placeholder="Quality review"
+                        />
+                        <div class="invalid-feedback" id="settings-tag-feedback"></div>
+                        <div class="form-text" id="settings-tag-limit">0 / 50 tags used</div>
+                      </div>
+                      <div class="col-md-4 text-md-end d-flex align-items-end">
+                        <button
+                          class="btn btn-primary ms-md-auto w-100"
+                          type="submit"
+                          id="settings-tag-create-submit"
+                        >
+                          Create tag
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 mb-2">
+                    <input
+                      type="search"
+                      class="form-control form-control-sm"
+                      id="settings-tag-search"
+                      placeholder="Search tags…"
+                    />
+                  </div>
+                  <div id="settings-tag-root-drop" class="tag-root-drop-zone text-muted small mb-2">
+                    Drop here to move tag to root
+                  </div>
+                  <div
+                    id="settings-tag-list"
+                    class="tag-management-list d-flex flex-column gap-3"
+                  ></div>
+                  <div class="form-check form-switch mt-3">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      role="switch"
+                      id="settings-tags-hierarchy"
+                    />
+                    <label class="form-check-label" for="settings-tags-hierarchy"
+                      >Show tag hierarchy in Workspace file pane</label
+                    >
+                    <div class="form-text">
+                      When enabled, tag headers will be grouped in parent/child order in categorized
+                      view.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="settings-pane" data-settings-pane="projects" aria-label="Projects">
+              <header class="settings-pane-header">
+                <h2 class="h5 mb-1">Projects</h2>
+                <p class="text-muted mb-3">Control how projects are displayed.</p>
+              </header>
+              <div class="card border-0 shadow-sm">
+                <div class="card-body d-flex flex-column gap-2">
+                  <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="settings-projects-nested" />
+                    <label class="form-check-label fw-semibold" for="settings-projects-nested"
+                      >Show projects as a hierarchy</label
+                    >
+                  </div>
+                  <p class="text-muted small mb-0">
+                    When off, projects are listed flat. When on, children appear directly under
+                    their parent with indentation.
+                  </p>
+                  <div class="form-check form-switch m-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="settings-projects-include-children"
+                    />
+                    <label
+                      class="form-check-label fw-semibold"
+                      for="settings-projects-include-children"
+                      >Include child project tasks/notes</label
+                    >
+                  </div>
+                  <p class="text-muted small mb-0">
+                    When enabled, selecting a project also previews entries from its descendants.
+                  </p>
+                  <div class="form-check form-switch m-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="settings-projects-timeline-open-on-click"
+                    />
+                    <label
+                      class="form-check-label fw-semibold"
+                      for="settings-projects-timeline-open-on-click"
+                      >Open task on click in timeline</label
+                    >
+                  </div>
+                  <p class="text-muted small mb-0">
+                    When disabled (default), clicking a task only selects it. Use right-click for
+                    actions.
+                  </p>
+                  <div class="form-check form-switch m-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="settings-projects-compact-task-preview"
+                    />
+                    <label
+                      class="form-check-label fw-semibold"
+                      for="settings-projects-compact-task-preview"
+                      >Compact task cards</label
+                    >
+                  </div>
+                  <p class="text-muted small mb-0">
+                    Show status/priority/date indicators on the title line when space allows.
+                  </p>
+                  <div class="form-check form-switch m-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="settings-projects-inline-composer"
+                    />
+                    <label
+                      class="form-check-label fw-semibold"
+                      for="settings-projects-inline-composer"
+                      >Use inline note/task composer on project page</label
+                    >
+                  </div>
+                  <p class="text-muted small mb-0">
+                    When enabled, Add Note and Add Task open a compact form in the project pane
+                    instead of a modal.
+                  </p>
+                  <div class="row g-2 align-items-center">
+                    <div class="col-auto">
+                      <label class="form-label mb-0" for="settings-projects-project-color-style"
+                        >Project color style</label
+                      >
+                    </div>
+                    <div class="col-auto">
+                      <select
+                        class="form-select form-select-sm"
+                        id="settings-projects-project-color-style"
+                      >
+                        <option value="pill">Name pill (recommended)</option>
+                        <option value="row">Full row</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                    <div class="col-12">
+                      <p class="text-muted small mb-0">
+                        Choose how project colors are displayed in the projects table.
+                      </p>
+                    </div>
+                  </div>
+                  <div class="row g-2 align-items-center">
+                    <div class="col-auto">
+                      <label
+                        class="form-label mb-0"
+                        for="settings-projects-timeline-hierarchy-links"
+                        >Timeline hierarchy links</label
+                      >
+                    </div>
+                    <div class="col-auto">
+                      <select
+                        class="form-select form-select-sm"
+                        id="settings-projects-timeline-hierarchy-links"
+                      >
+                        <option value="hover">Highlight on hover (recommended)</option>
+                        <option value="bracket">Bracket connector</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                    <div class="col-12">
+                      <p class="text-muted small mb-0">
+                        Controls how parent/child relationships are hinted inside the timeline bars
+                        area when Hierarchy is enabled.
+                      </p>
+                    </div>
+                  </div>
+                  <h3 class="h6 mt-2 mb-0">Timeline Settings</h3>
+                  <div class="form-check form-switch m-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="timeline-setting-bar-labels"
+                    />
+                    <label class="form-check-label fw-semibold" for="timeline-setting-bar-labels"
+                      >Show task name after bar</label
+                    >
+                  </div>
+                  <div class="form-check form-switch m-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="timeline-setting-highlight-rows"
+                    />
+                    <label
+                      class="form-check-label fw-semibold"
+                      for="timeline-setting-highlight-rows"
+                      >Highlight rows with task color</label
+                    >
+                  </div>
+                  <div class="form-check form-switch m-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="timeline-hierarchy-enabled"
+                    />
+                    <label class="form-check-label fw-semibold" for="timeline-hierarchy-enabled"
+                      >Tree rows (hierarchy)</label
+                    >
+                  </div>
+                  <p class="text-muted small mb-0">
+                    Use right-click in Timeline/Tasks list to Expand/Collapse when hierarchy is
+                    enabled.
+                  </p>
+                  <hr class="my-2" />
+                  <div class="row g-2 align-items-center">
+                    <div class="col-auto">
+                      <label class="form-label mb-0" for="settings-projects-note-lines"
+                        >Note preview lines</label
+                      >
+                    </div>
+                    <div class="col-auto">
+                      <input
+                        class="form-control form-control-sm"
+                        type="number"
+                        id="settings-projects-note-lines"
+                        min="1"
+                        max="10"
+                        style="width: 5rem"
+                      />
+                    </div>
+                    <div class="col-12">
+                      <p class="text-muted small mb-0">
+                        Controls how many lines of each note are shown in the Projects preview
+                        cards.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="settings-pane" data-settings-pane="sync" aria-label="Sync preferences">
+              <header class="settings-pane-header">
+                <h2 class="h5 mb-1">Sync</h2>
+                <p class="text-muted mb-3">
+                  Global Sync Manager preferences that apply to all projects.
+                </p>
+              </header>
+              <div class="card border-0 shadow-sm">
+                <div class="card-body d-flex flex-column gap-3">
+                  <div class="form-check form-switch m-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="settings-sync-auto-refresh-toggle"
+                    />
+                    <label
+                      class="form-check-label fw-semibold"
+                      for="settings-sync-auto-refresh-toggle"
+                      >Enable live status refresh while the tab is visible</label
+                    >
+                  </div>
+                  <div class="row g-2 align-items-center">
+                    <div class="col-auto">
+                      <label class="form-label mb-0" for="settings-sync-auto-refresh-interval"
+                        >Refresh interval</label
+                      >
+                    </div>
+                    <div class="col-auto">
+                      <select
+                        class="form-select form-select-sm"
+                        id="settings-sync-auto-refresh-interval"
+                      >
+                        <option value="7000">Every 7 seconds</option>
+                        <option value="10000">Every 10 seconds</option>
+                        <option value="15000">Every 15 seconds</option>
+                        <option value="30000">Every 30 seconds</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="row g-2 align-items-center">
+                    <div class="col-auto">
+                      <label class="form-label mb-0" for="settings-sync-project-color-style"
+                        >Project color style on Sync Manager</label
+                      >
+                    </div>
+                    <div class="col-auto">
+                      <select
+                        class="form-select form-select-sm"
+                        id="settings-sync-project-color-style"
+                      >
+                        <option value="pill">Project pills</option>
+                        <option value="row">Row colored</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-check form-switch m-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="settings-sync-advanced-row-actions-toggle"
+                    />
+                    <label
+                      class="form-check-label fw-semibold"
+                      for="settings-sync-advanced-row-actions-toggle"
+                      >Show advanced actions inline in each Sync Manager row</label
+                    >
+                  </div>
+                  <div class="form-check form-switch m-0">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="settings-sync-activity-panel-visible-toggle"
+                    />
+                    <label
+                      class="form-check-label fw-semibold"
+                      for="settings-sync-activity-panel-visible-toggle"
+                      >Show Activity panel by default on Sync Manager page</label
+                    >
+                  </div>
+                  <p class="text-muted small mb-0">
+                    These preferences are device-local only and are not written into metadata
+                    snapshots or Git payloads.
+                  </p>
+                </div>
+              </div>
+            </section>
+            <section class="settings-pane" data-settings-pane="files" aria-label="File management">
+              <header class="settings-pane-header">
+                <h2 class="h5 mb-1">File management</h2>
+                <p class="text-muted mb-3">Review file handling and image history storage.</p>
+              </header>
+              <div class="card border-0 shadow-sm">
+                <div class="card-body d-flex flex-column flex-md-row align-items-start gap-3">
+                  <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="settings-soft-delete" />
+                    <label class="form-check-label fw-semibold" for="settings-soft-delete"
+                      >Soft delete (move to trash)</label
+                    >
+                  </div>
+                  <p class="text-muted small mb-0">
+                    When enabled, files are moved to the system recycle bin instead of being
+                    permanently removed.
+                  </p>
+                </div>
+              </div>
+              <div class="card border-0 shadow-sm mt-3">
+                <div class="card-body">
+                  <h3 class="h6">Image history</h3>
+                  <p class="mb-1">Archive location:</p>
+                  <p id="image-history-path" class="text-break" aria-live="polite"></p>
+                  <p id="image-history-legacy" class="text-break text-muted d-none"></p>
+                  <p class="text-muted small mb-0">
+                    QualiFile saves the previous image and its editable annotations before each
+                    content change. Renames do not create versions. Restoring keeps current tags. If
+                    internal storage is unavailable, the change cannot be saved.
+                  </p>
+                </div>
+              </div>
+            </section>
+            <section class="settings-pane" data-settings-pane="merge" aria-label="Merge defaults">
+              <header class="settings-pane-header">
+                <h2 class="h5 mb-1">Merge defaults</h2>
+                <p class="text-muted mb-3">
+                  Preconfigure the options applied when merging documents.
+                </p>
+              </header>
+              <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <label class="form-label" for="settings-merge-paper">Paper size</label>
+                      <select class="form-select" id="settings-merge-paper">
+                        <option value="A4">A4</option>
+                        <option value="Letter">Letter</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="settings-merge-orientation">Orientation</label>
+                      <select class="form-select" id="settings-merge-orientation">
+                        <option value="portrait">Portrait</option>
+                        <option value="landscape">Landscape</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="settings-merge-margin">Margin (mm)</label>
+                      <input
+                        class="form-control"
+                        type="number"
+                        id="settings-merge-margin"
+                        min="0"
+                        max="50"
+                      />
+                    </div>
+                  </div>
+                  <div class="row g-3 mt-2">
+                    <div class="col-md-4">
+                      <label class="form-label" for="settings-merge-fit">Image fit</label>
+                      <select class="form-select" id="settings-merge-fit">
+                        <option value="contain">Contain</option>
+                        <option value="cover">Cover</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="settings-merge-alignment"
+                        >Phrase alignment</label
+                      >
+                      <select class="form-select" id="settings-merge-alignment">
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check mt-4">
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          id="settings-merge-page-numbers"
+                        />
+                        <label class="form-check-label" for="settings-merge-page-numbers"
+                          >Include page numbers</label
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section
+              class="settings-pane"
+              data-settings-pane="capture"
+              aria-label="Capture and automation"
+            >
+              <header class="settings-pane-header">
+                <h2 class="h5 mb-1">Capture &amp; automation</h2>
+                <p class="text-muted mb-3">
+                  Enable the server-managed Greenshot integration and configure capture prompts.
+                </p>
+              </header>
+              <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                  <div class="form-check form-switch">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="settings-greenshot-enabled"
+                    />
+                    <label class="form-check-label fw-semibold" for="settings-greenshot-enabled"
+                      >Enable Greenshot integration</label
+                    >
+                    <div class="form-text">
+                      When disabled, the Greenshot button is hidden and automation is turned off.
+                    </div>
+                  </div>
+                  <div id="settings-greenshot-config" class="mt-3">
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <label class="form-label" for="settings-greenshot-path"
+                          >Greenshot executable (server managed)</label
+                        >
+                        <input
+                          class="form-control"
+                          type="text"
+                          id="settings-greenshot-path"
+                          placeholder="C:\Program Files\Greenshot\Greenshot.exe"
+                          disabled
+                          aria-disabled="true"
+                        />
+                        <div class="form-text">
+                          Set <code>QUALIFILE_GREENSHOT_EXECUTABLE</code> before launch. Browser
+                          requests cannot select an executable.
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row g-3 mt-2">
+                      <div class="col-lg-6">
+                        <label class="form-label" for="settings-greenshot-hotkey"
+                          >Capture hotkey</label
+                        >
+                        <input
+                          class="form-control"
+                          type="text"
+                          id="settings-greenshot-hotkey"
+                          disabled
+                          aria-disabled="true"
+                          placeholder="Ctrl+PrintScreen"
+                        />
+                        <div class="form-text">
+                          Set <code>QUALIFILE_GREENSHOT_HOTKEY</code> before launch.
+                        </div>
+                      </div>
+                      <div class="col-lg-6">
+                        <label class="form-label" for="settings-greenshot-delay"
+                          >Hotkey delay (ms)</label
+                        >
+                        <input
+                          class="form-control"
+                          type="number"
+                          id="settings-greenshot-delay"
+                          disabled
+                          aria-disabled="true"
+                          min="0"
+                          step="50"
+                        />
+                        <div class="form-text">
+                          Set <code>QUALIFILE_GREENSHOT_DELAY_MS</code> before launch (0–2000 ms).
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-check mt-4">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="settings-screenshot-details"
+                    />
+                    <label class="form-check-label" for="settings-screenshot-details"
+                      >Prompt for name, folder, and tags after capturing</label
+                    >
+                    <div class="form-text">
+                      When enabled, screenshots open a confirmation dialog so you can adjust
+                      metadata before saving.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="settings-pane" data-settings-pane="utilities" aria-label="Utilities">
+              <header class="settings-pane-header">
+                <h2 class="h5 mb-1">Utilities</h2>
+                <p class="text-muted mb-3">Handy helpers that speed up documentation tasks.</p>
+              </header>
+              <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                  <h3 class="h6 mb-1">Office preview quality</h3>
+                  <p class="text-muted small mb-2">
+                    Choose the rendering profile used when Office files are converted for preview.
+                  </p>
+                  <label class="form-label" for="settings-preview-office-quality"
+                    >Office preview quality</label
+                  >
+                  <select class="form-select" id="settings-preview-office-quality">
+                    <option value="standard">Standard (better fidelity, slower)</option>
+                    <option value="fast">Fast (faster preview, smaller PDF)</option>
+                  </select>
+                  <p class="form-text mb-0">
+                    Fast reduces export quality for quicker previews. Only preview artifacts are
+                    affected.
+                  </p>
+                  <div class="form-check form-switch mt-3">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="settings-preview-office-accelerated"
+                      disabled
+                    />
+                    <label class="form-check-label" for="settings-preview-office-accelerated"
+                      >Accelerated Office previews</label
+                    >
+                  </div>
+                  <p class="form-text mb-0">
+                    Reuse Office while previewing new documents. Office closes after two minutes of
+                    inactivity. Works with either quality setting. Disable to start Office for each
+                    conversion.
+                  </p>
+                </div>
+              </div>
+              <div class="card border-0 shadow-sm mt-3">
+                <div class="card-body">
+                  <p class="text-muted small">
+                    Copy the TOC extraction helper script to your clipboard for quick reuse.
+                  </p>
+                  <button class="btn btn-outline-secondary" type="button" id="settings-copy-toc">
+                    Copy code to clipboard
+                  </button>
+                  <div
+                    class="form-text"
+                    id="settings-copy-toc-feedback"
+                    role="status"
+                    aria-live="polite"
+                  ></div>
+                </div>
+              </div>
+              <div class="card border-0 shadow-sm mt-3">
+                <div class="card-body d-flex flex-column gap-2">
+                  <div>
+                    <h3 class="h6 mb-1">Preview cache</h3>
+                    <p class="text-muted small mb-0">
+                      Clearing cache frees disk space. Previews will regenerate automatically.
+                    </p>
+                  </div>
+                  <div class="d-flex flex-column flex-lg-row align-items-start gap-2">
+                    <button
+                      class="btn btn-outline-danger"
+                      type="button"
+                      id="settings-clear-preview-cache"
+                    >
+                      Clear preview cache
+                    </button>
+                    <div
+                      class="spinner-border spinner-border-sm text-muted d-none"
+                      role="status"
+                      aria-hidden="true"
+                      id="settings-clear-preview-cache-spinner"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+              {% if portable_mode %}
+              <div class="card border-0 shadow-sm mt-3" id="portable-data-location-card">
+                <div class="card-body d-flex flex-column gap-2">
+                  <div>
+                    <h3 class="h6 mb-1">Portable data location</h3>
+                    <p class="text-muted small mb-1">
+                      Data location:
+                      <span class="fw-semibold" id="settings-data-dir">{{ data_dir }}</span>
+                    </p>
+                    {% if portable_data_in_root is sameas(false) %}
+                    <p class="text-warning small mb-0">
+                      This data folder is outside the portable app directory.
+                    </p>
+                    {% endif %}
+                  </div>
+                  <div class="d-flex flex-column flex-lg-row align-items-start gap-2">
+                    <button
+                      class="btn btn-outline-secondary"
+                      type="button"
+                      id="settings-open-data-dir"
+                    >
+                      Open data folder
+                    </button>
+                    <div
+                      class="form-text"
+                      id="settings-data-dir-status"
+                      role="status"
+                      aria-live="polite"
+                    ></div>
+                  </div>
+                  <p class="form-text mb-0">
+                    To keep data portable, move QualiFile to a writable folder or set
+                    QUALIFILE_DATA_DIR.
+                  </p>
+                </div>
+              </div>
+              <div class="card border-0 shadow-sm mt-3">
+                <div
+                  class="card-body d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-3"
+                >
+                  <div>
+                    <h3 class="h6 mb-1">Exit QualiFile</h3>
+                    <p class="text-muted small mb-0">
+                      Shut down the local server and close the portable app safely.
+                    </p>
+                  </div>
+                  <button class="btn btn-danger ms-lg-auto" type="button" id="settings-exit-app">
+                    Exit QualiFile
+                  </button>
+                </div>
+              </div>
+              {% endif %}
+            </section>
+            <section class="settings-pane" data-settings-pane="about" aria-label="About QualiFile">
+              <header class="settings-pane-header">
+                <h2 class="h5 mb-1">About</h2>
+                <p class="text-muted mb-3">Version information for support and diagnostics.</p>
+              </header>
+              <div class="card border-0 shadow-sm">
+                <div
+                  class="card-body d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-3"
+                >
+                  <div>
+                    <h3 class="h6 mb-1">QualiFile version</h3>
+                    <p class="text-muted small mb-1">
+                      Use this when reporting issues or comparing data migrations.
+                    </p>
+                    <p class="mb-0 fw-semibold" id="settings-app-version">{{ app_version }}</p>
+                  </div>
+                  <div class="ms-lg-auto d-flex flex-column align-items-start">
+                    <button
+                      class="btn btn-outline-secondary"
+                      type="button"
+                      id="settings-copy-version"
+                    >
+                      Copy version
+                    </button>
+                    <div
+                      class="form-text"
+                      id="settings-copy-version-feedback"
+                      role="status"
+                      aria-live="polite"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card border-0 shadow-sm mt-3">
+                <div
+                  class="card-body d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-3"
+                >
+                  <div>
+                    <h3 class="h6 mb-1">User guide</h3>
+                    <p class="text-muted small mb-0">
+                      Open the offline QualiFile tutorial in your browser.
+                    </p>
+                  </div>
+                  <button
+                    class="btn btn-outline-primary ms-lg-auto"
+                    type="button"
+                    id="settings-open-user-guide"
+                  >
+                    Open User Guide
+                  </button>
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="settings-save">Save Preferences</button>
+      </div>
     </div>
+  </div>
 </div>

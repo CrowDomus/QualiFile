@@ -20,6 +20,8 @@ from app.portable.startup_shared.constants import EVENT_PREFIX
 from app.portable.startup_shared.diagnostics_text import build_diagnostics_text_from_paths
 from app.portable.startup_shared.startup_log import StartupLogWriter
 from app.shared.data_dir import resolve_paths
+from app.shared.http_logging import PrivacyRequestHandler
+from app.shared.redaction import redact_text
 
 
 def _portable_root() -> Path:
@@ -227,7 +229,7 @@ def _make_startup_logger(portable_root: Path):
                 return
             state["writer"] = StartupLogWriter(state["path"])
         timestamp = datetime.now(timezone.utc).isoformat()
-        line = f"[pid={os.getpid()}] {message}"
+        line = f"[pid={os.getpid()}] {redact_text(message)}"
         state["writer"].append("startup", f"{timestamp} {line}")
 
     return log_line, state["path"]
@@ -267,7 +269,7 @@ def _create_server(host: str, app, explicit_port: int | None, preferred_port: in
     if explicit_port is not None:
         if explicit_port == 0:
             bind_strategy = "direct"
-            server = make_server(host, 0, app, threaded=True)
+            server = make_server(host, 0, app, threaded=True, request_handler=PrivacyRequestHandler)
             return server, server.server_address[1], fallback_from, bind_strategy, used_fd
         try:
             fd = _bind_exclusive_socket(host, explicit_port)
@@ -276,7 +278,7 @@ def _create_server(host: str, app, explicit_port: int | None, preferred_port: in
                 raise RuntimeError(f"Port {explicit_port} is already in use.") from exc
             raise
         used_fd = True
-        server = make_server(host, explicit_port, app, threaded=True, fd=fd)
+        server = make_server(host, explicit_port, app, threaded=True, fd=fd, request_handler=PrivacyRequestHandler)
         return server, server.server_address[1], fallback_from, bind_strategy, used_fd
 
     try:
@@ -286,11 +288,11 @@ def _create_server(host: str, app, explicit_port: int | None, preferred_port: in
             raise
         fallback_from = preferred_port
         bind_strategy = "direct"
-        server = make_server(host, 0, app, threaded=True)
+        server = make_server(host, 0, app, threaded=True, request_handler=PrivacyRequestHandler)
         return server, server.server_address[1], fallback_from, bind_strategy, used_fd
 
     used_fd = True
-    server = make_server(host, preferred_port, app, threaded=True, fd=fd)
+    server = make_server(host, preferred_port, app, threaded=True, fd=fd, request_handler=PrivacyRequestHandler)
     return server, server.server_address[1], fallback_from, bind_strategy, used_fd
 
 
@@ -308,26 +310,26 @@ def main() -> None:
     _update_spd_stage(spd_controller, "LAUNCHER_INITIALIZING", "Launcher initializing")
     try:
         log_line("=== QualiFile embedded backend startup ===")
-        log_line(f"log_path={log_path}")
-        log_line(f"sys.executable={sys.executable}")
-        log_line(f"sys.argv={sys.argv}")
+        log_line(f"log_available={bool(log_path)}")
+        log_line(f"sys.executable_name={Path(sys.executable).name}")
+        log_line(f"sys.argv_count={len(sys.argv)}")
         log_line(f"sys.version={sys.version}")
         log_line(f"platform={platform.platform()}")
         log_line(f"os.name={os.name}")
-        log_line(f"cwd={os.getcwd()}")
+        log_line("cwd_available=True")
 
         meipass_raw = getattr(sys, "_MEIPASS", None)
         meipass_exists = bool(meipass_raw and Path(meipass_raw).exists())
         meipass_length = len(meipass_raw) if isinstance(meipass_raw, str) else 0
-        log_line(f"sys._MEIPASS={meipass_raw!r} exists={meipass_exists} length={meipass_length}")
+        log_line(f"sys._MEIPASS_exists={meipass_exists} length={meipass_length}")
 
         resource_root = _resource_root()
         templates_root = _templates_root()
         static_root = _static_root()
-        log_line(f"portable_root={portable_root}")
-        log_line(f"resource_root={resource_root}")
-        log_line(f"templates_root={templates_root} exists={templates_root.exists()}")
-        log_line(f"static_root={static_root} exists={static_root.exists()}")
+        log_line(f"portable_root_available={portable_root.exists()}")
+        log_line(f"resource_root_available={bool(resource_root and resource_root.exists())}")
+        log_line(f"templates_root_exists={templates_root.exists()}")
+        log_line(f"static_root_exists={static_root.exists()}")
 
         explicit_port_raw = os.environ.get("QUALIFILE_PORT")
         explicit_port, explicit_port_error = _parse_port(explicit_port_raw)
@@ -338,13 +340,13 @@ def main() -> None:
 
         data_dir_override = os.environ.get("QUALIFILE_DATA_DIR")
         if data_dir_override:
-            log_line(f"QUALIFILE_DATA_DIR raw={data_dir_override}")
+            log_line("QUALIFILE_DATA_DIR=<configured>")
 
         _emit_spd_event("stage", stage_id="RESOLVING_DATA_DIR", message="Resolving data directory", env=spd_env)
         _update_spd_stage(spd_controller, "RESOLVING_DATA_DIR", "Resolving data directory")
         for key in sorted(os.environ):
             if key.startswith("QUALIFILE_"):
-                log_line(f"env:{key}={os.environ.get(key)}")
+                log_line(f"env:{key}=<set>")
 
         try:
             data_dir, data_message, used_fallback = _resolve_data_dir(portable_root)
@@ -353,7 +355,7 @@ def main() -> None:
             log_line(traceback.format_exc())
             raise
 
-        log_line(f"data_dir={data_dir} fallback_used={used_fallback}")
+        log_line(f"data_dir=<selected> fallback_used={used_fallback}")
         if data_message:
             log_line(f"data_dir_message={data_message}")
 
@@ -362,7 +364,7 @@ def main() -> None:
         _prepare_environment(portable_root, host, explicit_port, data_dir)
         for key in sorted(os.environ):
             if key.startswith("QUALIFILE_"):
-                log_line(f"env_after:{key}={os.environ.get(key)}")
+                log_line(f"env_after:{key}=<set>")
 
         app = create_app({"PORTABLE_ROOT": portable_root, "ALLOW_SHUTDOWN": True})
         _emit_spd_event("stage", stage_id="STARTING_SERVER", message="Starting server", env=spd_env)

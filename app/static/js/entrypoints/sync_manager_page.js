@@ -9,15 +9,15 @@ import { initToast } from '../shared/ui.js';
 import { initSyncManagerPage } from '../features/git_sync/sync_manager_page.js';
 
 async function bootstrap() {
-    initToast();
-    initModalStacking();
-    initModalBackdropGuard();
-    await initProfilePreferencesBridge();
-    void initProfileHeaderAvatar();
-    initProfileModal();
-    initProfileController();
-    initTaskAlertsHeader();
-    initSyncManagerPage();
+  initToast();
+  initModalStacking();
+  initModalBackdropGuard();
+  await initProfilePreferencesBridge();
+  void initProfileHeaderAvatar();
+  initProfileModal();
+  initProfileController();
+  initTaskAlertsHeader();
+  initSyncManagerPage();
 }
 
 bootstrap();

@@ -204,6 +204,38 @@ MIGRATIONS: Sequence[Migration] = (
         ALTER TABLE projects ADD COLUMN archived_at TEXT;
         """,
     ),
+    Migration(
+        migration_id="0007_image_history",
+        description="editable annotations and focused image history",
+        sql="""
+        CREATE TABLE image_documents (
+            file_id TEXT PRIMARY KEY,
+            root_id TEXT NOT NULL,
+            path TEXT NOT NULL,
+            state_json TEXT NOT NULL,
+            UNIQUE(root_id, path)
+        );
+        CREATE TABLE focused_settings (
+            scope_id TEXT PRIMARY KEY,
+            enabled INTEGER NOT NULL DEFAULT 0,
+            archive_path TEXT NOT NULL
+        );
+        CREATE TABLE image_versions (
+            version_id TEXT PRIMARY KEY,
+            file_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            image_path TEXT NOT NULL,
+            state_json TEXT NOT NULL
+        );
+        CREATE INDEX image_versions_file ON image_versions(file_id, created_at);
+        CREATE TABLE image_pending_writes (
+            file_id TEXT PRIMARY KEY,
+            before_json TEXT NOT NULL,
+            after_json TEXT NOT NULL
+        );
+        """,
+    ),
 )
 
 

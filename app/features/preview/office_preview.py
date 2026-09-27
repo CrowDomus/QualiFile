@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional
 
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
 
 logger = logging.getLogger(__name__)
 
@@ -136,9 +136,10 @@ class OfficePreviewRenderer:
     _FILE_APPEAR_TIMEOUT: float = 8.0
     _FILE_STABLE_SECONDS: float = 0.25
 
-    def __init__(self, cache_dir: Path, quality: str = "standard") -> None:
+    def __init__(self, cache_dir: Path, quality: str = "standard", *, accelerated: bool = False) -> None:
         self.cache_dir = cache_dir
         self.quality = self._normalize_quality(quality)
+        self.accelerated = accelerated
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
@@ -211,7 +212,7 @@ class OfficePreviewRenderer:
 
         conversion_slot_acquired = False
         try:
-            self._acquire_conversion_slot(cancel_event)
+            self._acquire_conversion_slot(cancel_event, timeout=120.0 if self.accelerated else None)
             conversion_slot_acquired = True
             if self._is_cache_fresh(destination):
                 return
@@ -223,11 +224,14 @@ class OfficePreviewRenderer:
                 self._release_lock(lock_path)
 
     @staticmethod
-    def _acquire_conversion_slot(cancel_event: threading.Event | None) -> None:
+    def _acquire_conversion_slot(cancel_event: threading.Event | None, timeout: float | None = None) -> None:
+        deadline = time.monotonic() + timeout if timeout is not None else None
         while True:
             OfficePreviewRenderer._check_cancel(cancel_event)
             if _CONVERSION_SEMAPHORE.acquire(timeout=0.1):
                 return
+            if deadline is not None and time.monotonic() >= deadline:
+                raise OfficePreviewError("Office preview queue timed out.")
 
     def _render_to_pdf(
         self,
@@ -239,12 +243,18 @@ class OfficePreviewRenderer:
         if not kind:
             raise OfficePreviewError("Unsupported Office document type.")
         temp_destination = destination.with_suffix(destination.suffix + ".tmp")
-        with contextlib.suppress(FileNotFoundError):
-            temp_destination.unlink()
+        temporary_files = (temp_destination, temp_destination.with_suffix(".tmp.pdf"))
+        for temporary in temporary_files:
+            with contextlib.suppress(FileNotFoundError):
+                temporary.unlink()
 
         self._check_cancel(cancel_event)
         try:
-            if kind == "word":
+            if self.accelerated:
+                from .office_session import convert_with_session
+
+                convert_with_session(self, kind, source, temp_destination, cancel_event)
+            elif kind == "word":
                 self._convert_word(source, temp_destination, cancel_event=cancel_event)
             elif kind == "excel":
                 self._convert_excel(source, temp_destination, cancel_event=cancel_event)
@@ -252,14 +262,6 @@ class OfficePreviewRenderer:
                 self._convert_powerpoint(source, temp_destination, cancel_event=cancel_event)
             else:  # pragma: no cover - exhaustive guard
                 raise OfficePreviewError("Unsupported Office application.")
-        except FileNotFoundError:
-            raise
-        except OfficePreviewError:
-            raise
-        except Exception as exc:  # pragma: no cover - depends on Office installation
-            raise OfficePreviewError(f"Office conversion failed: {exc}") from exc
-
-        try:
             self._check_cancel(cancel_event)
             produced = self._resolve_produced_file(temp_destination, destination, cancel_event=cancel_event)
             if not produced:
@@ -270,31 +272,31 @@ class OfficePreviewRenderer:
 
             produced.replace(destination)
             logger.info("Office preview generated quality=%s", self.quality)
-        except OfficePreviewCancelledError:
-            with contextlib.suppress(FileNotFoundError):
-                temp_destination.unlink()
+        except (FileNotFoundError, OfficePreviewError):
             raise
         except Exception as exc:
-            with contextlib.suppress(FileNotFoundError):
-                temp_destination.unlink()
-            raise OfficePreviewError(f"Unable to finalise preview file: {exc}") from exc
-        else:
-            with contextlib.suppress(FileNotFoundError):
-                temp_destination.unlink()
+            raise OfficePreviewError(f"Office conversion failed: {exc}") from exc
+        finally:
+            for temporary in temporary_files:
+                with contextlib.suppress(OSError):
+                    temporary.unlink()
 
     def _convert_word(
         self,
         source: Path,
         destination: Path,
         cancel_event: threading.Event | None = None,
-    ) -> None:
+        application: object | None = None,
+    ) -> bool | None:
         app_ref: dict[str, object | None] = {"app": None}
 
-        def _work() -> None:
-            pythoncom.CoInitialize()  # type: ignore[call-arg]
+        def _work() -> bool:
+            if application is None:
+                pythoncom.CoInitialize()  # type: ignore[call-arg]
             document = None
+            reusable = True
             try:
-                app = DispatchEx("Word.Application")
+                app = application if application is not None else DispatchEx("Word.Application")
                 app_ref["app"] = app
                 self._set_bool(app, "Visible", False)
                 self._set_bool(app, "DisplayAlerts", False)
@@ -316,31 +318,44 @@ class OfficePreviewRenderer:
                 )
             finally:
                 if document is not None:
-                    with contextlib.suppress(Exception):
+                    try:
                         document.Close(False)
-                if app_ref["app"] is not None:
+                    except Exception:
+                        # A successful export remains valid if Word disconnects
+                        # during cleanup. Never reuse that application afterward.
+                        reusable = False
+                        logger.debug("Word document cleanup failed, retiring preview session.")
+                if application is None and app_ref["app"] is not None:
                     with contextlib.suppress(Exception):
                         app_ref["app"].Quit()  # type: ignore[attr-defined]
-                with contextlib.suppress(Exception):
-                    pythoncom.CoUninitialize()  # type: ignore[call-arg]
+                if application is None:
+                    with contextlib.suppress(Exception):
+                        pythoncom.CoUninitialize()  # type: ignore[call-arg]
 
-        self._execute_conversion(_work, cancel_event=cancel_event, app_ref=app_ref)
+            return reusable
+
+        if application is None:
+            self._execute_conversion(_work, cancel_event=cancel_event, app_ref=app_ref)
+        else:
+            return _work()
 
     def _convert_excel(
         self,
         source: Path,
         destination: Path,
         cancel_event: threading.Event | None = None,
+        application: object | None = None,
     ) -> None:
         app_ref: dict[str, object | None] = {"app": None}
 
         def _work() -> None:
-            pythoncom.CoInitialize()  # type: ignore[call-arg]
+            if application is None:
+                pythoncom.CoInitialize()  # type: ignore[call-arg]
             workbook = None
             suppress_stop = threading.Event()
             pid: int | None = None
             try:
-                app = DispatchEx("Excel.Application")
+                app = application if application is not None else DispatchEx("Excel.Application")
                 app_ref["app"] = app
 
                 # Resolve the Excel process id as robustly as possible, even if the app starts invisible.
@@ -379,45 +394,63 @@ class OfficePreviewRenderer:
                         suppress_thread.join(timeout=2)
             finally:
                 if workbook is not None:
-                    with contextlib.suppress(Exception):
+                    if application is not None:
                         workbook.Close(False)
-                if app_ref["app"] is not None:
+                    else:
+                        with contextlib.suppress(Exception):
+                            workbook.Close(False)
+                if application is None and app_ref["app"] is not None:
                     with contextlib.suppress(Exception):
                         app_ref["app"].Quit()  # type: ignore[attr-defined]
-                with contextlib.suppress(Exception):
-                    pythoncom.CoUninitialize()  # type: ignore[call-arg]
+                if application is None:
+                    with contextlib.suppress(Exception):
+                        pythoncom.CoUninitialize()  # type: ignore[call-arg]
 
-        self._execute_conversion(_work, cancel_event=cancel_event, app_ref=app_ref)
+        if application is None:
+            self._execute_conversion(_work, cancel_event=cancel_event, app_ref=app_ref)
+        else:
+            _work()
 
     def _convert_powerpoint(
         self,
         source: Path,
         destination: Path,
         cancel_event: threading.Event | None = None,
+        application: object | None = None,
     ) -> None:
         app_ref: dict[str, object | None] = {"app": None}
 
         def _work() -> None:
-            pythoncom.CoInitialize()  # type: ignore[call-arg]
+            if application is None:
+                pythoncom.CoInitialize()  # type: ignore[call-arg]
             presentation = None
             try:
-                app = DispatchEx("PowerPoint.Application")
+                app = application if application is not None else DispatchEx("PowerPoint.Application")
                 app_ref["app"] = app
+                if application is not None:
+                    self._set_attr(app, "AutomationSecurity", 3)
                 self._set_bool(app, "DisplayAlerts", False)
                 self._set_bool(app, "Visible", False)
                 presentation = app.Presentations.Open(str(source), WithWindow=False, ReadOnly=True)
                 presentation.ExportAsFixedFormat(str(destination), 2, PrintRange=None)
             finally:
                 if presentation is not None:
-                    with contextlib.suppress(Exception):
+                    if application is not None:
                         presentation.Close()
-                if app_ref["app"] is not None:
+                    else:
+                        with contextlib.suppress(Exception):
+                            presentation.Close()
+                if application is None and app_ref["app"] is not None:
                     with contextlib.suppress(Exception):
                         app_ref["app"].Quit()  # type: ignore[attr-defined]
-                with contextlib.suppress(Exception):
-                    pythoncom.CoUninitialize()  # type: ignore[call-arg]
+                if application is None:
+                    with contextlib.suppress(Exception):
+                        pythoncom.CoUninitialize()  # type: ignore[call-arg]
 
-        self._execute_conversion(_work, cancel_event=cancel_event, app_ref=app_ref)
+        if application is None:
+            self._execute_conversion(_work, cancel_event=cancel_event, app_ref=app_ref)
+        else:
+            _work()
 
     @staticmethod
     def _set_bool(obj: object, name: str, value: bool) -> None:
@@ -551,15 +584,26 @@ class OfficePreviewRenderer:
             temp_destination.with_suffix(temp_destination.suffix + ".pdf"),
             destination.with_name(destination.name + ".tmp.pdf"),
         ]
-        for candidate in candidates:
-            if self._wait_for_file(
-                candidate,
-                cancel_event=cancel_event,
-                timeout=self._FILE_APPEAR_TIMEOUT,
-                interval=0.1,
-                stable_seconds=self._FILE_STABLE_SECONDS,
-            ):
-                return candidate
+        # Probe every candidate on each poll. Excel can append .pdf immediately,
+        # so waiting for the first name alone adds an unnecessary full timeout.
+        observations: dict[Path, tuple[int, float]] = {}
+        deadline = time.monotonic() + self._FILE_APPEAR_TIMEOUT
+        while time.monotonic() < deadline:
+            self._check_cancel(cancel_event)
+            now = time.monotonic()
+            for candidate in dict.fromkeys(candidates):
+                try:
+                    size = candidate.stat().st_size
+                except FileNotFoundError:
+                    observations.pop(candidate, None)
+                    continue
+                previous = observations.get(candidate)
+                if size > 0 and previous and previous[0] == size:
+                    if now - previous[1] >= self._FILE_STABLE_SECONDS:
+                        return candidate
+                else:
+                    observations[candidate] = (size, now)
+            time.sleep(0.05)
         return None
 
     def _wait_for_file(

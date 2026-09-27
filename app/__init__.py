@@ -11,13 +11,16 @@ import secrets
 from logging.handlers import TimedRotatingFileHandler
 from uuid import uuid4
 
-from flask import Flask
+from flask import Flask, g
 
 from .blueprints.api import api_bp
 from .blueprints.pages import page_bp
+from .shared.capability_security import cache_root_identity
 from .shared.data_dir import ensure_directories, resolve_data_dir, resolve_paths
 from .shared.diagnostics.state import write_data_state
 from .shared.logging import JSONFormatter, RequestContextFilter
+from .shared.request_security import enforce_trusted_authority
+from .shared.response_security import new_csp_nonce, secure_response
 from .shared.db import close_db
 from .shared.db_validation import DatabaseValidationError, ensure_db_ready
 from .shared.preferences import get_preference, set_preference
@@ -262,6 +265,18 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
     app.config.setdefault("OFFLINE_ASSETS", _bool_env("QUALIFILE_OFFLINE_ASSETS", False))
     app.config.setdefault("SERVER_HOST", os.environ.get("QUALIFILE_HOST", "127.0.0.1"))
     app.config.setdefault("SERVER_PORT", int(os.environ.get("QUALIFILE_PORT", "5000")))
+    app.config.setdefault(
+        "GREENSHOT_EXECUTABLE",
+        os.environ.get("QUALIFILE_GREENSHOT_EXECUTABLE", ""),
+    )
+    app.config.setdefault(
+        "GREENSHOT_HOTKEY",
+        os.environ.get("QUALIFILE_GREENSHOT_HOTKEY", ""),
+    )
+    app.config.setdefault(
+        "GREENSHOT_DELAY_MS",
+        os.environ.get("QUALIFILE_GREENSHOT_DELAY_MS", "350"),
+    )
     data_dir = resolve_data_dir(Path(app.instance_path))
     paths = resolve_paths(data_dir)
     app.config.setdefault("DATA_DIR", paths.data_dir)
@@ -293,6 +308,16 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
 
     if config:
         app.config.update(config)
+
+    try:
+        app.config["CACHE_CLEAR_ROOT_IDENTITIES"] = {
+            "preview": cache_root_identity(app.config["PREVIEW_CACHE_DIR"]),
+            "office": cache_root_identity(app.config["OFFICE_CACHE_DIR"]),
+        }
+    except (OSError, TypeError, ValueError):
+        # Preserve startup for diagnostics, but fail closed if cache clear is
+        # requested with an invalid configured root.
+        app.config["CACHE_CLEAR_ROOT_IDENTITIES"] = None
 
     state_file = _state_file_path(data_dir)
     app.config["ROOT_STATE_FILE"] = state_file
@@ -339,10 +364,15 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
     app.teardown_appcontext(close_db)
 
     @app.before_request
+    def _enforce_trusted_authority():
+        return enforce_trusted_authority()
+
+    @app.before_request
     def _assign_request_id():
         from flask import g
 
         g.request_id = str(uuid4())
+        g.csp_nonce = new_csp_nonce()
 
     @app.before_request
     def _ensure_task_alert_scheduler_running():
@@ -355,7 +385,7 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
         request_id = getattr(g, "request_id", None)
         if request_id:
             response.headers["X-Request-ID"] = request_id
-        return response
+        return secure_response(response)
 
     @app.context_processor
     def inject_globals():
@@ -380,6 +410,7 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
             "use_minified_assets": bool(app.config.get("USE_MINIFIED_ASSETS")),
             "offline_assets": bool(app.config.get("OFFLINE_ASSETS")),
             "csrf_token": app.config.get("CSRF_TOKEN"),
+            "csp_nonce": getattr(g, "csp_nonce", ""),
             "profile_mode": app.config.get("PROFILE_MODE", "off"),
             "profile_avatar_mode": app.config.get("PROFILE_AVATAR_MODE", "off"),
             "data_dir": data_dir_value,
@@ -391,14 +422,18 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
 
 
 def _configure_logging(app: Flask, logs_dir: Path) -> None:
-    """Set up JSON logging with daily rotation (no retention limit)."""
+    """Set up bounded JSON logging with daily rotation."""
 
     log_file = logs_dir / "errors.log"
-    retention_days = int(os.environ.get("QUALIFILE_LOG_RETENTION", "30"))
+    try:
+        retention_days = int(os.environ.get("QUALIFILE_LOG_RETENTION", "30"))
+    except (TypeError, ValueError):
+        retention_days = 30
+    retention_days = min(max(retention_days, 1), 3650)
     handler = SafeTimedRotatingFileHandler(
         log_file,
         when="midnight",
-        backupCount=max(retention_days, 0),
+        backupCount=retention_days,
         encoding="utf-8",
         utc=False,
         delay=True,

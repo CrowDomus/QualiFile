@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import ctypes
+import io
 import json
 import math
 import os
 import platform
-import shlex
-import shutil
+import stat
 import subprocess
 import threading
 import time
@@ -15,11 +15,18 @@ from pathlib import Path
 from typing import Any, List
 
 from flask import Response, current_app, jsonify, request
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
+from PIL import Image, UnidentifiedImageError
 
 from ...features.filesystem.service import resolve_within_root, safe_secure_filename
 from ...features.preview.merge import MergeError, extract_pdf_pages, images_to_pdf, merge_pdfs
 from ...shared.preferences import get_preference, set_preference
+from ...shared.capability_security import (
+    cache_root_identity,
+    capability_guard,
+    reject_unknown_fields,
+)
+from ...shared.redaction import redact_text
 from . import api_bp
 from .helpers import (
     _auto_rename,
@@ -28,6 +35,12 @@ from .helpers import (
     _reveal_in_explorer,
     _root_or_response,
 )
+
+_MAX_MERGE_TOTAL_INPUT_BYTES = 256 * 1024 * 1024
+_MAX_MERGE_PDF_PAGES = 1000
+_MAX_MERGE_IMAGE_FILES = 8
+_MAX_MERGE_IMAGE_PIXELS = 40_000_000
+_MAX_MERGE_TOTAL_IMAGE_PIXELS = 120_000_000
 
 
 def _log_file_path() -> Path:
@@ -39,37 +52,116 @@ def _log_file_path() -> Path:
     return Path(current_app.instance_path) / "activity.log"
 
 
-def _clear_cache_dir(path: Path) -> tuple[int, int]:
-    """Delete files and subdirectories under ``path`` without following symlinks."""
+_WINDOWS_REPARSE_ATTRIBUTE = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+_CACHE_CLEAR_LOCK = threading.Lock()
 
+
+class _UnsafeCacheTreeError(RuntimeError):
+    """Raised before cache removal when a filesystem boundary is unsafe."""
+
+
+def _path_is_reparse_point(path: Path) -> bool:
+    """Detect links, junctions, and other Windows reparse-point nodes."""
+
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        raise _UnsafeCacheTreeError("Unable to inspect cache tree.") from exc
+    is_junction = getattr(path, "is_junction", None)
+    try:
+        junction = bool(is_junction()) if callable(is_junction) else False
+    except OSError as exc:
+        raise _UnsafeCacheTreeError("Unable to inspect cache tree.") from exc
+    attributes = int(getattr(info, "st_file_attributes", 0))
+    return (
+        stat.S_ISLNK(info.st_mode)
+        or junction
+        or bool(attributes & _WINDOWS_REPARSE_ATTRIBUTE)
+    )
+
+
+def _preflight_cache_tree(path: Path) -> None:
+    """Reject special nodes before any cache entry is removed."""
+
+    if not os.path.lexists(path):
+        return
+    pending = [path]
+    while pending:
+        current = pending.pop()
+        if _path_is_reparse_point(current):
+            raise _UnsafeCacheTreeError("Cache tree contains a reparse point.")
+        try:
+            info = current.lstat()
+        except OSError as exc:
+            raise _UnsafeCacheTreeError("Unable to inspect cache tree.") from exc
+        if not stat.S_ISDIR(info.st_mode):
+            raise _UnsafeCacheTreeError("Cache root is not a directory.")
+        try:
+            with os.scandir(current) as entries:
+                for entry in entries:
+                    child = Path(entry.path)
+                    if _path_is_reparse_point(child):
+                        raise _UnsafeCacheTreeError("Cache tree contains a reparse point.")
+                    try:
+                        if entry.is_dir(follow_symlinks=False):
+                            pending.append(child)
+                        elif not entry.is_file(follow_symlinks=False):
+                            raise _UnsafeCacheTreeError(
+                                "Cache tree contains an unsupported filesystem node."
+                            )
+                    except OSError as exc:
+                        raise _UnsafeCacheTreeError(
+                            "Unable to inspect cache tree."
+                        ) from exc
+        except _UnsafeCacheTreeError:
+            raise
+        except OSError as exc:
+            raise _UnsafeCacheTreeError("Unable to inspect cache tree.") from exc
+
+
+def _clear_cache_dir(path: Path) -> tuple[int, int]:
+    """Delete a preflighted cache tree without following special nodes."""
+
+    if not os.path.lexists(path):
+        return (0, 0)
     deleted_files = 0
     deleted_dirs = 0
-    if not path.exists():
-        return (0, 0)
-    for root, dirs, files in os.walk(path):
-        root_path = Path(root)
-        for file in files:
-            target = root_path / file
+
+    def clear_directory(directory: Path) -> None:
+        nonlocal deleted_files, deleted_dirs
+        if _path_is_reparse_point(directory):
+            raise _UnsafeCacheTreeError("Cache directory changed during removal.")
+        try:
+            with os.scandir(directory) as scan:
+                entries = list(scan)
+        except OSError as exc:
+            raise _UnsafeCacheTreeError("Unable to inspect cache tree.") from exc
+        for entry in entries:
+            target = Path(entry.path)
+            if _path_is_reparse_point(target):
+                raise _UnsafeCacheTreeError("Cache entry changed during removal.")
             try:
-                if target.is_symlink():
-                    target.unlink(missing_ok=True)
+                if entry.is_dir(follow_symlinks=False):
+                    clear_directory(target)
+                    if _path_is_reparse_point(target):
+                        raise _UnsafeCacheTreeError("Cache directory changed during removal.")
+                    target.rmdir()
+                    deleted_dirs += 1
+                elif entry.is_file(follow_symlinks=False):
+                    target.unlink()
                     deleted_files += 1
                 else:
-                    target.unlink(missing_ok=True)
-                    deleted_files += 1
-            except Exception:
-                continue
-        for directory in dirs:
-            target_dir = root_path / directory
-            try:
-                if target_dir.is_symlink():
-                    target_dir.unlink(missing_ok=True)
-                    deleted_dirs += 1
-                else:
-                    shutil.rmtree(target_dir, ignore_errors=True)
-                    deleted_dirs += 1
-            except Exception:
-                continue
+                    raise _UnsafeCacheTreeError(
+                        "Cache tree contains an unsupported filesystem node."
+                    )
+            except _UnsafeCacheTreeError:
+                raise
+            except OSError as exc:
+                raise _UnsafeCacheTreeError("Unable to clear cache safely.") from exc
+
+    clear_directory(path)
     return deleted_files, deleted_dirs
 
 
@@ -267,18 +359,53 @@ def _data_dir_path() -> Path:
     return Path(data_dir)
 
 
-def _load_greenshot_enabled_preference(executable: str) -> bool:
+def _load_greenshot_enabled_preference() -> bool:
     saved = get_preference(_data_dir_path(), current_app.config, "greenshot_enabled")
     if saved is None:
-        # Backward-compat fallback: preserve existing configured users.
-        return bool((executable or "").strip())
+        return False
     try:
         return _parse_greenshot_enabled(saved)
     except ValueError:
-        return bool((executable or "").strip())
+        return False
+
+
+def _trusted_greenshot_executable() -> Path | None:
+    """Resolve and revalidate the startup-owned Greenshot executable."""
+
+    raw = current_app.config.get("GREENSHOT_EXECUTABLE")
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    candidate = Path(raw.strip()).expanduser()
+    if not candidate.is_absolute() or candidate.is_symlink():
+        return None
+    try:
+        resolved = candidate.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    if (
+        resolved.name.casefold() != "greenshot.exe"
+        or not resolved.is_file()
+        or resolved.is_symlink()
+    ):
+        return None
+    return resolved
+
+
+def _server_greenshot_delay() -> float:
+    raw = current_app.config.get("GREENSHOT_DELAY_MS", 350)
+    if isinstance(raw, bool):
+        raise ValueError("Invalid server Greenshot delay.")
+    try:
+        milliseconds = float(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Invalid server Greenshot delay.") from exc
+    if not math.isfinite(milliseconds) or not 0 <= milliseconds <= 2000:
+        raise ValueError("Invalid server Greenshot delay.")
+    return milliseconds / 1000.0
 
 
 @api_bp.route("/settings/greenshot", methods=["POST"])
+@capability_guard("settings", max_body_bytes=4096)
 def api_set_greenshot_settings() -> Response:
     """Persist Greenshot integration settings used by server-side guards."""
 
@@ -287,6 +414,9 @@ def api_set_greenshot_settings() -> Response:
     data = _json_body()
     if isinstance(data, Response):
         return data
+    schema_error = reject_unknown_fields(data, {"enabled"})
+    if schema_error is not None:
+        return schema_error
     try:
         enabled = _parse_greenshot_enabled(data.get("enabled"))
     except ValueError as exc:
@@ -296,6 +426,7 @@ def api_set_greenshot_settings() -> Response:
 
 
 @api_bp.route("/settings/office_preview_quality", methods=["POST"])
+@capability_guard("settings", max_body_bytes=4096)
 def api_set_office_preview_quality() -> Response:
     """Persist Office preview quality profile used by conversion routes."""
 
@@ -304,6 +435,9 @@ def api_set_office_preview_quality() -> Response:
     data = _json_body()
     if isinstance(data, Response):
         return data
+    schema_error = reject_unknown_fields(data, {"quality"})
+    if schema_error is not None:
+        return schema_error
     try:
         quality = _parse_office_preview_quality(data.get("quality"))
     except ValueError as exc:
@@ -312,7 +446,36 @@ def api_set_office_preview_quality() -> Response:
     return jsonify({"ok": True, "quality": quality})
 
 
+@api_bp.route("/settings/office_preview_acceleration", methods=["GET", "POST"])
+@capability_guard("settings", max_body_bytes=4096)
+def api_office_preview_acceleration() -> Response:
+    """Store acceleration independently of PDF quality in profile preferences."""
+    if not _is_local_request():
+        return jsonify({"error": "This action is only available locally.", "code": "forbidden"}), 403
+    if request.method == "GET":
+        enabled = get_preference(_data_dir_path(), current_app.config, "office_preview_accelerated") != "0"
+        response = jsonify({"enabled": enabled})
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    data = _json_body()
+    if isinstance(data, Response):
+        return data
+    schema_error = reject_unknown_fields(data, {"enabled"})
+    if schema_error is not None:
+        return schema_error
+    enabled = data.get("enabled")
+    if not isinstance(enabled, bool):
+        return jsonify({"error": "Enabled must be a boolean.", "code": "invalid"}), 400
+    set_preference(_data_dir_path(), current_app.config, "office_preview_accelerated", "1" if enabled else "0")
+    if not enabled:
+        from ...features.preview.office_session import close_office_session
+
+        close_office_session()
+    return jsonify({"ok": True, "enabled": enabled})
+
+
 @api_bp.route("/screenshot", methods=["POST"])
+@capability_guard("screenshot", max_body_bytes=10 * 1024 * 1024)
 def api_screenshot() -> Response:
     """Store an uploaded screenshot blob inside the current folder."""
 
@@ -321,6 +484,8 @@ def api_screenshot() -> Response:
         return response
     assert root is not None
     file = request.files.get("image")
+    if set(request.files) != {"image"} or set(request.form) - {"path", "name"}:
+        return jsonify({"error": "Unsupported screenshot fields.", "code": "invalid"}), 400
     path = request.form.get("path", ".")
     if not file:
         return jsonify({"error": "No image received", "code": "invalid"}), 400
@@ -332,19 +497,35 @@ def api_screenshot() -> Response:
         base_name = f"screenshot_{timestamp}.png"
     if not base_name.lower().endswith(".png"):
         base_name = f"{base_name}.png"
+    payload = file.stream.read((10 * 1024 * 1024) + 1)
+    if len(payload) > 10 * 1024 * 1024 or not payload.startswith(b"\x89PNG\r\n\x1a\n"):
+        return jsonify({"error": "Screenshot must be a valid PNG image.", "code": "invalid"}), 400
+    try:
+        with Image.open(io.BytesIO(payload)) as image:
+            width, height = image.size
+            if image.format != "PNG" or width > 8192 or height > 8192 or width * height > 40_000_000:
+                raise ValueError
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError):
+        return jsonify({"error": "Screenshot must be a valid PNG image.", "code": "invalid"}), 400
     try:
         destination = resolve_within_root(root, Path(path) / base_name)
     except Exception as exc:
         return _fs_error_response(exc)
+    if destination.exists():
+        return jsonify({"error": "A file with this name already exists.", "code": "conflict"}), 409
     destination.parent.mkdir(parents=True, exist_ok=True)
-    file.save(destination)
+    destination.write_bytes(payload)
     return jsonify({"saved": str(destination.relative_to(root))})
 
 
 @api_bp.route("/greenshot", methods=["POST"])
+@capability_guard("greenshot", max_body_bytes=4096)
 def api_greenshot() -> Response:
-    """Launch the Greenshot executable using user-provided settings."""
+    """Use one server-owned Greenshot executable with a fixed request schema."""
 
+    if not _is_local_request():
+        return jsonify({"error": "This action is only available locally.", "code": "forbidden"}), 403
     root, response = _root_or_response()
     if response:
         return response
@@ -352,90 +533,67 @@ def api_greenshot() -> Response:
     data = _json_body()
     if isinstance(data, Response):
         return data
-    executable_raw = data.get("executable")
-    if not _load_greenshot_enabled_preference(str(executable_raw or "")):
+    if set(data) - {"mode", "path"}:
+        return jsonify({"error": "Unsupported Greenshot request fields.", "code": "invalid"}), 400
+    mode = data.get("mode", "launch")
+    if mode not in {"launch", "capture", "open"}:
+        return jsonify({"error": "Invalid Greenshot mode.", "code": "invalid"}), 400
+    path_raw = data.get("path")
+    if mode == "open":
+        if not isinstance(path_raw, str) or not path_raw:
+            return jsonify({"error": "A file path is required.", "code": "invalid"}), 400
+    elif path_raw is not None:
+        return jsonify({"error": "Path is only valid in open mode.", "code": "invalid"}), 400
+    if not _load_greenshot_enabled_preference():
         return jsonify({"error": "Greenshot integration is disabled in Settings.", "code": "disabled"}), 403
-    if not executable_raw:
-        return jsonify({"error": "Configure the Greenshot executable path first.", "code": "invalid"}), 400
-    executable = str(executable_raw)
-    arguments_raw = data.get("arguments") or ""
-    destination_raw = data.get("destination")
-    file_raw = data.get("file")
-    hotkey = (data.get("hotkey") or "").strip()
+    executable = _trusted_greenshot_executable()
+    if executable is None:
+        return jsonify({"error": "Greenshot is not available on this server.", "code": "unavailable"}), 503
+    file_path = None
+    if mode == "open":
+        try:
+            file_path = resolve_within_root(root, path_raw)
+            if not file_path.is_file():
+                raise FileNotFoundError("Greenshot target is unavailable.")
+        except Exception as exc:
+            return _fs_error_response(exc)
+    hotkey = str(current_app.config.get("GREENSHOT_HOTKEY") or "").strip()
     try:
-        delay_seconds = _parse_hotkey_delay(data.get("delay"))
-    except ValueError as exc:
-        return jsonify({"error": str(exc), "code": "invalid"}), 400
+        delay_seconds = _server_greenshot_delay()
+    except ValueError:
+        return jsonify({"error": "Greenshot server configuration is invalid.", "code": "unavailable"}), 503
     hotkey_sequence: List[int] | None = None
-    if hotkey:
+    if mode == "capture" and hotkey:
         try:
             hotkey_sequence = _resolve_hotkey_sequence(hotkey)
-        except RuntimeError as exc:
-            return jsonify({"error": str(exc), "code": "unsupported"}), 400
-        except ValueError as exc:
-            return jsonify({"error": str(exc), "code": "invalid"}), 400
-    target_folder = None
-    file_path = None
-    uses_file_placeholder = False
-    if destination_raw not in (None, ""):
-        try:
-            target_folder = resolve_within_root(root, destination_raw)
-        except Exception as exc:
-            return _fs_error_response(exc)
-    if file_raw not in (None, ""):
-        try:
-            file_path = resolve_within_root(root, file_raw)
-        except Exception as exc:
-            return _fs_error_response(exc)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    placeholder_map = {"timestamp": timestamp}
-    if target_folder is not None:
-        placeholder_map["output"] = str(target_folder)
+        except (RuntimeError, ValueError):
+            return jsonify({"error": "Greenshot server hotkey is invalid.", "code": "unavailable"}), 503
+    command = [str(executable)]
     if file_path is not None:
-        placeholder_map["file"] = str(file_path)
-        if isinstance(arguments_raw, str) and "{file" in arguments_raw:
-            uses_file_placeholder = True
-    try:
-        rendered_args = arguments_raw.format(**placeholder_map)
-    except Exception:
-        return jsonify({"error": "Invalid Greenshot arguments template.", "code": "invalid"}), 400
-    command = [executable]
-    if rendered_args:
-        command.extend(shlex.split(rendered_args))
-    if file_path is not None and not uses_file_placeholder:
-        command.append(str(file_path))
-    working_directory = None
-    try:
-        exe_path = Path(executable).expanduser()
-        if exe_path.exists():
-            working_directory = exe_path.parent
-    except Exception:
-        working_directory = None
-    already_running = _is_process_running(executable)
+        command.append(str(file_path.resolve()))
+    already_running = _is_process_running(str(executable))
     launched = False
     should_launch = not already_running or file_path is not None
     if should_launch:
         try:
-            popen_kwargs: dict[str, Any] = {}
-            if working_directory and working_directory.is_dir():
-                popen_kwargs["cwd"] = str(working_directory)
-            subprocess.Popen(command, **popen_kwargs)
+            subprocess.Popen(command, cwd=str(executable.parent))
             launched = True
         except FileNotFoundError:
-            return jsonify({"error": "Greenshot executable was not found.", "code": "not-found"}), 400
-        except Exception as exc:  # pragma: no cover - defensive logging
-            return jsonify({"error": f"Failed to launch Greenshot: {exc}", "code": "error"}), 400
+            return jsonify({"error": "Greenshot is unavailable.", "code": "unavailable"}), 503
+        except Exception:  # pragma: no cover - defensive logging
+            current_app.logger.exception("Greenshot launch failed.")
+            return jsonify({"error": "Greenshot could not be started.", "code": "error"}), 500
     hotkey_sent = False
     if hotkey_sequence:
         try:
             _send_hotkey_sequence(hotkey_sequence, delay_seconds)
             hotkey_sent = True
-        except Exception as exc:  # pragma: no cover - defensive logging
-            return jsonify({"error": f"Failed to send Greenshot hotkey: {exc}", "code": "hotkey"}), 400
+        except Exception:  # pragma: no cover - defensive logging
+            current_app.logger.exception("Greenshot hotkey failed.")
+            return jsonify({"error": "Greenshot capture could not be triggered.", "code": "hotkey"}), 500
     status = "hotkey" if hotkey_sent else ("launched" if launched else "running")
     return jsonify({
         "status": status,
-        "command": command,
         "hotkey_sent": hotkey_sent,
         "launched": launched,
         "already_running": already_running,
@@ -483,7 +641,47 @@ def _parse_phrase_font_size_pt(value: Any) -> float:
     return parsed
 
 
+def _preflight_merge_inputs(items: list[Path], mode: str) -> None:
+    """Reject one-request merge workloads that exceed process-safe budgets."""
+
+    total_bytes = 0
+    for item in items:
+        if not item.is_file():
+            raise MergeError("Every merge input must be an existing file.")
+        total_bytes += item.stat().st_size
+        if total_bytes > _MAX_MERGE_TOTAL_INPUT_BYTES:
+            raise MergeError("Merge inputs exceed the 256 MiB total size limit.")
+
+    if mode == "pdf":
+        total_pages = 0
+        for item in items:
+            with item.open("rb") as handle:
+                total_pages += len(PdfReader(handle).pages)
+            if total_pages > _MAX_MERGE_PDF_PAGES:
+                raise MergeError("Merge inputs exceed the 1000-page limit.")
+        return
+
+    if len(items) > _MAX_MERGE_IMAGE_FILES:
+        raise MergeError("Select no more than 8 images per merge.")
+    total_pixels = 0
+    for item in items:
+        try:
+            with Image.open(item) as image:
+                pixels = image.width * image.height
+                if pixels > _MAX_MERGE_IMAGE_PIXELS:
+                    raise MergeError("A merge image exceeds the 40-megapixel limit.")
+                total_pixels += pixels
+                if total_pixels > _MAX_MERGE_TOTAL_IMAGE_PIXELS:
+                    raise MergeError("Merge images exceed the 120-megapixel total limit.")
+                image.verify()
+        except MergeError:
+            raise
+        except (UnidentifiedImageError, OSError, ValueError) as exc:
+            raise MergeError("Every merge input must be a valid PNG or JPEG image.") from exc
+
+
 @api_bp.route("/merge", methods=["POST"])
+@capability_guard("merge", max_body_bytes=256 * 1024)
 def api_merge() -> Response:
     """Merge PDFs or convert images into a single PDF document."""
 
@@ -494,8 +692,22 @@ def api_merge() -> Response:
     data = _json_body()
     if isinstance(data, Response):
         return data
+    schema_error = reject_unknown_fields(
+        data,
+        {
+            "items", "order", "mode", "output_name", "path", "page_numbers",
+            "paper_size", "orientation", "margin", "fit", "phrases",
+            "phrase_alignment", "phrase_font_size_pt",
+        },
+    )
+    if schema_error is not None:
+        return schema_error
     items_input = data.get("items", [])
-    if not items_input:
+    if (
+        not isinstance(items_input, list)
+        or not 2 <= len(items_input) <= 100
+        or any(not isinstance(item, str) or not item or len(item) > 4096 for item in items_input)
+    ):
         return jsonify({"error": "Select at least two files to merge.", "code": "invalid"}), 400
     try:
         ordered_items = _order_items(items_input, data.get("order"))
@@ -503,37 +715,73 @@ def api_merge() -> Response:
     except Exception as exc:
         return _fs_error_response(exc)
     mode = data.get("mode", "pdf")
+    if not isinstance(mode, str) or mode not in {"pdf", "images"}:
+        return jsonify({"error": "Merge mode must be 'pdf' or 'images'.", "code": "invalid"}), 400
     output_name = data.get("output_name") or ("Merged.pdf" if mode == "pdf" else "Images.pdf")
+    output_path = data.get("path", ".")
+    if (
+        not isinstance(output_name, str)
+        or not output_name
+        or len(output_name) > 255
+        or not isinstance(output_path, str)
+        or len(output_path) > 4096
+    ):
+        return jsonify({"error": "Merge destination is invalid.", "code": "invalid"}), 400
     try:
-        output = resolve_within_root(root, Path(data.get("path", ".")) / output_name)
+        output = resolve_within_root(root, Path(output_path) / output_name)
     except Exception as exc:
         return _fs_error_response(exc)
     if output.exists():
         output = _auto_rename(output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    page_numbers = bool(data.get("page_numbers"))
+    page_numbers_raw = data.get("page_numbers", False)
+    if not isinstance(page_numbers_raw, bool):
+        return jsonify({"error": "Page numbers must be a boolean.", "code": "invalid"}), 400
+    page_numbers = page_numbers_raw
     try:
         if mode == "pdf":
             if any(item.suffix.lower() != ".pdf" for item in items):
                 raise MergeError("All selected files must be PDFs for PDF merge.")
+            _preflight_merge_inputs(items, mode)
+            output.parent.mkdir(parents=True, exist_ok=True)
             merge_pdfs(items, output, page_numbers=page_numbers)
         else:
             allowed = {".png", ".jpg", ".jpeg"}
             if any(item.suffix.lower() not in allowed for item in items):
                 raise MergeError("Only PNG and JPG images can be merged into a PDF.")
+            _preflight_merge_inputs(items, mode)
             paper_size = data.get("paper_size", "A4")
             orientation = data.get("orientation", "portrait")
-            margin = int(data.get("margin", 10))
+            margin_raw = data.get("margin", 10)
+            if isinstance(margin_raw, bool) or not isinstance(margin_raw, int) or not 0 <= margin_raw <= 100:
+                raise MergeError("Margin must be an integer between 0 and 100.")
+            margin = margin_raw
             fit = data.get("fit", "contain")
             phrases = data.get("phrases") or {}
             phrase_alignment = data.get("phrase_alignment", "left")
             phrase_font_size_pt = _parse_phrase_font_size_pt(data.get("phrase_font_size_pt"))
+            if paper_size not in {"A4", "Letter"}:
+                raise MergeError("Paper size must be A4 or Letter.")
+            if orientation not in {"portrait", "landscape"}:
+                raise MergeError("Orientation must be portrait or landscape.")
+            if fit not in {"contain", "cover"}:
+                raise MergeError("Image fit must be contain or cover.")
+            if phrase_alignment not in {"left", "center", "right"}:
+                raise MergeError("Phrase alignment must be left, center, or right.")
             if isinstance(phrases, list):
                 phrases = {int(idx): value for idx, value in enumerate(phrases)}
             try:
-                phrase_map = {int(key): str(value) for key, value in phrases.items()}
+                if not isinstance(phrases, dict) or len(phrases) > len(items):
+                    raise ValueError
+                phrase_map = {
+                    int(key): value
+                    for key, value in phrases.items()
+                    if isinstance(value, str) and len(value) <= 2048
+                }
+                if len(phrase_map) != len(phrases):
+                    raise ValueError
             except Exception:
                 return jsonify({"error": "Invalid phrase map.", "code": "invalid"}), 400
+            output.parent.mkdir(parents=True, exist_ok=True)
             images_to_pdf(
                 items,
                 output,
@@ -554,6 +802,7 @@ def api_merge() -> Response:
 
 
 @api_bp.route("/pdf/extract", methods=["POST"])
+@capability_guard("pdf_extract", max_body_bytes=256 * 1024)
 def api_extract_pdf_pages() -> Response:
     """Extract selected pages from a PDF into a new document."""
 
@@ -564,11 +813,14 @@ def api_extract_pdf_pages() -> Response:
     data = _json_body()
     if isinstance(data, Response):
         return data
+    schema_error = reject_unknown_fields(data, {"path", "pages", "destination", "output_name"})
+    if schema_error is not None:
+        return schema_error
     rel = (data.get("path") or "").strip()
     if not rel:
         return jsonify({"error": "Select a PDF file first.", "code": "invalid"}), 400
     pages_expr = (data.get("pages") or "").strip()
-    if not pages_expr:
+    if not pages_expr or len(pages_expr) > 2048:
         return jsonify({"error": "Enter one or more page numbers.", "code": "invalid"}), 400
     try:
         source = resolve_within_root(root, rel)
@@ -587,6 +839,8 @@ def api_extract_pdf_pages() -> Response:
         pages = _parse_page_ranges(pages_expr, total_pages)
     except ValueError as exc:
         return jsonify({"error": str(exc), "code": "invalid"}), 400
+    if len(pages) > 1000:
+        return jsonify({"error": "Select no more than 1000 pages.", "code": "too-many"}), 400
     destination_rel = (data.get("destination") or Path(rel).parent.as_posix() or ".").strip()
     destination_rel = destination_rel or "."
     try:
@@ -618,6 +872,7 @@ def api_status() -> Response:
 
 
 @api_bp.route("/shutdown", methods=["POST"])
+@capability_guard("shutdown", max_body_bytes=4096)
 def api_shutdown() -> Response:
     """Gracefully stop the server when portable shutdown is enabled."""
 
@@ -629,6 +884,9 @@ def api_shutdown() -> Response:
     if callable(shutdown_handler):
         def _stop_server() -> None:
             try:
+                from ...features.preview.office_session import close_office_session
+
+                close_office_session()
                 shutdown_handler()
             except Exception as exc:  # pragma: no cover - defensive logging
                 current_app.logger.warning("Shutdown handler failed: %s", exc)
@@ -641,6 +899,9 @@ def api_shutdown() -> Response:
         return jsonify({"error": "Shutdown is not available in this server context.", "code": "unsupported"}), 500
 
     def _stop_server() -> None:
+        from ...features.preview.office_session import close_office_session
+
+        close_office_session()
         shutdown_func()
 
     threading.Thread(target=_stop_server, daemon=True).start()
@@ -662,6 +923,7 @@ def api_portable_data_dir() -> Response:
 
 
 @api_bp.route("/portable/open_data_dir", methods=["POST"])
+@capability_guard("open_data_dir", max_body_bytes=4096)
 def api_open_data_dir() -> Response:
     """Open the active data directory in the system file explorer (portable only)."""
 
@@ -678,6 +940,7 @@ def api_open_data_dir() -> Response:
 
 
 @api_bp.route("/logs")
+@capability_guard("log_read", max_body_bytes=None)
 def api_logs() -> Response:
     """Return accumulated activity log entries."""
 
@@ -685,15 +948,16 @@ def api_logs() -> Response:
     tail_param = request.args.get("tail")
     try:
         tail_lines = int(tail_param) if tail_param is not None else 500
-        if tail_lines < 0:
-            tail_lines = 0
+        if not 0 <= tail_lines <= 500:
+            raise ValueError
     except Exception:
-        tail_lines = 500
+        return jsonify({"error": "Tail must be between 0 and 500.", "code": "invalid"}), 400
     content = _tail_file(logs_path, max_lines=tail_lines)
     return Response(content, mimetype="text/plain")
 
 
 @api_bp.route("/log", methods=["POST"])
+@capability_guard("log_write", max_body_bytes=8192)
 def api_log() -> Response:
     """Append an entry to the activity log file."""
 
@@ -702,7 +966,23 @@ def api_log() -> Response:
     entry = _json_body()
     if isinstance(entry, Response):
         return entry
-    entry["timestamp"] = datetime.utcnow().isoformat()
+    schema_error = reject_unknown_fields(entry, {"message", "source"})
+    if schema_error is not None:
+        return schema_error
+    message = entry.get("message")
+    source = entry.get("source")
+    if (
+        not isinstance(message, str)
+        or not 1 <= len(message) <= 2048
+        or not isinstance(source, str)
+        or not 1 <= len(source) <= 128
+    ):
+        return jsonify({"error": "Log entry is invalid.", "code": "invalid"}), 400
+    entry = {
+        "message": redact_text(message),
+        "source": redact_text(source, max_chars=128),
+        "timestamp": datetime.utcnow().isoformat(),
+    }
     with logs_path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(entry) + "\n")
     # Trim file to last ~256KB to avoid unbounded growth
@@ -717,18 +997,63 @@ def api_log() -> Response:
 
 
 @api_bp.route("/cache/clear", methods=["POST"])
+@capability_guard("cache_clear", max_body_bytes=4096)
 def api_clear_cache() -> Response:
     """Clear preview caches (office + general) without touching other data."""
 
-    base = Path(current_app.config.get("DATA_DIR") or current_app.instance_path)
-    preview_dir = Path(current_app.config.get("PREVIEW_CACHE_DIR") or base / "preview_cache")
-    office_dir = Path(current_app.config.get("OFFICE_CACHE_DIR") or base / "office_cache")
-    if not preview_dir.exists() and not office_dir.exists():
-        return jsonify({"ok": True, "deleted_files": 0, "deleted_dirs": 0})
-    deleted_files = 0
-    deleted_dirs = 0
-    for target in {preview_dir, office_dir}:
-        files, dirs = _clear_cache_dir(target)
-        deleted_files += files
-        deleted_dirs += dirs
+    data = _json_body()
+    if isinstance(data, Response):
+        return data
+    schema_error = reject_unknown_fields(data, set())
+    if schema_error is not None:
+        return schema_error
+    try:
+        base = Path(
+            cache_root_identity(
+                current_app.config.get("DATA_DIR") or current_app.instance_path
+            )
+        )
+        pinned = current_app.config.get("CACHE_CLEAR_ROOT_IDENTITIES")
+        current = {
+            "preview": cache_root_identity(current_app.config["PREVIEW_CACHE_DIR"]),
+            "office": cache_root_identity(current_app.config["OFFICE_CACHE_DIR"]),
+        }
+        if not isinstance(pinned, dict) or pinned != current:
+            raise _UnsafeCacheTreeError("Cache root identity changed after startup.")
+        if _path_is_reparse_point(base):
+            raise _UnsafeCacheTreeError("Data root is a reparse point.")
+        durable_roots = tuple(
+            base / name
+            for name in ("notes", "logs", ".qualifile_internal", "diagnostics")
+        )
+        cache_dirs = {Path(identity) for identity in current.values()}
+        for target in cache_dirs:
+            target.relative_to(base)
+            if target == base or any(
+                target == durable or target.is_relative_to(durable)
+                for durable in durable_roots
+            ):
+                raise _UnsafeCacheTreeError("Cache root overlaps durable data.")
+            if os.path.lexists(target):
+                resolved = target.resolve(strict=True)
+                resolved.relative_to(base.resolve(strict=True))
+                if resolved != target:
+                    raise _UnsafeCacheTreeError("Cache root crosses a filesystem link.")
+        distinct = list(cache_dirs)
+        for index, first in enumerate(distinct):
+            for second in distinct[index + 1 :]:
+                if first.is_relative_to(second) or second.is_relative_to(first):
+                    raise _UnsafeCacheTreeError("Configured cache roots overlap.")
+        with _CACHE_CLEAR_LOCK:
+            # Preflight every root before deleting from any root.
+            for target in cache_dirs:
+                _preflight_cache_tree(target)
+            deleted_files = 0
+            deleted_dirs = 0
+            for target in cache_dirs:
+                files, dirs = _clear_cache_dir(target)
+                deleted_files += files
+                deleted_dirs += dirs
+    except (KeyError, OSError, RuntimeError, TypeError, ValueError, _UnsafeCacheTreeError):
+        return jsonify({"error": "Cache configuration is invalid.", "code": "invalid"}), 400
     return jsonify({"ok": True, "deleted_files": deleted_files, "deleted_dirs": deleted_dirs})

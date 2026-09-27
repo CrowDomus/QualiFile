@@ -39,6 +39,7 @@ def _handle_api_error(exc: Exception) -> Response:
 # Import API route modules to register handlers on the shared blueprint.
 from . import filesystem_routes as _filesystem_routes  # noqa: E402,F401
 from . import preview_routes as _preview_routes  # noqa: E402,F401
+from . import image_history_routes as _image_history_routes  # noqa: E402,F401
 from . import projects_routes as _projects_routes  # noqa: E402,F401
 from . import project_browse_routes as _project_browse_routes  # noqa: E402,F401
 from . import notes_routes as _notes_routes  # noqa: E402,F401

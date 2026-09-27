@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any, MutableMapping
 
 from flask import g, has_request_context, request
+from .redaction import redact_text
 
 
 def _iso_now() -> str:
@@ -18,7 +19,11 @@ class RequestContextFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         record.ts = getattr(record, "ts", _iso_now())
-        record.request_id = getattr(record, "request_id", None) if has_request_context() else None
+        record.request_id = (
+            getattr(g, "request_id", None)
+            if has_request_context()
+            else None
+        )
         record.method = record.path = record.endpoint = record.remote_addr = record.user_agent = None
         record.status_code = getattr(record, "status_code", None)
         if has_request_context():
@@ -26,7 +31,10 @@ class RequestContextFilter(logging.Filter):
             record.path = request.path
             record.endpoint = request.endpoint
             record.remote_addr = request.remote_addr
-            record.user_agent = request.headers.get("User-Agent")
+            record.user_agent = redact_text(
+                request.headers.get("User-Agent", ""),
+                max_chars=256,
+            )
         return True
 
 
@@ -38,7 +46,7 @@ class JSONFormatter(logging.Formatter):
             "ts": getattr(record, "ts", _iso_now()),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": redact_text(record.getMessage()),
             "request_id": getattr(record, "request_id", None),
             "method": getattr(record, "method", None),
             "path": getattr(record, "path", None),
@@ -53,8 +61,15 @@ class JSONFormatter(logging.Formatter):
         if record.exc_info:
             exc_type = record.exc_info[0]
             payload["exception_type"] = exc_type.__name__ if exc_type else None
-            payload["exception_message"] = str(record.exc_info[1]) if record.exc_info[1] else None
-            payload["stacktrace"] = "".join(traceback.format_exception(*record.exc_info))
+            payload["exception_message"] = (
+                redact_text(record.exc_info[1])
+                if record.exc_info[1]
+                else None
+            )
+            payload["stacktrace"] = redact_text(
+                "".join(traceback.format_exception(*record.exc_info)),
+                max_chars=8192,
+            )
         return json.dumps(payload, ensure_ascii=True)
 
 

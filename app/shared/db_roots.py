@@ -72,6 +72,24 @@ def _reassign_root_id(conn: sqlite3.Connection, source_root_id: str, target_root
             (target_root_id, source_root_id),
         )
 
+    available = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if "image_documents" in available:
+        # Preserve conflicting identities and their histories without losing rows.
+        collisions = conn.execute(
+            "SELECT source.file_id, source.path FROM image_documents source "
+            "JOIN image_documents target ON source.path=target.path "
+            "WHERE source.root_id=? AND target.root_id=?",
+            (source_root_id, target_root_id),
+        ).fetchall()
+        for file_id, path in collisions:
+            conn.execute(
+                "UPDATE image_documents SET path=? WHERE root_id=? AND path=?",
+                (".detached/" + file_id, target_root_id, path),
+            )
+        conn.execute("UPDATE image_documents SET root_id=? WHERE root_id=?", (target_root_id, source_root_id))
+    if "focused_settings" in available:
+        conn.execute("INSERT OR IGNORE INTO focused_settings(scope_id,enabled,archive_path) SELECT ?,enabled,archive_path FROM focused_settings WHERE scope_id=?", ("root:" + target_root_id, "root:" + source_root_id))
+
 
 def _reconcile_marker_root(conn: sqlite3.Connection, root_path: str, marker_id: str) -> Optional[str]:
     row = conn.execute(

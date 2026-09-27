@@ -1,38 +1,73 @@
-<div class="modal fade" id="modal-preview-fullscreen" tabindex="-1" aria-labelledby="modal-preview-fullscreen-label" aria-hidden="true">
-    <div class="modal-dialog modal-fullscreen">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h1 class="modal-title fs-6" id="modal-preview-fullscreen-label">Preview</h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0" id="preview-fullscreen-body"></div>
-        </div>
+<div
+  class="modal fade"
+  id="modal-preview-fullscreen"
+  tabindex="-1"
+  aria-labelledby="modal-preview-fullscreen-label"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-6" id="modal-preview-fullscreen-label">Preview</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0" id="preview-fullscreen-body"></div>
     </div>
+  </div>
 </div>
 
-<div class="modal fade" id="modal-multi-preview" tabindex="-1" aria-labelledby="modal-multi-preview-label" aria-hidden="true">
-    <div class="modal-dialog modal-fullscreen">
-        <div class="modal-content">
-            <div class="modal-header flex-wrap align-items-center gap-3">
-                <h1 class="modal-title fs-6 mb-0" id="modal-multi-preview-label">Fullscreen compare</h1>
-                <div class="ms-auto d-flex align-items-center gap-2 flex-wrap">
-                    <button class="btn btn-outline-secondary btn-sm" type="button" id="multi-preview-header-toggle" aria-pressed="false">Hide headers</button>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="multi-preview-layout-toggle" data-bs-toggle="dropdown" aria-expanded="false" disabled>
-                            <span id="multi-preview-layout-label">Split layout</span>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end" id="multi-preview-layout-menu" role="menu" aria-labelledby="multi-preview-layout-toggle">
-                            <li><span class="dropdown-item-text text-muted small">Layout options appear when previews are ready.</span></li>
-                        </ul>
-                    </div>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0 d-flex flex-column" id="multi-preview-body">
-                <div class="multi-preview-grid flex-grow-1" id="multi-preview-grid">
-                    <div class="multi-preview-placeholder text-muted">Nothing to show yet.</div>
-                </div>
-            </div>
+<div
+  class="modal fade"
+  id="modal-multi-preview"
+  tabindex="-1"
+  aria-labelledby="modal-multi-preview-label"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-header flex-wrap align-items-center gap-3">
+        <h1 class="modal-title fs-6 mb-0" id="modal-multi-preview-label">Fullscreen compare</h1>
+        <div class="ms-auto d-flex align-items-center gap-2 flex-wrap">
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            type="button"
+            id="multi-preview-header-toggle"
+            aria-pressed="false"
+          >
+            Hide headers
+          </button>
+          <div class="btn-group btn-group-sm">
+            <button
+              class="btn btn-outline-secondary dropdown-toggle"
+              type="button"
+              id="multi-preview-layout-toggle"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+              disabled
+            >
+              <span id="multi-preview-layout-label">Split layout</span>
+            </button>
+            <ul
+              class="dropdown-menu dropdown-menu-end"
+              id="multi-preview-layout-menu"
+              role="menu"
+              aria-labelledby="multi-preview-layout-toggle"
+            >
+              <li>
+                <span class="dropdown-item-text text-muted small"
+                  >Layout options appear when previews are ready.</span
+                >
+              </li>
+            </ul>
+          </div>
         </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0 d-flex flex-column" id="multi-preview-body">
+        <div class="multi-preview-grid flex-grow-1" id="multi-preview-grid">
+          <div class="multi-preview-placeholder text-muted">Nothing to show yet.</div>
+        </div>
+      </div>
     </div>
+  </div>
 </div>

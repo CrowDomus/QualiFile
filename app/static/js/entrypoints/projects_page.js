@@ -10,16 +10,16 @@ import { initModalBackdropGuard } from '../shared/modal_backdrop_guard.js';
 import { initNoteFormattingToolbars } from '../features/notes/note_formatting_toolbar.js';
 
 async function bootstrap() {
-    initModalStacking();
-    initModalBackdropGuard();
-    await initProfilePreferencesBridge();
-    void initProfileHeaderAvatar();
-    initProfileModal();
-    initProfileController();
-    initTaskAlertsHeader();
-    await import('../features/projects/index.js');
-    initNoteFormattingToolbars();
-    initHeaderAddNoteProjects();
+  initModalStacking();
+  initModalBackdropGuard();
+  await initProfilePreferencesBridge();
+  void initProfileHeaderAvatar();
+  initProfileModal();
+  initProfileController();
+  initTaskAlertsHeader();
+  await import('../features/projects/index.js');
+  initNoteFormattingToolbars();
+  initHeaderAddNoteProjects();
 }
 
 bootstrap();

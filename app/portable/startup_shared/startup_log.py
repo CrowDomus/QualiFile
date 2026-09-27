@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import threading
 from typing import Callable
+from app.shared.redaction import redact_text
 
 
 TimestampFn = Callable[[], str]
@@ -30,8 +31,9 @@ class StartupLogWriter:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def append(self, stream: str, line: str) -> None:
-        safe_line = line.rstrip("\n")
-        entry = f"{self._timestamp_fn()} [{stream}] {safe_line}\n"
+        safe_stream = redact_text(stream, max_chars=64)
+        safe_line = redact_text(line.rstrip("\n"))
+        entry = f"{self._timestamp_fn()} [{safe_stream}] {safe_line}\n"
         with self._lock:
             with self.path.open("a", encoding=self.encoding) as handle:
                 handle.write(entry)
@@ -47,10 +49,21 @@ class StartupLogWriter:
         if size <= self._max_bytes:
             return
         try:
-            with self.path.open("rb") as handle:
-                handle.seek(-self._max_bytes, 2)
-                tail = handle.read()
-            with self.path.open("wb") as handle:
-                handle.write(tail)
+            lines = self.path.read_text(
+                encoding=self.encoding,
+                errors="replace",
+            ).splitlines(keepends=True)
+            kept: list[str] = []
+            used = 0
+            for line in reversed(lines):
+                encoded_size = len(line.encode(self.encoding, errors="replace"))
+                if kept and used + encoded_size > self._max_bytes:
+                    break
+                kept.append(line)
+                used += encoded_size
+            self.path.write_text(
+                "".join(reversed(kept)),
+                encoding=self.encoding,
+            )
         except OSError:
             return

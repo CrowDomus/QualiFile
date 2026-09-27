@@ -17,7 +17,7 @@ from ..version import get_version
 from ...features.metadata.sidecar import SCHEMA_VERSION as SIDECAR_SCHEMA_VERSION
 from ...features.user_profile.contract import PROFILE_SCHEMA_VERSION
 
-DATA_STATE_SCHEMA_VERSION = 1
+DATA_STATE_SCHEMA_VERSION = 2
 
 
 def _get_app_version(config: Mapping[str, Any] | None, env: Mapping[str, str]) -> str:
@@ -37,7 +37,7 @@ def _db_schema_state(data_dir: Path) -> dict[str, object]:
     expected_ids = [migration.migration_id for migration in MIGRATIONS]
     latest_id = expected_ids[-1] if expected_ids else None
     state: dict[str, object] = {
-        "path": str(db_path),
+        "path": f"<data-dir>/{db_path.name}",
         "status": "missing",
         "latest_id": latest_id,
         "expected_ids": expected_ids,
@@ -80,7 +80,7 @@ def collect_data_state(data_dir: Path, config: Mapping[str, Any] | None = None) 
     payload: dict[str, object] = {
         "schema_version": DATA_STATE_SCHEMA_VERSION,
         "generated_at": generated_at,
-        "data_dir": str(data_dir),
+        "data_dir": "<data-dir>",
         "app_version": _get_app_version(config, env_values),
         "platform": {
             "os": os.name,

@@ -24,6 +24,11 @@ from ...features.filesystem.service import (
 from ...features.metadata.service import MetadataService, SidecarReadError
 from ...features.preview.text_preview import detect_mime
 from ...shared.db import get_db
+from ...shared.capability_security import (
+    capability_guard,
+    is_passive_open_path,
+    reject_unknown_fields,
+)
 from ...shared.internal_paths import is_internal_path
 from . import api_bp
 from .helpers import (
@@ -345,6 +350,7 @@ def api_zip() -> Response:
 
 
 @api_bp.route("/reveal", methods=["POST"])
+@capability_guard("reveal", max_body_bytes=4096)
 def api_reveal() -> Response:
     """Reveal a path in the host operating system's file explorer."""
 
@@ -355,19 +361,20 @@ def api_reveal() -> Response:
     data = _json_body()
     if isinstance(data, Response):
         return data
-    debug_reveal = os.getenv("QUALIFILE_DEBUG_REVEAL") == "1"
+    schema_error = reject_unknown_fields(data, {"path", "select"})
+    if schema_error is not None:
+        return schema_error
     rel = data.get("path", ".")
     if rel is None:
         rel = "."
     elif isinstance(rel, str):
         rel = rel.strip() or "."
-    if debug_reveal:
-        current_app.logger.info("Reveal debug: payload path=%r select=%r", rel, data.get("select"))
+    select_raw = data.get("select", False)
+    if not isinstance(select_raw, bool):
+        return jsonify({"error": "Select must be a boolean.", "code": "invalid"}), 400
     try:
         target = resolve_within_root(root, rel)
-        select = bool(data.get("select")) and target.is_file()
-        if debug_reveal:
-            current_app.logger.info("Reveal debug: resolved target=%s select=%s root=%s", target, select, root)
+        select = select_raw and target.is_file()
         _reveal_in_explorer(target, select)
     except Exception as exc:
         return _fs_error_response(exc)
@@ -448,10 +455,22 @@ def api_file() -> Response:
         target = resolve_within_root(root, rel)
     except Exception as exc:
         return _fs_error_response(exc)
-    return send_file(target, mimetype=detect_mime(target), conditional=True)
+    mime = detect_mime(target)
+    inline_suffixes = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".ico", ".pdf"}
+    inline = target.suffix.casefold() in inline_suffixes and (
+        mime.startswith("image/") or mime == "application/pdf"
+    )
+    return send_file(
+        target,
+        mimetype=mime if inline else "application/octet-stream",
+        as_attachment=not inline,
+        download_name=target.name,
+        conditional=True,
+    )
 
 
 @api_bp.route("/open", methods=["POST"])
+@capability_guard("open", max_body_bytes=4096)
 def api_open() -> Response:
     """Open a file using the operating system's default application."""
 
@@ -462,13 +481,20 @@ def api_open() -> Response:
     data = _json_body()
     if isinstance(data, Response):
         return data
+    schema_error = reject_unknown_fields(data, {"path"})
+    if schema_error is not None:
+        return schema_error
     rel = data.get("path")
-    if not rel:
+    if not isinstance(rel, str) or not rel or len(rel) > 4096:
         return jsonify({"error": "Path is required.", "code": "invalid"}), 400
     try:
         target = resolve_within_root(root, rel)
     except Exception as exc:
         return _fs_error_response(exc)
+    if not target.is_file():
+        return jsonify({"error": "Please select a file, not a folder.", "code": "is-directory"}), 400
+    if not is_passive_open_path(target):
+        return jsonify({"error": "This file type cannot be opened here.", "code": "blocked-type"}), 400
     try:
         _launch_default_application(target)
     except FileNotFoundError as exc:
@@ -485,6 +511,7 @@ def api_open() -> Response:
 
 
 @api_bp.route("/email", methods=["POST"])
+@capability_guard("email", max_body_bytes=32768)
 def api_email() -> Response:
     """Open the default mail client with selected files attached."""
 
@@ -495,10 +522,10 @@ def api_email() -> Response:
     data = _json_body()
     if isinstance(data, Response):
         return data
+    schema_error = reject_unknown_fields(data, {"paths"})
+    if schema_error is not None:
+        return schema_error
     paths_raw = data.get("paths")
-    if not paths_raw:
-        single = data.get("path")
-        paths_raw = [single] if single else []
     if not isinstance(paths_raw, list) or not paths_raw:
         return jsonify({"error": "Provide at least one file to email.", "code": "invalid"}), 400
     if len(paths_raw) > EMAIL_ATTACHMENT_COUNT_LIMIT:

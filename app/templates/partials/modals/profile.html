@@ -1,56 +1,111 @@
-<div class="modal fade" id="modal-profile" tabindex="-1" aria-labelledby="modal-profile-label" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <form class="modal-content" id="form-profile">
-            <div class="modal-header">
-                <h1 class="modal-title fs-5" id="modal-profile-label">Profile</h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div
+  class="modal fade"
+  id="modal-profile"
+  tabindex="-1"
+  aria-labelledby="modal-profile-label"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="form-profile">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="modal-profile-label">Profile</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <img
+            class="profile-avatar-image profile-avatar-image-lg rounded-circle"
+            data-profile-avatar-preview
+            data-avatar-default="{{ url_for('static', filename='img/avatar_default.svg') }}"
+            src="{{ url_for('static', filename='img/avatar_default.svg') }}"
+            alt="Profile avatar"
+          />
+          <div>
+            <div class="fw-semibold" data-profile-display-label>Guest</div>
+            <div class="text-muted small" data-profile-guest-note>
+              Guest mode: create a profile to store portable preferences.
             </div>
-            <div class="modal-body">
-                <div class="d-flex align-items-center gap-3 mb-3">
-                    <img class="profile-avatar-image profile-avatar-image-lg rounded-circle" data-profile-avatar-preview data-avatar-default="{{ url_for('static', filename='img/avatar_default.svg') }}" src="{{ url_for('static', filename='img/avatar_default.svg') }}" alt="Profile avatar">
-                    <div>
-                        <div class="fw-semibold" data-profile-display-label>Guest</div>
-                        <div class="text-muted small" data-profile-guest-note>Guest mode: create a profile to store portable preferences.</div>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" for="profile-display-name">Display name</label>
-                    <input class="form-control" id="profile-display-name" name="display_name" required maxlength="80" autocomplete="name">
-                    <div class="invalid-feedback" id="profile-display-name-feedback"></div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" for="profile-email">Email (optional)</label>
-                    <input class="form-control" id="profile-email" name="email" type="email" maxlength="120" autocomplete="email">
-                    <div class="form-text">Stored locally for exports and identity metadata.</div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" for="profile-avatar-upload">Avatar (optional)</label>
-                    <div class="d-flex align-items-center gap-2">
-                        <input class="form-control" id="profile-avatar-upload" name="avatar" type="file" accept="image/png,image/jpeg,image/webp">
-                        <button type="button" class="btn btn-outline-secondary btn-sm" id="profile-avatar-upload-btn">Upload</button>
-                    </div>
-                    <div class="form-text" data-profile-avatar-note>PNG/JPEG/WEBP up to 2 MB.</div>
-                    <div class="text-danger small d-none" id="profile-avatar-error" role="alert"></div>
-                </div>
-                <div class="mb-3">
-                    <div class="border rounded p-3 bg-body-tertiary d-flex flex-column gap-2">
-                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                            <div class="fw-semibold">Export &amp; import</div>
-                            <button class="btn btn-neutral btn-sm" type="button" id="profile-export">Export profile</button>
-                        </div>
-                        <p class="text-muted small mb-0">Export/import profile settings as JSON.</p>
-                        <div class="profile-import-group">
-                            <input class="form-control form-control-sm profile-import-input" id="profile-import-file" type="file" accept=".json,application/json">
-                            <button class="btn btn-primary btn-sm flex-shrink-0" type="button" id="profile-import-btn">Import profile</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="text-danger small d-none" id="profile-error" role="alert"></div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="profile-display-name">Display name</label>
+          <input
+            class="form-control"
+            id="profile-display-name"
+            name="display_name"
+            required
+            maxlength="80"
+            autocomplete="name"
+          />
+          <div class="invalid-feedback" id="profile-display-name-feedback"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="profile-email">Email (optional)</label>
+          <input
+            class="form-control"
+            id="profile-email"
+            name="email"
+            type="email"
+            maxlength="120"
+            autocomplete="email"
+          />
+          <div class="form-text">Stored locally for exports and identity metadata.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="profile-avatar-upload">Avatar (optional)</label>
+          <div class="d-flex align-items-center gap-2">
+            <input
+              class="form-control"
+              id="profile-avatar-upload"
+              name="avatar"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+            />
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              id="profile-avatar-upload-btn"
+            >
+              Upload
+            </button>
+          </div>
+          <div class="form-text" data-profile-avatar-note>PNG/JPEG/WEBP up to 2 MB.</div>
+          <div class="text-danger small d-none" id="profile-avatar-error" role="alert"></div>
+        </div>
+        <div class="mb-3">
+          <div class="border rounded p-3 bg-body-tertiary d-flex flex-column gap-2">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div class="fw-semibold">Export &amp; import</div>
+              <button class="btn btn-neutral btn-sm" type="button" id="profile-export">
+                Export profile
+              </button>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-danger" id="profile-disconnect">Disconnect</button>
-                <button type="submit" class="btn btn-primary" id="profile-save">Save profile</button>
+            <p class="text-muted small mb-0">Export/import profile settings as JSON.</p>
+            <div class="profile-import-group">
+              <input
+                class="form-control form-control-sm profile-import-input"
+                id="profile-import-file"
+                type="file"
+                accept=".json,application/json"
+              />
+              <button
+                class="btn btn-primary btn-sm flex-shrink-0"
+                type="button"
+                id="profile-import-btn"
+              >
+                Import profile
+              </button>
             </div>
-        </form>
-    </div>
+          </div>
+        </div>
+        <div class="text-danger small d-none" id="profile-error" role="alert"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-danger" id="profile-disconnect">
+          Disconnect
+        </button>
+        <button type="submit" class="btn btn-primary" id="profile-save">Save profile</button>
+      </div>
+    </form>
+  </div>
 </div>
