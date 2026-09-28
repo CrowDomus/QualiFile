@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 from typing import Tuple
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 _SEMVER_RE = re.compile(
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:[-+][0-9A-Za-z.-]+)?$"

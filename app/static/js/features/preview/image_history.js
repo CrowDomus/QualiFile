@@ -85,11 +85,7 @@ export function chooseAnnotationReference() {
   const preserve = element('input', 'form-check-input');
   preserve.type = 'checkbox';
   preserve.id = 'annotation-reference-preserve-existing';
-  const preserveLabel = element(
-    'label',
-    'form-check-label',
-    'Keep existing annotations and add reference annotations on top'
-  );
+  const preserveLabel = element('label', 'form-check-label', 'Keep existing annotations');
   preserveLabel.htmlFor = preserve.id;
   preserveOption.append(preserve, preserveLabel);
   let selected = null;
@@ -146,7 +142,7 @@ export function chooseAnnotationReference() {
       selectedRow = row;
       row.classList.add('list-group-item-primary');
       nameButton.setAttribute('aria-pressed', 'true');
-      status.textContent = `${item.name}: ${reference.document.nodes.length} annotations, ${reference.document.width} × ${reference.document.height} pixels.`;
+      status.textContent = `${reference.document.nodes.length} annotations`;
       apply.disabled = false;
       return reference;
     }
@@ -216,32 +212,63 @@ export function chooseAnnotationReference() {
 export async function applyReferenceToImages(paths) {
   const reference = await chooseAnnotationReference();
   if (!reference) return;
-  const view = modal('Apply reference annotations');
-  view.body.append(element('p', '', `Reference: ${reference.path}`));
-  view.body.append(
-    element(
-      'p',
-      '',
-      `Apply to ${paths.length} selected images. Existing editable annotations will ${reference.preserveExisting ? 'be kept with the reference annotations added on top' : 'be replaced'}. Image dimensions must match ${reference.document.width} × ${reference.document.height}.`
-    )
+  const targets = [...new Set(paths)];
+  const view = modal('Apply annotations');
+  view.body.append(element('p', 'text-break mb-2', reference.path.split('/').pop()));
+  const status = element(
+    'p',
+    'text-muted small',
+    `${targets.length} images · ${reference.preserveExisting ? 'Keep existing annotations' : 'Replace annotations'}`
   );
-  const status = element('p', '', 'Ready to apply.');
-  view.body.append(status);
+  status.setAttribute('aria-live', 'polite');
+  const progress = element('progress', 'w-100 d-none');
+  progress.max = targets.length;
+  progress.value = 0;
+  progress.setAttribute('aria-label', 'Images processed');
+  const failures = element('details', 'mt-2 d-none');
+  failures.append(element('summary', '', 'Details'));
+  view.body.append(status, progress, failures);
+  let running = false;
+  view.host.addEventListener('hide.bs.modal', (event) => {
+    if (running) event.preventDefault();
+  });
   const apply = button(
-    'Apply annotations',
+    'Apply',
     async () => {
-      status.textContent = `Applying annotations to ${paths.length} images...`;
-      const result = await post(`${endpoint}/duplicate`, {
-        reference: reference.path,
-        targets: paths,
-        preserve_existing: reference.preserveExisting,
-      });
-      const saved = result.results.filter((row) => row.status === 'saved').length;
-      status.textContent = `${saved} saved, ${result.results.filter((row) => row.status === 'skipped').length} skipped, ${result.results.filter((row) => row.status === 'failed').length} failed.`;
-      for (const row of result.results.filter((item) => item.status === 'failed'))
-        view.body.append(element('p', 'text-danger text-break', `${row.path}: ${row.error}`));
-      apply.remove();
-      refreshImages();
+      running = true;
+      apply.disabled = true;
+      progress.classList.remove('d-none');
+      status.textContent = `0 of ${targets.length} processed`;
+      try {
+        const result = await requestJson(`${endpoint}/duplicate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson' },
+          body: JSON.stringify({
+            reference: reference.path,
+            targets,
+            preserve_existing: reference.preserveExisting,
+          }),
+          onProgress: (row, count) => {
+            progress.value = count;
+            status.textContent = `${count} of ${targets.length} processed`;
+            if (row.status === 'failed') {
+              failures.classList.remove('d-none');
+              failures.append(
+                element('p', 'small text-danger text-break', `${row.path}: ${row.error}`)
+              );
+            }
+          },
+        });
+        const count = (kind) => result.results.filter((row) => row.status === kind).length;
+        status.textContent = `${count('saved')} saved · ${count('skipped')} skipped · ${count('failed')} failed`;
+      } catch (error) {
+        status.textContent = error.message;
+      } finally {
+        running = false;
+        apply.remove();
+        view.footer.append(button('Done', () => view.close(), 'btn btn-primary'));
+        refreshImages();
+      }
     },
     'btn btn-primary'
   );

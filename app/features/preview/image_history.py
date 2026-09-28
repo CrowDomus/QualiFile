@@ -285,17 +285,29 @@ class ImageHistory:
                 if stage:
                     stage.unlink(missing_ok=True)
 
+    def replace_capture(self, relative, binary):
+        """Archive the prior image and start a clean annotation state for a capture."""
+        with IMAGE_LOCK:
+            _, before = self.document(relative)
+            width, height = image_size(binary)
+            after = {"hash": digest(binary), "base": self._blob(binary), "overlay": None,
+                     "document": {"version": 1, "width": width, "height": height, "nodes": []}}
+            self.save(relative, binary, None, None, before["hash"],
+                      reason="Replaced by capture", restored_state=after)
+
     def duplicate(self, reference, targets, *, preserve_existing=False):
+        return list(self.iter_duplicate(reference, targets, preserve_existing=preserve_existing))
+
+    def iter_duplicate(self, reference, targets, *, preserve_existing=False):
         with IMAGE_LOCK:
             _, source = self.document(reference)
             if not source["document"]["nodes"] or not source["overlay"]:
                 raise ValueError("The reference image does not have annotations.")
             overlay_bytes = self._read_blob(source["overlay"])
-            results = []
             for relative in dict.fromkeys(targets):
                 try:
                     if self.target(relative) == self.target(reference):
-                        results.append({"path": relative, "status": "skipped"})
+                        yield {"path": relative, "status": "skipped"}
                         continue
                     _, target_state = self.document(relative)
                     if (source["document"]["width"], source["document"]["height"]) != (target_state["document"]["width"], target_state["document"]["height"]):
@@ -326,10 +338,9 @@ class ImageHistory:
                             composite = composite.convert("RGB")
                         composite.save(output, format=fmt, **({"quality": 92} if fmt == "JPEG" else {"lossless": True} if fmt == "WEBP" else {}))
                     self.save(relative, output.getvalue(), document, applied_overlay, target_state["hash"], reason="Added reference annotations" if preserve_existing else "Applied reference annotations")
-                    results.append({"path": relative, "status": "saved"})
+                    yield {"path": relative, "status": "saved"}
                 except (ValueError, OSError) as exc:
-                    results.append({"path": relative, "status": "failed", "error": str(exc)})
-            return results
+                    yield {"path": relative, "status": "failed", "error": str(exc)}
 
     def versions(self, relative):
         file_id, _ = self.document(relative)

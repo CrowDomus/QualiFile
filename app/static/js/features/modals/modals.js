@@ -1197,6 +1197,9 @@ function setupSettingsModal() {
   const officeAccelerationInput = document.getElementById('settings-preview-office-accelerated');
   let officeAccelerationSaved = true;
   let officeAccelerationRequest = 0;
+  const captureOverwriteInput = document.getElementById('settings-capture-merge-overwrite');
+  let captureOverwriteSaved = false;
+  let captureOverwriteRequest = 0;
   const greenshotPathInput = document.getElementById('settings-greenshot-path');
   const greenshotHotkeyInput = document.getElementById('settings-greenshot-hotkey');
   const greenshotDelayInput = document.getElementById('settings-greenshot-delay');
@@ -1336,6 +1339,9 @@ function setupSettingsModal() {
       officeAccelerated: officeAccelerationInput?.disabled
         ? officeAccelerationSaved
         : (officeAccelerationInput?.checked ?? officeAccelerationSaved),
+      captureOverwrite: captureOverwriteInput?.disabled
+        ? captureOverwriteSaved
+        : (captureOverwriteInput?.checked ?? captureOverwriteSaved),
       mergeDefaults: {
         paperSize: mergePaperInput?.value || mergeDefaults.paperSize,
         orientation: mergeOrientationInput?.value || mergeDefaults.orientation,
@@ -2277,6 +2283,32 @@ function setupSettingsModal() {
           }
         });
     }
+    const overwriteRequest = ++captureOverwriteRequest;
+    if (captureOverwriteInput) {
+      captureOverwriteInput.disabled = true;
+      captureOverwriteInput.checked = captureOverwriteSaved;
+      void requestJson('/api/settings/capture_merge_overwrite')
+        .then(({ enabled }) => {
+          if (overwriteRequest !== captureOverwriteRequest) return;
+          captureOverwriteSaved = enabled === true;
+          captureOverwriteInput.checked = captureOverwriteSaved;
+          captureOverwriteInput.disabled = false;
+          if (settingsBaseline) {
+            const baseline = JSON.parse(settingsBaseline);
+            baseline.captureOverwrite = captureOverwriteSaved;
+            settingsBaseline = JSON.stringify(baseline);
+            updateSaveButtonState();
+          }
+        })
+        .catch(() => {
+          if (overwriteRequest === captureOverwriteRequest) {
+            showToast(
+              'Unable to load automatic replacement settings. Reopen Settings to retry.',
+              true
+            );
+          }
+        });
+    }
     draftTheme = state.theme;
     rootInput.value = state.root || '';
     softToggle.checked = state.settings.softDelete;
@@ -2402,6 +2434,7 @@ function setupSettingsModal() {
 
   modal.addEventListener('hidden.bs.modal', () => {
     officeAccelerationRequest += 1;
+    captureOverwriteRequest += 1;
     settingsBaseline = '';
     if (saveButton) {
       saveButton.disabled = true;
@@ -2614,6 +2647,19 @@ function setupSettingsModal() {
       } catch (error) {
         handleError(error);
         showToast('Unable to save Office preview acceleration.', true);
+        return;
+      }
+    }
+    if (captureOverwriteSaved !== snapshot.captureOverwrite) {
+      try {
+        await requestJson('/api/settings/capture_merge_overwrite', {
+          method: 'POST',
+          body: JSON.stringify({ enabled: snapshot.captureOverwrite }),
+        });
+        captureOverwriteSaved = snapshot.captureOverwrite;
+      } catch (error) {
+        handleError(error);
+        showToast('Unable to save automatic replacement.', true);
         return;
       }
     }

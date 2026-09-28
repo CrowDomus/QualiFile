@@ -4,6 +4,7 @@ import ctypes
 import io
 import json
 import math
+from functools import wraps
 import os
 import platform
 import stat
@@ -16,10 +17,11 @@ from typing import Any, List
 
 from flask import Response, current_app, jsonify, request
 from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 from PIL import Image, UnidentifiedImageError
 
 from ...features.filesystem.service import resolve_within_root, safe_secure_filename
-from ...features.preview.merge import MergeError, extract_pdf_pages, images_to_pdf, merge_pdfs
+from ...features.preview.merge import MergeError, extract_pdf_pages, images_to_pdf, merge_pdfs, staged_output
 from ...shared.preferences import get_preference, set_preference
 from ...shared.capability_security import (
     cache_root_identity,
@@ -36,11 +38,20 @@ from .helpers import (
     _root_or_response,
 )
 
-_MAX_MERGE_TOTAL_INPUT_BYTES = 256 * 1024 * 1024
-_MAX_MERGE_PDF_PAGES = 1000
-_MAX_MERGE_IMAGE_FILES = 8
-_MAX_MERGE_IMAGE_PIXELS = 40_000_000
-_MAX_MERGE_TOTAL_IMAGE_PIXELS = 120_000_000
+_MERGE_LOCK = threading.Lock()
+
+
+def _serialized_merge(function):
+    @wraps(function)
+    def guarded(*args, **kwargs):
+        if not _MERGE_LOCK.acquire(blocking=False):
+            return jsonify({"error": "Another merge is running. Try again when it finishes.", "code": "busy"}), 409
+        try:
+            return function(*args, **kwargs)
+        finally:
+            _MERGE_LOCK.release()
+    return guarded
+
 
 
 def _log_file_path() -> Path:
@@ -474,6 +485,24 @@ def api_office_preview_acceleration() -> Response:
     return jsonify({"ok": True, "enabled": enabled})
 
 
+@api_bp.route("/settings/capture_merge_overwrite", methods=["GET", "POST"])
+@capability_guard("settings", max_body_bytes=4096)
+def api_capture_merge_overwrite():
+    """Keep automatic replacement an explicit, disabled-by-default preference."""
+    if not _is_local_request():
+        return jsonify({"error": "This action is only available locally.", "code": "forbidden"}), 403
+    if request.method == "POST":
+        data = _json_body()
+        if isinstance(data, Response):
+            return data
+        if set(data) != {"enabled"} or not isinstance(data["enabled"], bool):
+            return jsonify({"error": "Enabled must be a boolean.", "code": "invalid"}), 400
+        set_preference(_data_dir_path(), current_app.config, "capture_merge_overwrite", "1" if data["enabled"] else "0")
+    response = jsonify({"enabled": get_preference(_data_dir_path(), current_app.config, "capture_merge_overwrite") == "1"})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @api_bp.route("/screenshot", methods=["POST"])
 @capability_guard("screenshot", max_body_bytes=10 * 1024 * 1024)
 def api_screenshot() -> Response:
@@ -512,10 +541,21 @@ def api_screenshot() -> Response:
         destination = resolve_within_root(root, Path(path) / base_name)
     except Exception as exc:
         return _fs_error_response(exc)
-    if destination.exists():
-        return jsonify({"error": "A file with this name already exists.", "code": "conflict"}), 409
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_bytes(payload)
+    overwrite = get_preference(_data_dir_path(), current_app.config, "capture_merge_overwrite") == "1"
+    try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if destination.exists():
+            if not overwrite:
+                return jsonify({"error": "A file with this name already exists.", "code": "conflict"}), 409
+            from .image_history_routes import image_history
+            from ...features.preview.image_history import IMAGE_LOCK
+            with IMAGE_LOCK:
+                image_history(root).replace_capture(destination.relative_to(root).as_posix(), payload)
+        else:
+            with staged_output(destination, overwrite=False) as stage:
+                stage.write_bytes(payload)
+    except Exception as exc:
+        return _fs_error_response(exc)
     return jsonify({"saved": str(destination.relative_to(root))})
 
 
@@ -642,46 +682,25 @@ def _parse_phrase_font_size_pt(value: Any) -> float:
 
 
 def _preflight_merge_inputs(items: list[Path], mode: str) -> None:
-    """Reject one-request merge workloads that exceed process-safe budgets."""
-
-    total_bytes = 0
+    """Validate inputs one at a time without imposing aggregate file limits."""
     for item in items:
         if not item.is_file():
             raise MergeError("Every merge input must be an existing file.")
-        total_bytes += item.stat().st_size
-        if total_bytes > _MAX_MERGE_TOTAL_INPUT_BYTES:
-            raise MergeError("Merge inputs exceed the 256 MiB total size limit.")
-
-    if mode == "pdf":
-        total_pages = 0
-        for item in items:
+        if mode == "pdf":
             with item.open("rb") as handle:
-                total_pages += len(PdfReader(handle).pages)
-            if total_pages > _MAX_MERGE_PDF_PAGES:
-                raise MergeError("Merge inputs exceed the 1000-page limit.")
-        return
-
-    if len(items) > _MAX_MERGE_IMAGE_FILES:
-        raise MergeError("Select no more than 8 images per merge.")
-    total_pixels = 0
-    for item in items:
-        try:
-            with Image.open(item) as image:
-                pixels = image.width * image.height
-                if pixels > _MAX_MERGE_IMAGE_PIXELS:
-                    raise MergeError("A merge image exceeds the 40-megapixel limit.")
-                total_pixels += pixels
-                if total_pixels > _MAX_MERGE_TOTAL_IMAGE_PIXELS:
-                    raise MergeError("Merge images exceed the 120-megapixel total limit.")
-                image.verify()
-        except MergeError:
-            raise
-        except (UnidentifiedImageError, OSError, ValueError) as exc:
-            raise MergeError("Every merge input must be a valid PNG or JPEG image.") from exc
+                if not PdfReader(handle).pages:
+                    raise MergeError("A selected PDF has no pages.")
+        else:
+            try:
+                with Image.open(item) as image:
+                    image.verify()
+            except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+                raise MergeError("A selected image cannot be decoded safely.") from exc
 
 
 @api_bp.route("/merge", methods=["POST"])
-@capability_guard("merge", max_body_bytes=256 * 1024)
+@capability_guard("merge", max_body_bytes=100 * 1024 * 1024)
+@_serialized_merge
 def api_merge() -> Response:
     """Merge PDFs or convert images into a single PDF document."""
 
@@ -705,7 +724,7 @@ def api_merge() -> Response:
     items_input = data.get("items", [])
     if (
         not isinstance(items_input, list)
-        or not 2 <= len(items_input) <= 100
+        or len(items_input) < 2
         or any(not isinstance(item, str) or not item or len(item) > 4096 for item in items_input)
     ):
         return jsonify({"error": "Select at least two files to merge.", "code": "invalid"}), 400
@@ -731,7 +750,8 @@ def api_merge() -> Response:
         output = resolve_within_root(root, Path(output_path) / output_name)
     except Exception as exc:
         return _fs_error_response(exc)
-    if output.exists():
+    overwrite = get_preference(_data_dir_path(), current_app.config, "capture_merge_overwrite") == "1"
+    if output.exists() and not overwrite:
         output = _auto_rename(output)
     page_numbers_raw = data.get("page_numbers", False)
     if not isinstance(page_numbers_raw, bool):
@@ -743,7 +763,7 @@ def api_merge() -> Response:
                 raise MergeError("All selected files must be PDFs for PDF merge.")
             _preflight_merge_inputs(items, mode)
             output.parent.mkdir(parents=True, exist_ok=True)
-            merge_pdfs(items, output, page_numbers=page_numbers)
+            merge_pdfs(items, output, page_numbers=page_numbers, overwrite=overwrite)
         else:
             allowed = {".png", ".jpg", ".jpeg"}
             if any(item.suffix.lower() not in allowed for item in items):
@@ -793,11 +813,14 @@ def api_merge() -> Response:
                 phrase_alignment=phrase_alignment,
                 phrase_font_size_pt=phrase_font_size_pt,
                 page_numbers=page_numbers,
+                overwrite=overwrite,
             )
-    except MergeError as exc:
+    except (MergeError, PdfReadError) as exc:
         return jsonify({"error": str(exc), "code": "invalid"}), 400
     except (FileNotFoundError, PermissionError) as exc:
         return _fs_error_response(exc)
+    except (MemoryError, OSError):
+        return jsonify({"error": "The merge could not finish with the available memory or disk space. Existing files were not replaced.", "code": "resources"}), 503
     return jsonify({"output": str(output.relative_to(root))})
 
 
@@ -856,7 +879,7 @@ def api_extract_pdf_pages() -> Response:
         output = _auto_rename(output)
     try:
         extract_pdf_pages(source, output, pages)
-    except MergeError as exc:
+    except (MergeError, PdfReadError) as exc:
         return jsonify({"error": str(exc), "code": "invalid"}), 400
     except Exception as exc:
         current_app.logger.warning("PDF extraction failed for %s: %s", source, exc)

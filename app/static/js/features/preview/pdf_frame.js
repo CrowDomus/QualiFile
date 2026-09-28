@@ -1,7 +1,7 @@
 /** Native PDF rendering through a bounded document with an opaque origin. */
 export const MAX_PDF_PREVIEW_BYTES = 32 * 1024 * 1024;
 
-export async function loadPdfDataUrl(url, { signal, fetchImpl = fetch } = {}) {
+export async function loadPdfBytes(url, { signal, fetchImpl = fetch } = {}) {
   const source = new URL(url, window.location.href);
   if (source.origin !== window.location.origin) {
     throw new Error('PDF preview source must belong to this application.');
@@ -54,12 +54,17 @@ export async function loadPdfDataUrl(url, { signal, fetchImpl = fetch } = {}) {
   if (String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') {
     throw new Error('The selected document is not a valid PDF preview.');
   }
-  const encodedChunks = [];
-  // Multiples of three preserve base64 alignment between bounded chunks.
+  return bytes;
+}
+
+// Kept for callers that need a portable data representation, not frame navigation.
+export async function loadPdfDataUrl(url, options) {
+  const bytes = await loadPdfBytes(url, options);
+  const chunks = [];
   for (let index = 0; index < bytes.length; index += 24576) {
-    encodedChunks.push(btoa(String.fromCharCode(...bytes.subarray(index, index + 24576))));
+    chunks.push(btoa(String.fromCharCode(...bytes.subarray(index, index + 24576))));
   }
-  return `data:application/pdf;base64,${encodedChunks.join('')}`;
+  return `data:application/pdf;base64,${chunks.join('')}`;
 }
 
 /** Return a disposer owned by the enclosing preview lifecycle. */
@@ -70,29 +75,57 @@ export function attachPdfFrame(frame, url) {
   const timer = setTimeout(() => {
     timedOut = true;
     controller.abort();
+    showError(new Error('PDF preview timed out. Use Open to view this document externally.'));
   }, 20000);
   frame.referrerPolicy = 'no-referrer';
-  void loadPdfDataUrl(url, { signal: controller.signal })
-    .then((dataUrl) => {
-      if (!controller.signal.aborted && frame.isConnected) {
-        // A data document has an opaque origin. A blob URL would inherit app authority.
-        frame.src = `${dataUrl}#toolbar=0&navpanes=0`;
-      }
+  let receive;
+  const cleanup = () => {
+    if (receive) window.removeEventListener('message', receive);
+  };
+  const showError = (error) => {
+    cleanup();
+    clearTimeout(timer);
+    if (!disposed && frame.isConnected) {
+      const notice = document.createElement('div');
+      notice.className = 'alert alert-warning preview-pdf-notice';
+      notice.role = 'status';
+      notice.textContent = timedOut
+        ? 'PDF preview timed out. Use Open to view this document externally.'
+        : error.message;
+      frame.replaceWith(notice);
+    }
+  };
+  void loadPdfBytes(url, { signal: controller.signal })
+    .then((bytes) => {
+      if (controller.signal.aborted || !frame.isConnected) return;
+      // Create the object URL inside an opaque document so PDF content never
+      // inherits application authority. Transfer bytes instead of a huge URL.
+      const nonce = document.querySelector('script[nonce]')?.nonce || '';
+      const token = crypto.randomUUID();
+      const script = `addEventListener('message', function receive(event) {
+        if (event.source !== parent || event.data?.token !== ${JSON.stringify(token)}) return;
+        removeEventListener('message', receive);
+        location.replace(URL.createObjectURL(new Blob([event.data.bytes], {type:'application/pdf'})) + '#toolbar=0&navpanes=0');
+      }); parent.postMessage({token:${JSON.stringify(token)}}, '*');`;
+      receive = (event) => {
+        if (
+          event.source !== frame.contentWindow ||
+          event.origin !== 'null' ||
+          event.data?.token !== token
+        )
+          return;
+        cleanup();
+        clearTimeout(timer);
+        if (!disposed) frame.contentWindow.postMessage({ token, bytes }, '*', [bytes.buffer]);
+      };
+      window.addEventListener('message', receive);
+      const html = `<script nonce="${nonce}">${script}</script>`;
+      frame.src = `data:text/html;base64,${btoa(html)}`;
     })
-    .catch((error) => {
-      if (!disposed && frame.isConnected) {
-        const notice = document.createElement('div');
-        notice.className = 'alert alert-warning';
-        notice.role = 'status';
-        notice.textContent = timedOut
-          ? 'PDF preview timed out. Use Open to view this document externally.'
-          : error.message;
-        frame.replaceWith(notice);
-      }
-    })
-    .finally(() => clearTimeout(timer));
+    .catch(showError);
   return () => {
     disposed = true;
+    cleanup();
     controller.abort();
     clearTimeout(timer);
     frame.removeAttribute('src');

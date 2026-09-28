@@ -7,6 +7,10 @@ clarify intent for maintainers exploring the codebase.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+import os
+import tempfile
+
 import math
 from pathlib import Path
 from textwrap import wrap
@@ -38,18 +42,40 @@ MIN_PHRASE_FONT_SIZE_PT = 6.0
 MAX_PHRASE_FONT_SIZE_PT = 48.0
 
 
-def merge_pdfs(paths: Iterable[Path], output: Path, *, page_numbers: bool = False) -> Path:
+@contextmanager
+def staged_output(output: Path, *, overwrite: bool = True):
+    """Publish only a complete result and leave existing files intact on failure."""
+    fd, name = tempfile.mkstemp(prefix=".qualifile-merge-", suffix=".pdf", dir=output.parent)
+    os.close(fd)
+    stage = Path(name)
+    try:
+        yield stage
+        if overwrite:
+            os.replace(stage, output)
+        elif os.name == "nt":
+            # Windows rename refuses collisions without requiring hard-link support.
+            os.rename(stage, output)
+        else:
+            os.link(stage, output)
+    finally:
+        stage.unlink(missing_ok=True)
+
+
+def merge_pdfs(paths: Iterable[Path], output: Path, *, page_numbers: bool = False, overwrite: bool = True) -> Path:
     """Merge the supplied PDF ``paths`` into ``output``."""
 
-    writer = PdfWriter()
-    for path in paths:
-        reader = PdfReader(str(path))
-        for page in reader.pages:
-            writer.add_page(page)
-    if page_numbers and writer.pages:
-        _apply_pdf_page_numbers(writer)
-    with output.open("wb") as handle:
-        writer.write(handle)
+    with staged_output(output, overwrite=overwrite) as stage, PdfWriter() as writer:
+        for path in paths:
+            # File-backed readers avoid copying each input file into BytesIO.
+            with path.open("rb") as source:
+                reader = PdfReader(source)
+                for page in reader.pages:
+                    writer.add_page(page)
+                writer.reset_translation(reader)
+        if page_numbers and writer.pages:
+            _apply_pdf_page_numbers(writer)
+        with stage.open("wb") as handle:
+            writer.write(handle)
     return output
 
 
@@ -173,6 +199,7 @@ def images_to_pdf(
     phrase_alignment: str = "left",
     phrase_font_size_pt: float | int | None = DEFAULT_PHRASE_FONT_SIZE_PT,
     page_numbers: bool = False,
+    overwrite: bool = True,
 ) -> Path:
     """Create a PDF composed from image ``paths`` stored at ``output``."""
 
@@ -197,11 +224,11 @@ def images_to_pdf(
 
     source_paths = [Path(p) for p in paths]
 
-    pdf_images: List[Image.Image] = []
-    try:
+    with staged_output(output, overwrite=overwrite) as stage:
         total_pages = len(source_paths)
         for index, path in enumerate(source_paths):
-            img = Image.open(path).convert("RGB")
+            with Image.open(path) as source:
+                img = source.convert("RGB")
             page = Image.new("RGB", canvas_size, "white")
             draw = ImageDraw.Draw(page)
             phrase = phrase_map.get(index)
@@ -241,20 +268,16 @@ def images_to_pdf(
                 footer_x = canvas_size[0] - margin - footer_width
                 footer_y = canvas_size[1] - margin - footer_height
                 draw.text((footer_x, footer_y), footer, font=footer_font, fill="black")
-            pdf_images.append(page)
-            img.close()
-        if not pdf_images:
+            # Encode and release each raster page before loading the next one.
+            # Pillow appends PDF objects and a new xref without decoding prior pages.
+            try:
+                page.save(stage, format="PDF", resolution=dpi, append=index > 0)
+            finally:
+                resized.close()
+                page.close()
+                img.close()
+        if not source_paths:
             raise MergeError("No images provided")
-        pdf_images[0].save(
-            output,
-            save_all=True,
-            append_images=pdf_images[1:],
-            format="PDF",
-            resolution=dpi,
-        )
-    finally:
-        for img in pdf_images:
-            img.close()
     return output
 
 

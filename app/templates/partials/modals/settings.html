@@ -785,6 +785,21 @@
                   <p class="text-muted small mb-2">
                     Choose the rendering profile used when Office files are converted for preview.
                   </p>
+                  <div class="form-check form-switch mb-3">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="settings-capture-merge-overwrite"
+                      disabled
+                    />
+                    <label class="form-check-label" for="settings-capture-merge-overwrite"
+                      >Replace existing files on capture and merge</label
+                    >
+                    <div class="form-text">
+                      Off by default. When enabled, matching filenames are replaced. Previous
+                      captured images remain in image history.
+                    </div>
+                  </div>
                   <label class="form-label" for="settings-preview-office-quality"
                     >Office preview quality</label
                   >

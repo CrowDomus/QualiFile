@@ -89,6 +89,42 @@ export async function requestJson(url, options = {}) {
     wrapped.cause = error;
     throw wrapped;
   }
+  if (
+    response.ok &&
+    options.onProgress &&
+    response.headers.get('Content-Type')?.startsWith('application/x-ndjson')
+  ) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let complete = false;
+    const results = [];
+    try {
+      let reading = true;
+      while (reading) {
+        const { done, value } = await reader.read();
+        reading = !done;
+        buffer += decoder.decode(value, { stream: !done });
+        let newline;
+        while ((newline = buffer.indexOf('\n')) >= 0) {
+          const row = JSON.parse(buffer.slice(0, newline));
+          buffer = buffer.slice(newline + 1);
+          if (row.complete) complete = true;
+          else {
+            results.push(row);
+            options.onProgress(row, results.length);
+          }
+        }
+        if (done) break;
+      }
+      if (!complete)
+        throw new Error('Connection interrupted. Some images may already have been updated.');
+      return { results };
+    } finally {
+      await reader.cancel().catch(() => {});
+      reader.releaseLock();
+    }
+  }
   const payload = await parseJsonSafely(response);
   if (!response.ok) {
     const message = extractErrorMessage(payload, 'Operation failed');

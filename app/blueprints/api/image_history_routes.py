@@ -2,10 +2,11 @@
 
 from flask import Response, current_app, jsonify, request, send_file
 import io
+import json
 
 from . import api_bp
 from .helpers import _root_or_response, _fs_error_response, _json_body
-from ...shared.db import get_db
+from ...shared.db import get_db, open_connection, load_db_settings
 from ...shared.capability_security import capability_guard
 from ...features.preview.image_history import ImageHistory, IMAGE_LOCK
 
@@ -64,7 +65,28 @@ def duplicate_image_annotations():
         preserve_existing = data.get("preserve_existing", False)
         if not isinstance(preserve_existing, bool):
             raise ValueError("Preserve existing annotations must be true or false.")
-        return jsonify({"results": image_history(root).duplicate(data.get("reference", ""), targets, preserve_existing=preserve_existing)})
+        service = image_history(root)
+        reference = data.get("reference", "")
+        if request.accept_mimetypes.best == "application/x-ndjson":
+            with IMAGE_LOCK:
+                _, source = service.document(reference)
+                if not source["document"]["nodes"] or not source["overlay"]:
+                    raise ValueError("The reference image does not have annotations.")
+            settings = load_db_settings(current_app)
+            data_dir = current_app.config["DATA_DIR"]
+            def progress():
+                # Streaming outlives Flask's normal request teardown. Own this
+                # connection for precisely the generator's lifetime.
+                connection = open_connection(settings)
+                try:
+                    stream_service = ImageHistory(connection, root, data_dir)
+                    for row in stream_service.iter_duplicate(reference, targets, preserve_existing=preserve_existing):
+                        yield json.dumps(row) + "\n"
+                    yield json.dumps({"complete": True}) + "\n"
+                finally:
+                    connection.close()
+            return Response(progress(), mimetype="application/x-ndjson", headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+        return jsonify({"results": service.duplicate(reference, targets, preserve_existing=preserve_existing)})
     except Exception as exc:
         return _fs_error_response(exc)
 

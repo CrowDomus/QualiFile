@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## 1.3.1 - 2026-09-28
+
+- Fix blank previews of larger PDFs and Office-generated PDFs while preserving document isolation.
+- Keep preview warnings compact and contained within the preview pane.
+- Remove merge file-count and aggregate size limits, process image pages incrementally and serialize merges.
+- Preserve existing output files when a merge fails.
+- Show per-file annotation progress with concise summaries and expandable failure details.
+- Add an off-by-default setting to replace matching filenames on capture and merge. Replaced captures retain image history.
+- Update the offline tutorial.
+
 ## 1.3.0 - 2026-09-27
 
 - Remember the current workspace folder across browser refreshes and improve the project workspace selector.

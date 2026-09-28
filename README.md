@@ -60,12 +60,10 @@ build_portable.bat
 build_portable_embedded.bat
 ```
 
-The latest published download links remain below. Version `1.3.0` is prepared locally and has not been published:
+Download the packaged builds for the `v1.3.1` release:
 
-Download the packaged builds for the `v1.2.0` release:
-
-- [QualiFile Portable](https://github.com/CrowDomus/QualiFile/releases/download/v1.2.0/QualiFile_Portable.zip)
-- [QualiFile Portable Embedded](https://github.com/CrowDomus/QualiFile/releases/download/v1.2.0/QualiFile_Portable_Embedded.zip)
+- [QualiFile Portable](https://github.com/CrowDomus/QualiFile/releases/download/v1.3.1/QualiFile_Portable.zip)
+- [QualiFile Portable Embedded](https://github.com/CrowDomus/QualiFile/releases/download/v1.3.1/QualiFile_Portable_Embedded.zip)
 
 Portable builds bundle minified frontend assets, the user tutorial, and
 vendored offline web assets under `dist/`.
