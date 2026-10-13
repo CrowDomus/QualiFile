@@ -239,6 +239,13 @@ class ImageHistory:
                          "overlay": self._blob(overlay) if overlay else None}
             else:
                 after = restored_state
+            self._save_state(relative, binary, file_id, before, after,
+                             destination=destination, reason=reason)
+
+    def _save_state(self, relative, binary, file_id, before, after, *, destination=None, reason="Annotation save"):
+        """Publish a verified document with the same recovery journal for images and PDFs."""
+        with IMAGE_LOCK:
+            target = self.target(relative)
             if destination is not None:
                 target = resolve_within_root(self.root, destination)
                 destination = target.relative_to(self.root).as_posix()
@@ -253,16 +260,23 @@ class ImageHistory:
             self._blob(binary)
             with self.conn:
                 if destination is not None:
+                    # A previous interrupted copy can leave an unpublished row.
+                    # Keep its history detached, then give the new file a new identity.
+                    orphan = self.conn.execute("SELECT file_id FROM image_documents WHERE root_id=? AND path=?", (self.root_id, destination)).fetchone()
+                    if orphan:
+                        self.conn.execute("UPDATE image_documents SET path=? WHERE file_id=?", (".detached/" + uuid4().hex, orphan[0]))
+                        self.conn.execute("DELETE FROM image_pending_writes WHERE file_id=?", (orphan[0],))
                     self.conn.execute("INSERT INTO image_documents VALUES(?,?,?,?)", (file_id, self.root_id, destination, json.dumps(before)))
                 self.conn.execute("INSERT OR REPLACE INTO image_pending_writes VALUES(?,?,?)", (file_id, json.dumps(before), json.dumps(after)))
             stage = None
+            published = False
             try:
                 with tempfile.NamedTemporaryFile(dir=target.parent, prefix=".qualifile-operation-", delete=False) as output:
                     stage = Path(output.name)
                     output.write(binary)
                     output.flush()
                     os.fsync(output.fileno())
-                if destination is None and digest(target.read_bytes()) != before["hash"]:
+                if digest(self.target(relative).read_bytes()) != before["hash"]:
                     raise ValueError("Image changed during save. Reload and retry.")
                 if destination is not None:
                     # Windows rename refuses replacement and also works on FAT volumes.
@@ -272,11 +286,12 @@ class ImageHistory:
                         os.link(stage, target)
                 else:
                     os.replace(stage, target)
+                published = True
                 with self.conn:
                     self._put_state(file_id, after)
                     self.conn.execute("DELETE FROM image_pending_writes WHERE file_id=?", (file_id,))
             except BaseException:
-                if destination is not None and not target.exists():
+                if destination is not None and not published:
                     with self.conn:
                         self.conn.execute("DELETE FROM image_pending_writes WHERE file_id=?", (file_id,))
                         self.conn.execute("DELETE FROM image_documents WHERE file_id=?", (file_id,))
@@ -386,9 +401,16 @@ def prepare_image_transfer(root, source, destination):
         targets = destination.rglob("*") if destination.is_dir() else [destination]
         for target in targets:
             from ...shared.internal_paths import is_internal_path
-            if target.is_file() and target.suffix.lower() in SUFFIXES and not is_internal_path(root, target):
-                service.archive(target.relative_to(root).as_posix(), "File replaced")
+            if target.is_file() and target.suffix.lower() in (SUFFIXES | {".pdf"}) and not is_internal_path(root, target):
+                selected = history_for_path(service.conn, root, service.data_dir, target)
+                selected.archive(target.relative_to(root).as_posix(), "File replaced")
     old = source.relative_to(root).as_posix()
+    rows = service.conn.execute("SELECT path,state_json FROM image_documents WHERE root_id=?", (service.root_id,)).fetchall()
+    for path, _ in rows:
+        if path == old or path.startswith(old + "/"):
+            target = resolve_within_root(root, path)
+            if target.is_file() and target.suffix.lower() in (SUFFIXES | {".pdf"}):
+                history_for_path(service.conn, root, service.data_dir, path).document(path)
     rows = service.conn.execute("SELECT path,state_json FROM image_documents WHERE root_id=?", (service.root_id,)).fetchall()
     documents = [(path, raw) for path, raw in rows if path == old or path.startswith(old + "/")]
     return service, old, destination.relative_to(root).as_posix(), documents
@@ -404,4 +426,20 @@ def finish_image_transfer(prepared, move):
         with service.conn:
             for path, raw in documents:
                 mapped = new + path[len(old):]
-                service.conn.execute("INSERT INTO image_documents VALUES(?,?,?,?) ON CONFLICT(root_id,path) DO UPDATE SET state_json=excluded.state_json", (uuid4().hex, service.root_id, mapped, raw))
+                original = service.conn.execute("SELECT file_id FROM image_documents WHERE root_id=? AND path=?", (service.root_id, path)).fetchone()
+                if not original:
+                    continue
+                clone_id = uuid4().hex
+                # Histories have separate ownership. Immutable, content-addressed
+                # blobs can be shared without coupling future edits or restores.
+                service.conn.execute("UPDATE image_documents SET path=? WHERE root_id=? AND path=?", (".detached/" + uuid4().hex, service.root_id, mapped))
+                service.conn.execute("INSERT INTO image_documents VALUES(?,?,?,?)", (clone_id, service.root_id, mapped, raw))
+                for created, reason, asset, snapshot in service.conn.execute("SELECT created_at,reason,image_path,state_json FROM image_versions WHERE file_id=? ORDER BY created_at", (original[0],)).fetchall():
+                    service.conn.execute("INSERT INTO image_versions VALUES(?,?,?,?,?,?)", (uuid4().hex, clone_id, created, reason, asset, snapshot))
+
+
+def history_for_path(conn, root, data_dir, path):
+    if Path(path).suffix.lower() == ".pdf":
+        from .pdf_annotations import PdfHistory
+        return PdfHistory(conn, root, data_dir)
+    return ImageHistory(conn, root, data_dir)

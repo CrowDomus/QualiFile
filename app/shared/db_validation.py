@@ -31,6 +31,7 @@ REQUIRED_TABLES: tuple[str, ...] = (
     "focused_settings",
     "image_versions",
     "image_pending_writes",
+    "file_rename_batches",
 )
 INVARIANT_REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
     "entries": ("payload_json",),

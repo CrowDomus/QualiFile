@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## 1.4.0 - 2026-10-13
+
+- Annotate PDF pages with the image annotation tools, including numbering, while preserving original text and page geometry.
+- Select and transform multiple annotation objects together, with grouped undo and predictable numbering controls.
+- Annotate supported images and PDFs from single-file and multiple-file fullscreen views.
+- Preview bulk prefix, suffix and sequential renames, and safely restore recorded original names.
+- Duplicate files with independent annotation and version histories.
+- Select a tag's visible files by double-clicking its header, and fix rename cursor and drag interactions.
+- Improve fullscreen discoverability, safe saves, offline assets and the user tutorial.
+
 ## 1.3.1 - 2026-09-28
 
 - Fix blank previews of larger PDFs and Office-generated PDFs while preserving document isolation.

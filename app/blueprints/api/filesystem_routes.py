@@ -22,6 +22,7 @@ from ...features.filesystem.service import (
     resolve_within_root,
 )
 from ...features.metadata.service import MetadataService, SidecarReadError
+from ...features.filesystem.bulk import BulkFiles
 from ...features.preview.text_preview import detect_mime
 from ...shared.db import get_db
 from ...shared.capability_security import (
@@ -267,6 +268,66 @@ def api_rename() -> Response:
         except SidecarReadError as exc:
             return jsonify({"error": str(exc), "code": "sidecar-read-error"}), 423
         return jsonify({"path": str(result.relative_to(root))})
+    except Exception as exc:
+        return _fs_error_response(exc)
+
+
+@api_bp.route("/files/bulk-rename", methods=["POST"])
+def api_bulk_rename() -> Response:
+    """Preview or apply a checked rename, without replacing existing files."""
+    root, response = _root_or_response()
+    if response:
+        return response
+    data = _json_body()
+    if isinstance(data, Response):
+        return data
+    try:
+        service = _bulk_file_service(root)
+        if data.get("action", "preview") == "preview":
+            return jsonify(service.preview(data.get("items"), data.get("options")))
+        if data.get("action") == "apply":
+            return jsonify(service.apply(data.get("items"), data.get("options"), data.get("token")))
+        raise ValueError("Unknown rename action.")
+    except Exception as exc:
+        return _fs_error_response(exc)
+
+
+def _bulk_file_service(root):
+    conn = get_db(current_app)
+    metadata = MetadataService(root, current_app.config.get("DATA_DIR"), config=current_app.config, db_conn=conn)
+    return BulkFiles(root, conn, metadata)
+
+
+@api_bp.route("/files/rename-history", methods=["GET", "POST"])
+def api_rename_history() -> Response:
+    root, response = _root_or_response()
+    if response:
+        return response
+    try:
+        service = _bulk_file_service(root)
+        if request.method == "GET":
+            return jsonify({"batches": service.history()})
+        data = _json_body()
+        if isinstance(data, Response):
+            return data
+        batch_id = data.get("id")
+        if not isinstance(batch_id, str) or len(batch_id) != 32:
+            raise ValueError("Select a rename operation to restore.")
+        return jsonify(service.restore(batch_id))
+    except Exception as exc:
+        return _fs_error_response(exc)
+
+
+@api_bp.route("/files/duplicate", methods=["POST"])
+def api_duplicate_files() -> Response:
+    root, response = _root_or_response()
+    if response:
+        return response
+    data = _json_body()
+    if isinstance(data, Response):
+        return data
+    try:
+        return jsonify({"results": _bulk_file_service(root).duplicate(data.get("items"))})
     except Exception as exc:
         return _fs_error_response(exc)
 

@@ -73,6 +73,8 @@ def _reassign_root_id(conn: sqlite3.Connection, source_root_id: str, target_root
         )
 
     available = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if "file_rename_batches" in available:
+        conn.execute("UPDATE file_rename_batches SET root_id=? WHERE root_id=?", (target_root_id, source_root_id))
     if "image_documents" in available:
         # Preserve conflicting identities and their histories without losing rows.
         collisions = conn.execute(

@@ -35,6 +35,18 @@
               &#8594;
             </button>
           </div>
+          <div class="annotate-toolbar-group d-none" id="annotate-pdf-pages">
+            <label class="small mb-0" for="annotate-pdf-page">Page</label>
+            <input
+              class="form-control form-control-sm"
+              id="annotate-pdf-page"
+              type="number"
+              min="1"
+              value="1"
+              style="width: 4.5rem"
+            />
+            <span class="small text-nowrap" id="annotate-pdf-page-count"></span>
+          </div>
           <div class="annotate-toolbar-group annotate-group-primary" aria-label="Canvas actions">
             <button
               class="annotate-icon-btn"
@@ -366,7 +378,7 @@
               type="button"
               data-annotate-tool="counter"
               aria-pressed="false"
-              title="Counter"
+              title="Numbering (I), next number (J)"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle
@@ -389,6 +401,33 @@
                 </text>
               </svg>
               <span class="visually-hidden">Counter</span>
+            </button>
+          </div>
+          <div
+            class="annotate-toolbar-group d-none"
+            id="annotate-counter-controls"
+            aria-label="Numbering settings"
+          >
+            <label class="small mb-0" for="annotate-counter-next">Next</label>
+            <input
+              class="annotate-number"
+              type="number"
+              id="annotate-counter-next"
+              min="1"
+              max="9007199254740990"
+              step="1"
+              value="1"
+              aria-label="Next annotation number"
+              title="Next annotation number (J)"
+            />
+            <button
+              class="annotate-icon-btn"
+              type="button"
+              id="annotate-counter-restart"
+              aria-label="Restart numbering at 1"
+              title="Restart numbering at 1"
+            >
+              &#8634;1
             </button>
           </div>
           <div class="annotate-toolbar-spacer" aria-hidden="true"></div>
@@ -505,7 +544,7 @@
           class="annotate-icon-btn annotate-help-btn"
           type="button"
           aria-label="Keyboard help"
-          title="Shortcuts: H highlight, I counter, L line, C circle, R rectangle"
+          title="V select, Shift-click or drag to select several, Ctrl+A select all, H highlight, I counter, J next number, L line, C circle, R rectangle"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.4" />
@@ -573,7 +612,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        Save your changes before moving to another image? Save updates the current image.
+        Save your annotations before leaving? Save updates the current file.
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
@@ -602,7 +641,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <p class="text-muted small mb-3">Choose how you want to store this annotated image.</p>
+        <p class="text-muted small mb-3">Save changes to this file or create an annotated copy.</p>
         <div class="form-check mb-2">
           <input
             class="form-check-input"
@@ -624,7 +663,7 @@
             id="annotate-dialog-copy"
             value="copy"
           />
-          <label class="form-check-label" for="annotate-dialog-copy">Save as a new image</label>
+          <label class="form-check-label" for="annotate-dialog-copy">Save as a new file</label>
         </div>
         <div class="mb-2">
           <label class="form-label" for="annotate-dialog-name">New filename</label>

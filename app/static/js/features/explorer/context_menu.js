@@ -40,6 +40,7 @@ import { isInvalidDestination, normalizePath } from '../../shared/paths.js';
 import { requestGlobalRefresh } from '../../shared/refresh.js';
 import { openWithGreenshot } from '../preview/greenshot.js';
 import { openMultiPreview } from '../preview/multi_preview.js';
+import { openBulkRename, openRenameHistory, duplicateFiles } from '../filesystem/bulk_files.js';
 
 const EMAIL_ATTACHMENT_SIZE_LIMIT = 34 * 1024 * 1024;
 const EMAIL_ATTACHMENT_COUNT_LIMIT = 20;
@@ -388,12 +389,17 @@ function buildFileMenu(context) {
       label: 'Apply annotations from reference...',
       action: () => applyReferenceToImages(selection),
     });
-    if (!multiple) {
-      items.push({
-        label: 'Restore previous version...',
-        action: () => restoreImage(selection[0]),
-      });
-    }
+  }
+  if (
+    !multiple &&
+    selection.length === 1 &&
+    allFiles &&
+    (supportedImage(selection[0]) || /\.pdf$/i.test(selection[0]))
+  ) {
+    items.push({
+      label: 'Restore previous version...',
+      action: () => restoreImage(selection[0]),
+    });
   }
   const canMultiFullscreen = selection.length >= 2 && selection.length <= 4 && allFiles;
   if (canMultiFullscreen) {
@@ -418,15 +424,21 @@ function buildFileMenu(context) {
     action: () => prepareClipboard('move', selection, context.fallbackKind || 'file'),
   });
   items.push({
+    label: multiple ? `Duplicate ${selection.length} Files` : 'Duplicate File',
+    disabled: !allFiles,
+    action: () => duplicateFiles(selection),
+  });
+  items.push({
     label: 'Create ZIP Archive',
     action: () => createArchive(selection, state.currentPath || '.'),
   });
   items.push('divider');
   items.push({
-    label: multiple ? 'Rename (first item)' : 'Rename File',
-    disabled: selection.length !== 1,
-    action: () => triggerInlineRename(selection[0]),
+    label: multiple ? 'Rename Files...' : 'Rename File',
+    disabled: !allFiles,
+    action: () => (multiple ? openBulkRename(selection) : triggerInlineRename(selection[0])),
   });
+  items.push({ label: 'Rename history...', action: () => openRenameHistory() });
   items.push({
     label: 'Manage Notes',
     disabled: selection.length !== 1,
@@ -534,6 +546,7 @@ function buildEmptyMenu(context) {
     label: 'Create New File',
     action: () => document.getElementById('action-new-file')?.click(),
   });
+  items.push({ label: 'Rename history...', action: () => openRenameHistory() });
   items.push('divider');
   items.push({
     label: clipboard ? describeClipboardLabel(clipboard) : 'Paste',

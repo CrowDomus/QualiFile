@@ -3,6 +3,7 @@ import { showToast } from '../../shared/ui.js';
 import { findItem } from '../../shared/list.js';
 import { warnDiagnostic } from '../../shared/diagnostics.js';
 import { attachPdfFrame } from './pdf_frame.js';
+import { canAnnotatePreview, launchPreviewAnnotation } from './annotation_launch.js';
 
 const modalElement = document.getElementById('modal-multi-preview');
 const gridElement = document.getElementById('multi-preview-grid');
@@ -63,6 +64,7 @@ let activeCardPath = null;
 let zOrderSeed = 10;
 let gridResizeObserver = null;
 let pdfDisposers = [];
+let annotationActive = false;
 
 function releasePdfFrames() {
   pdfDisposers.forEach((dispose) => dispose());
@@ -70,7 +72,9 @@ function releasePdfFrames() {
 }
 
 if (modalElement) {
-  modalElement.addEventListener('hidden.bs.modal', () => resetMultiPreview());
+  modalElement.addEventListener('hidden.bs.modal', () => {
+    if (!annotationActive) resetMultiPreview();
+  });
 }
 
 if (gridElement && window.ResizeObserver) {
@@ -599,6 +603,16 @@ function createPreviewCard(entry) {
     actions.appendChild(createZoomControls(state));
   }
 
+  if (canAnnotatePreview(entry.path, state.type)) {
+    const annotate = document.createElement('button');
+    annotate.type = 'button';
+    annotate.className = 'btn btn-sm btn-outline-primary';
+    annotate.textContent = 'Annotate';
+    annotate.title = `Annotate ${entry.title}`;
+    annotate.addEventListener('click', () => void annotateEntry(entry));
+    actions.appendChild(annotate);
+  }
+
   const openButton = document.createElement('button');
   openButton.type = 'button';
   openButton.className = 'btn btn-sm btn-outline-secondary';
@@ -628,6 +642,56 @@ function createPreviewCard(entry) {
   handle.title = 'Resize panel';
   card.appendChild(handle);
   return card;
+}
+
+async function annotateEntry(entry) {
+  if (annotationActive) return;
+  annotationActive = true;
+  try {
+    await launchPreviewAnnotation(
+      {
+        path: entry.path,
+        displayName: entry.title,
+        mime: entry.data.mime,
+        url: entry.data.url,
+      },
+      {
+        viewer: modalElement,
+        onReturn: async () => {
+          try {
+            const updated = await Promise.all(
+              latestEntries.map(async (previous) => {
+                try {
+                  return buildEntry(
+                    previous.path,
+                    findItem(previous.path),
+                    await fetchPreview(previous.path)
+                  );
+                } catch (error) {
+                  warnDiagnostic('FullscreenPreviewRefreshFailure', error);
+                  return {
+                    ...previous,
+                    data: {
+                      type: 'notice',
+                      message: 'Preview unavailable. Close and reopen this file.',
+                    },
+                  };
+                }
+              })
+            );
+            renderEntries(updated);
+            setActiveCard(entry.path);
+          } finally {
+            annotationActive = false;
+            bootstrap.Modal.getOrCreateInstance(modalElement).show();
+          }
+        },
+      }
+    );
+  } catch (error) {
+    annotationActive = false;
+    handleError(error);
+  }
 }
 
 function shouldEnableZoom(type) {

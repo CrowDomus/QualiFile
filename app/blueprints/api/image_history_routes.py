@@ -3,16 +3,17 @@
 from flask import Response, current_app, jsonify, request, send_file
 import io
 import json
+from pathlib import Path
 
 from . import api_bp
 from .helpers import _root_or_response, _fs_error_response, _json_body
 from ...shared.db import get_db, open_connection, load_db_settings
 from ...shared.capability_security import capability_guard
-from ...features.preview.image_history import ImageHistory, IMAGE_LOCK
+from ...features.preview.image_history import ImageHistory, IMAGE_LOCK, history_for_path
 
 
-def image_history(root):
-    return ImageHistory(get_db(current_app), root, current_app.config["DATA_DIR"])
+def image_history(root, path=""):
+    return history_for_path(get_db(current_app), root, current_app.config["DATA_DIR"], path)
 
 
 @api_bp.route("/image-history/settings", methods=["GET"])
@@ -35,13 +36,14 @@ def image_history_document():
         return response
     try:
         with IMAGE_LOCK:
-            service = image_history(root)
+            service = image_history(root, request.args.get("path", ""))
             _, state = service.document(request.args.get("path", ""))
             asset = request.args.get("asset")
             if asset:
                 if asset not in {"base", "overlay"} or not state.get(asset):
                     raise ValueError("Annotation asset not found.")
-                response = send_file(io.BytesIO(service._read_blob(state[asset])), mimetype="image/png" if asset == "overlay" else None, download_name="base" + service.target(request.args["path"]).suffix)
+                mime = "image/png" if asset == "overlay" else "application/pdf" if Path(request.args["path"]).suffix.lower() == ".pdf" else None
+                response = send_file(io.BytesIO(service._read_blob(state[asset])), mimetype=mime, download_name="base" + service.target(request.args["path"]).suffix)
                 response.headers["Cache-Control"] = "no-store"
                 return response
             return jsonify({"document": state["document"], "hash": state["hash"]})
@@ -99,14 +101,15 @@ def image_versions():
         return response
     try:
         with IMAGE_LOCK:
-            service = image_history(root)
             if request.method == "POST":
                 data = _json_body()
                 if isinstance(data, Response):
                     return data
+                service = image_history(root, data.get("path", ""))
                 service.restore(data.get("path", ""), data.get("version_id"), data.get("hash"))
                 return jsonify({"restored": True})
             path = request.args.get("path", "")
+            service = image_history(root, path)
             if request.args.get("version_id"):
                 binary, _ = service.version(path, request.args["version_id"])
                 response = send_file(io.BytesIO(binary), download_name=service.target(path).name)
@@ -114,5 +117,39 @@ def image_versions():
                 return response
             _, state = service.document(path)
             return jsonify({"versions": service.versions(path), "hash": state["hash"]})
+    except Exception as exc:
+        return _fs_error_response(exc)
+
+
+@api_bp.route("/pdf-annotations", methods=["POST"])
+@capability_guard("annotation", max_body_bytes=20 * 1024 * 1024)
+def save_pdf_annotations():
+    root, response = _root_or_response()
+    if response:
+        return response
+    data = _json_body()
+    if isinstance(data, Response):
+        return data
+    try:
+        from ...features.filesystem.service import safe_secure_filename
+        from ...features.preview.pdf_annotations import PdfHistory
+        if set(data) - {"path", "mode", "filename", "document", "expected_hash"}:
+            raise ValueError("Unexpected PDF annotation fields.")
+        path = data.get("path", "")
+        mode = data.get("mode", "overwrite")
+        if not isinstance(path, str) or mode not in {"copy", "overwrite"}:
+            raise ValueError("Invalid PDF save request.")
+        service = PdfHistory(get_db(current_app), root, current_app.config["DATA_DIR"])
+        destination = None
+        if mode == "copy":
+            name = data.get("filename") or (Path(path).stem + "-annotated.pdf")
+            if not isinstance(name, str) or '/' in name or '\\' in name:
+                raise ValueError("Enter a filename without folders.")
+            name = safe_secure_filename(name)
+            if not name or Path(name).suffix.lower() != '.pdf':
+                raise ValueError("The annotated copy must have a .pdf extension.")
+            destination = (Path(path).parent / name).as_posix()
+        after = service.save_pdf(path, data.get("document"), data.get("expected_hash"), destination=destination)
+        return jsonify({"path": destination or path, "mode": mode, "mime": "application/pdf", "hash": after["hash"]})
     except Exception as exc:
         return _fs_error_response(exc)

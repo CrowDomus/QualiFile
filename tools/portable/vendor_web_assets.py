@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import base64
+import hashlib
 import tarfile
 import urllib.request
 from pathlib import Path
@@ -87,6 +89,11 @@ def _process_archive(spec: dict) -> None:
     cache_name = f"{name}-{version}.tgz" if version else f"{name}.tgz"
     cache_path = ROOT / ".tmp" / "vendor_cache" / cache_name
     _download(url, cache_path)
+    if spec.get("integrity"):
+        algorithm, expected = spec["integrity"].split("-", 1)
+        actual = base64.b64encode(hashlib.new(algorithm, cache_path.read_bytes()).digest()).decode("ascii")
+        if actual != expected:
+            raise ValueError(f"Archive integrity check failed: {name} {version}")
     with tarfile.open(cache_path, "r:gz") as archive:
         _extract_entries(archive, spec.get("extract", []))
 

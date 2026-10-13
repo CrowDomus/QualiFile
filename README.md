@@ -8,8 +8,9 @@ packaging.
 
 - Workspace explorer with folder navigation, filtering, sorting, and file operations
 - Preview support for text, code, images, PDFs, and accelerated Office documents
-- Persistent workspace navigation, reusable image annotations, and automatic image version history
+- Persistent workspace navigation, editable image/PDF annotations, and automatic version history
 - PDF and image utilities for merge, extraction, capture, and annotation flows
+- Bulk rename with original-name history, independent file duplication, and fullscreen annotation
 - Notes, tags, sidecar metadata, per-file validation tracking, and note formatting helpers
 - Projects, linked roots, tasks/notes, timeline, reminders, alerts, project archiving, and opt-in inline entry composition
 - Git Sync Manager for project metadata export/import and repo actions
@@ -60,7 +61,7 @@ build_portable.bat
 build_portable_embedded.bat
 ```
 
-Download the packaged builds for the `v1.3.1` release:
+Local version 1.4.0 builds are generated in `dist/`. The latest published downloads remain `v1.3.1`:
 
 - [QualiFile Portable](https://github.com/CrowDomus/QualiFile/releases/download/v1.3.1/QualiFile_Portable.zip)
 - [QualiFile Portable Embedded](https://github.com/CrowDomus/QualiFile/releases/download/v1.3.1/QualiFile_Portable_Embedded.zip)

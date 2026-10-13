@@ -2,6 +2,7 @@ import { requestJson, fetchList, fetchFileUrl, handleError } from '../../shared/
 import { state } from '../../shared/state.js';
 import { showToast } from '../../shared/ui.js';
 import { requestGlobalRefresh } from '../../shared/refresh.js';
+import { attachPdfFrame } from './pdf_frame.js';
 
 export const supportedImage = (path) => /\.(png|jpe?g|webp)$/i.test(path);
 const endpoint = '/api/image-history';
@@ -76,11 +77,22 @@ function modal(title) {
   return { host, body, footer, close: () => instance.hide() };
 }
 
-export function chooseAnnotationReference() {
-  const view = modal('Choose reference image');
+function showPdf(view, url, page = 1) {
+  const frame = element('iframe', 'w-100 border-0');
+  frame.title = 'PDF preview';
+  frame.style.height = '60vh';
+  view.body.append(frame);
+  const dispose = attachPdfFrame(frame, url, { page });
+  view.host.addEventListener('hidden.bs.modal', dispose, { once: true });
+}
+
+export function chooseAnnotationReference({ includePdf = false } = {}) {
+  const view = modal(includePdf ? 'Choose annotation reference' : 'Choose reference image');
   const pathLabel = element('p', 'text-break');
   const list = element('div', 'list-group');
   const status = element('p', 'mt-3');
+  const pageChoice = element('select', 'form-select mt-3 d-none');
+  pageChoice.setAttribute('aria-label', 'Reference PDF page');
   const preserveOption = element('div', 'form-check mt-3');
   const preserve = element('input', 'form-check-input');
   preserve.type = 'checkbox';
@@ -107,7 +119,7 @@ export function chooseAnnotationReference() {
     'btn btn-primary'
   );
   apply.disabled = true;
-  view.body.append(pathLabel, list, status, preserveOption);
+  view.body.append(pathLabel, list, pageChoice, status, preserveOption);
   view.footer.append(apply);
   view.host.addEventListener('hidden.bs.modal', () => {
     if (!settled) resolveChoice(null);
@@ -118,6 +130,7 @@ export function chooseAnnotationReference() {
     current = path;
     selected = null;
     selectedRow = null;
+    pageChoice.classList.add('d-none');
     apply.disabled = true;
     pathLabel.textContent = path;
     status.textContent = 'Loading...';
@@ -125,8 +138,10 @@ export function chooseAnnotationReference() {
     const data = await fetchList(path, false);
     if (ticket !== generation) return;
     async function selectImage(item, row, nameButton) {
+      const previousPage = selectedRow === row ? Number(pageChoice.value) : null;
       const selectionTicket = ++generation;
       selected = null;
+      pageChoice.classList.add('d-none');
       apply.disabled = true;
       selectedRow?.classList.remove('list-group-item-primary');
       selectedRow?.querySelector('[aria-pressed]')?.setAttribute('aria-pressed', 'false');
@@ -134,16 +149,47 @@ export function chooseAnnotationReference() {
       status.textContent = 'Loading annotations...';
       const reference = await loadAnnotationDocument(item.path);
       if (selectionTicket !== generation) return null;
-      if (!reference.document.nodes.length) {
-        status.textContent = 'The reference image does not have annotations.';
-        return reference;
-      }
-      selected = { path: item.path, ...reference };
       selectedRow = row;
       row.classList.add('list-group-item-primary');
       nameButton.setAttribute('aria-pressed', 'true');
-      status.textContent = `${reference.document.nodes.length} annotations`;
-      apply.disabled = false;
+      const selectDocument = (document, pageIndex = null) => {
+        selected = document.nodes.length
+          ? { path: item.path, ...reference, document, pageIndex }
+          : null;
+        status.textContent = document.nodes.length
+          ? `${document.nodes.length} annotations`
+          : `The reference ${pageIndex === null ? 'image' : 'page'} does not have annotations.`;
+        apply.disabled = !selected;
+      };
+      if (reference.document.kind === 'pdf') {
+        pageChoice.replaceChildren();
+        reference.document.pages.forEach((page, index) => {
+          const option = element(
+            'option',
+            '',
+            `Page ${index + 1} (${page.nodes.length} annotations)`
+          );
+          option.value = String(index);
+          pageChoice.append(option);
+        });
+        pageChoice.classList.remove('d-none');
+        pageChoice.value = String(
+          previousPage !== null && previousPage < reference.document.pages.length
+            ? previousPage
+            : Math.max(
+                0,
+                reference.document.pages.findIndex((page) => page.nodes.length)
+              )
+        );
+        pageChoice.onchange = () =>
+          selectDocument(
+            reference.document.pages[Number(pageChoice.value)],
+            Number(pageChoice.value)
+          );
+        pageChoice.onchange();
+      } else {
+        selectDocument(reference.document);
+      }
       return reference;
     }
     if (path !== '.')
@@ -155,7 +201,8 @@ export function chooseAnnotationReference() {
         )
       );
     for (const item of data.items || []) {
-      if (!item.is_dir && !supportedImage(item.path)) continue;
+      if (!item.is_dir && !supportedImage(item.path) && !(includePdf && /\.pdf$/i.test(item.path)))
+        continue;
       const row = element('div', 'list-group-item d-flex align-items-center gap-2');
       const nameButton = button(
         `${item.is_dir ? 'Folder: ' : ''}${item.name}`,
@@ -172,6 +219,14 @@ export function chooseAnnotationReference() {
               const reference = await selectImage(item, row, nameButton);
               if (!reference) return;
               const preview = modal(`Reference: ${item.name}`);
+              if (reference.document.kind === 'pdf') {
+                showPdf(
+                  preview,
+                  `${fetchFileUrl(item.path)}&t=${Date.now()}`,
+                  Number(pageChoice.value) + 1
+                );
+                return;
+              }
               const frame = element('div', 'annotation-reference-preview mx-auto');
               const image = element('img', 'annotation-reference-preview-base');
               image.alt = item.name;
@@ -203,7 +258,9 @@ export function chooseAnnotationReference() {
       }
       list.append(row);
     }
-    status.textContent = 'Select an image with saved annotations.';
+    status.textContent = includePdf
+      ? 'Select a file with saved annotations.'
+      : 'Select an image with saved annotations.';
   }
   browse(current).catch(handleError);
   return promise;
@@ -285,9 +342,10 @@ function refreshImages(path) {
 }
 
 export async function restoreImage(path) {
+  const isPdf = /\.pdf$/i.test(path);
   const data = await requestJson(`${endpoint}/versions?path=${encodeURIComponent(path)}`);
   if (!data.versions.length) {
-    showToast('This image has no previous versions.');
+    showToast('This file has no previous versions.');
     return;
   }
   async function restore(version) {
@@ -316,7 +374,7 @@ export async function restoreImage(path) {
     const row = element('div', 'border rounded p-3');
     const url = `${endpoint}/versions?${new URLSearchParams({ path, version_id: version.id })}`;
     const image = element('img', 'd-none mb-2');
-    image.src = url;
+    if (!isPdf) image.src = url;
     image.alt = `Version from ${version.created_at}`;
     image.loading = 'lazy';
     image.style.cssText = 'width:160px;height:120px;object-fit:contain';
@@ -333,6 +391,10 @@ export async function restoreImage(path) {
     actions.append(
       button('Show', () => {
         const preview = modal('Previous version preview');
+        if (isPdf) {
+          showPdf(preview, url);
+          return;
+        }
         const full = element('img');
         full.src = url;
         full.alt = image.alt;
@@ -364,7 +426,8 @@ export async function restoreImage(path) {
   mode.addEventListener('change', () =>
     images.forEach((image) => image.classList.toggle('d-none', mode.value !== 'thumbnails'))
   );
-  view.body.append(mode, list);
+  if (!isPdf) view.body.append(mode);
+  view.body.append(list);
 }
 
 export async function initImageHistory() {

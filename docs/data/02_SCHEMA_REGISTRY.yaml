@@ -24,7 +24,7 @@ schemas:
     title: SQLite persistence database
     kind: sqlite
     lifecycle: active
-    current_version: 7
+    current_version: 8
     version_field:
       type: schema_migrations_table
       table: schema_migrations
@@ -37,7 +37,8 @@ schemas:
         - "0005_task_alert_state"
         - "0006_project_archive_state"
         - "0007_image_history"
-      latest_id: "0007_image_history"
+        - "0008_file_rename_history"
+      latest_id: "0008_file_rename_history"
     locations:
       - scope: data_dir
         pattern: ".qualifile_internal/qualifile.db"
@@ -67,9 +68,14 @@ schemas:
         description: "project archive visibility state"
       - id: "0007_image_history"
         description: "editable image documents, focused settings, immutable versions and save journal"
+      - id: "0008_file_rename_history"
+        description: "recoverable bulk file rename history"
     privacy_class: P3
     notes:
-      - "Image history tables: image_documents, focused_settings, image_versions, image_pending_writes. Annotation document JSON is version 1."
+      - "file_rename_batches stores workspace-scoped old/new names, filesystem identities, progress state and errors. Restore never overwrites a file and refuses files changed since the rename."
+      - "Annotation and history tables retain their compatible names: image_documents, focused_settings, image_versions, image_pending_writes. They store both image and PDF documents."
+      - "Image annotation JSON version 1 has width, height and declarative nodes. PDF JSON version 1 additionally has kind: pdf and an ordered pages list of the same page documents. PDF state stores the clean PDF base without an image overlay."
+      - "Copied files have independent file and version identities. Immutable content blobs may be shared, and no automatic archive retention deletion occurs."
       - "Authoritative tables: roots, projects (including archived/archived_at lifecycle fields), entries, tag_definitions, profile_preferences, user_profiles, profile_portable_preferences, app_state, task_alert_state."
       - "Derived tables: file_index, tag_index, entry_index."
       - "DB uses WAL and busy_timeout defaults from app/shared/db.py."
@@ -495,7 +501,7 @@ schemas:
     privacy_class: P3
 
   - id: image_annotation_assets
-    title: Clean image bases and transparent annotation layers
+    title: Clean image and PDF bases and image annotation layers
     kind: directory
     lifecycle: active
     current_version: 1
@@ -513,7 +519,7 @@ schemas:
     privacy_class: P3
 
   - id: focused_image_archives
-    title: Automatic immutable image history
+    title: Automatic immutable image and PDF history
     kind: directory
     lifecycle: active
     current_version: 1
@@ -522,7 +528,7 @@ schemas:
     locations:
       - scope: data_dir
         pattern: ".qualifile_internal/image_history/**"
-        note: "Default archive location for image changes. New SQLite blob references are relative to DATA_DIR for portability."
+        note: "Default archive location for image and PDF content changes. New SQLite blob references are relative to DATA_DIR for portability."
       - scope: any
         pattern: ".qualifile_internal/image_history/**"
         note: "Existing versions may remain in earlier user-selected archive folders with absolute SQLite references."

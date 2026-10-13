@@ -128,6 +128,8 @@ def _error_response(code: str, message: str, status: int, *, log_level: int | No
 
 
 def _map_known_error(exc: Exception) -> tuple[int, str, str, int | None] | None:
+    if isinstance(exc, FileExistsError):
+        return 409, "already-exists", "A file with this name already exists. Choose another name.", logging.INFO
     if isinstance(exc, FileNotFoundError):
         message = "Requested item was not found."
         code = "not-found"

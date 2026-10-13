@@ -236,6 +236,22 @@ MIGRATIONS: Sequence[Migration] = (
         );
         """,
     ),
+    Migration(
+        migration_id="0008_file_rename_history",
+        description="recoverable bulk file rename history",
+        sql="""
+        CREATE TABLE file_rename_batches (
+            batch_id TEXT PRIMARY KEY,
+            root_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            status TEXT NOT NULL,
+            rows_json TEXT NOT NULL,
+            error TEXT NOT NULL DEFAULT ''
+        );
+        CREATE INDEX file_rename_batches_root ON file_rename_batches(root_id, created_at);
+        """,
+    ),
 )
 
 

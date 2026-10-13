@@ -315,10 +315,20 @@ def _staged_image_transfer(root: Path, source: Path, destination: Path, *, move:
         if _entry_identity(destination) != expected_destination:
             raise FileExistsError("Destination changed during transfer. Reload and retry.")
         if destination.exists():
+            if expected_destination is None:
+                raise FileExistsError("Destination appeared during transfer. Reload and retry.")
             _validate_tree(root, destination)
             destination.replace(backup)
         try:
-            payload.replace(destination)
+            if expected_destination is None and payload.is_file():
+                # A new file appearing after preflight must never be replaced.
+                if os.name == "nt":
+                    payload.rename(destination)
+                else:
+                    os.link(payload, destination)
+                    payload.unlink()
+            else:
+                payload.replace(destination)
             finish_image_transfer(image_transfer, move)
         except BaseException:
             # Keep the published source available for the outer rollback if

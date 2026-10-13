@@ -68,7 +68,8 @@ export async function loadPdfDataUrl(url, options) {
 }
 
 /** Return a disposer owned by the enclosing preview lifecycle. */
-export function attachPdfFrame(frame, url) {
+export function attachPdfFrame(frame, url, { page = 1 } = {}) {
+  const pageNumber = Number.isInteger(page) && page > 0 ? page : 1;
   const controller = new AbortController();
   let disposed = false;
   let timedOut = false;
@@ -105,7 +106,7 @@ export function attachPdfFrame(frame, url) {
       const script = `addEventListener('message', function receive(event) {
         if (event.source !== parent || event.data?.token !== ${JSON.stringify(token)}) return;
         removeEventListener('message', receive);
-        location.replace(URL.createObjectURL(new Blob([event.data.bytes], {type:'application/pdf'})) + '#toolbar=0&navpanes=0');
+        location.replace(URL.createObjectURL(new Blob([event.data.bytes], {type:'application/pdf'})) + '#toolbar=0&navpanes=0&page=${pageNumber}');
       }); parent.postMessage({token:${JSON.stringify(token)}}, '*');`;
       receive = (event) => {
         if (

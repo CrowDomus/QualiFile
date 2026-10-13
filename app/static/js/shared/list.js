@@ -30,6 +30,7 @@ import {
   isAbortError,
 } from '../features/modals/loading_modal.js';
 import { attachGridCardThumbnail } from './grid_thumbnails.js';
+import { openBulkRename } from '../features/filesystem/bulk_files.js';
 
 let tableBody = null;
 let gridContainer = null;
@@ -195,6 +196,8 @@ export async function loadList(includeSubfolders = false) {
 
 /** Render the table and grid views based on filters. */
 const collapsedCategories = new Set();
+let categoryClick = null;
+let categoryDoubleClick = null;
 
 function renderList() {
   const items = applyViewFilters();
@@ -250,11 +253,10 @@ function renderCategorizedTable(groups) {
     return false;
   };
   groups.forEach((group) => {
-    if (hierarchyEnabled && isHiddenByAncestor(group.id)) {
-      return;
-    }
+    const ancestorHidden = hierarchyEnabled && isHiddenByAncestor(group.id);
     const headerRow = document.createElement('tr');
     headerRow.className = 'category-header-row';
+    headerRow.classList.toggle('category-collapsed', ancestorHidden);
     headerRow.dataset.categoryId = group.id;
     const headerCell = document.createElement('td');
     headerCell.colSpan = columnCount;
@@ -283,7 +285,7 @@ function renderCategorizedTable(groups) {
     header.append(title, count);
     header.setAttribute('role', 'button');
     header.tabIndex = 0;
-    header.addEventListener('click', () => toggleCategory(group.id));
+    bindCategoryPointerEvents(header, group);
     header.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
@@ -297,7 +299,7 @@ function renderCategorizedTable(groups) {
     group.items.forEach((item) => {
       const row = createTableRow(item, rowIndex++, tagLookup);
       row.dataset.categoryId = group.id;
-      if (collapsed) {
+      if (collapsed || ancestorHidden) {
         row.classList.add('category-collapsed');
       }
       tableBody.appendChild(row);
@@ -320,11 +322,11 @@ function renderCategorizedGrid(groups) {
     return false;
   };
   groups.forEach((group) => {
-    if (hierarchyEnabled && isHiddenByAncestor(group.id)) {
-      return;
-    }
+    const ancestorHidden = hierarchyEnabled && isHiddenByAncestor(group.id);
     const header = document.createElement('div');
     header.className = 'category-grid-header';
+    header.dataset.categoryId = group.id;
+    header.classList.toggle('category-collapsed', ancestorHidden);
     header.style.setProperty('--category-color', group.color || '#6c757d');
     header.style.setProperty('--category-text-color', group.textColor || '#ffffff');
     const displayedCount = hierarchyEnabled
@@ -342,7 +344,7 @@ function renderCategorizedGrid(groups) {
       header.dataset.depth = String(group.depth);
       header.style.setProperty('--category-depth', group.depth);
     }
-    header.addEventListener('click', () => toggleCategory(group.id));
+    bindCategoryPointerEvents(header, group);
     header.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
@@ -353,7 +355,7 @@ function renderCategorizedGrid(groups) {
     group.items.forEach((item) => {
       const card = createGridCard(item, tagLookup);
       card.dataset.categoryId = group.id;
-      if (collapsed) {
+      if (collapsed || ancestorHidden) {
         card.classList.add('category-collapsed');
       }
       gridContainer.appendChild(card);
@@ -368,7 +370,66 @@ function toggleCategory(categoryId) {
   } else {
     collapsedCategories.add(categoryId);
   }
-  renderList();
+  syncCategoryVisibility();
+}
+
+function syncCategoryVisibility() {
+  const groups = buildCategoryGroups(
+    applyViewFilters(),
+    state.tags,
+    !!state.settings?.tags?.hierarchyView
+  );
+  const parentMap = groups.parentMap || new Map();
+  [tableBody, gridContainer].forEach((container) => {
+    container?.querySelectorAll('[data-category-id]').forEach((element) => {
+      const id = element.dataset.categoryId;
+      let ancestor = parentMap.get(id);
+      let ancestorHidden = false;
+      while (ancestor) {
+        if (collapsedCategories.has(ancestor)) {
+          ancestorHidden = true;
+          break;
+        }
+        ancestor = parentMap.get(ancestor);
+      }
+      const isHeader = element.matches('.category-header-row, .category-grid-header');
+      element.classList.toggle(
+        'category-collapsed',
+        ancestorHidden || (!isHeader && collapsedCategories.has(id))
+      );
+      if (isHeader) element.classList.toggle('is-collapsed', collapsedCategories.has(id));
+    });
+  });
+}
+
+function bindCategoryPointerEvents(header, group) {
+  header.addEventListener('click', (event) => {
+    if (event.detail > 1) return;
+    categoryClick = { group, x: event.clientX, y: event.clientY };
+    // Keep the same header node so native double-click works at every system speed.
+    toggleCategory(group.id);
+  });
+  header.addEventListener('dblclick', (event) => {
+    event.preventDefault();
+    selectCategoryFiles(group);
+  });
+}
+
+function selectCategoryFiles(group) {
+  const paths = [...new Set(group.items.filter((item) => !item.is_dir).map((item) => item.path))];
+  setSelection(paths);
+  lastActivePath = paths.at(-1) || null;
+  collapsedCategories.delete(group.id);
+  syncCategoryVisibility();
+  syncSelection();
+}
+
+function matchesCategoryPointer(event, previous) {
+  return (
+    previous &&
+    Math.abs(event.clientX - previous.x) <= 6 &&
+    Math.abs(event.clientY - previous.y) <= 6
+  );
 }
 
 function createTableRow(item, index, tagLookup) {
@@ -474,6 +535,7 @@ function createGridCard(item, tagLookup) {
 
 /** Provide keyboard interactions for rows/cards. */
 function handleRowKeydown(event, item) {
+  if (event.target.closest('input, textarea, [contenteditable="true"]')) return;
   if (event.key === 'Delete') {
     event.preventDefault();
     const selection = selectionArray();
@@ -493,10 +555,7 @@ function handleRowKeydown(event, item) {
   }
   if (event.key === 'F2') {
     event.preventDefault();
-    const row = document.querySelector(`tr[data-path="${CSS.escape(item.path)}"]`);
-    if (row) {
-      beginInlineRename(row, item);
-    }
+    triggerRename();
   }
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     const offset = event.key === 'ArrowDown' ? 1 : -1;
@@ -507,6 +566,34 @@ function handleRowKeydown(event, item) {
 
 /** Attach global listeners for list controls. */
 function bindListEvents() {
+  // Collapsing the final grid group can clamp scroll position. Treat the second
+  // click as belonging to its original header even if another row moved under it.
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (event.detail === 2 && matchesCategoryPointer(event, categoryClick)) {
+        event.preventDefault();
+        event.stopPropagation();
+        categoryDoubleClick = categoryClick;
+        selectCategoryFiles(categoryClick.group);
+        categoryClick = null;
+      } else {
+        categoryClick = null;
+        categoryDoubleClick = null;
+      }
+    },
+    true
+  );
+  document.addEventListener(
+    'dblclick',
+    (event) => {
+      if (!matchesCategoryPointer(event, categoryDoubleClick)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      categoryDoubleClick = null;
+    },
+    true
+  );
   filterInput?.addEventListener('input', () => renderList());
   selectAllCheckbox?.addEventListener('change', (event) => {
     if (event.target.checked) {
@@ -561,13 +648,9 @@ function bindListEvents() {
     .getElementById('view-mode-grid')
     ?.addEventListener('click', () => updateViewMode('grid'));
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'F2' && selectionArray().length === 1) {
-      const [path] = selectionArray();
-      const row = tableBody?.querySelector(`tr[data-path="${CSS.escape(path)}"]`);
-      const item = findItemByPath(path);
-      if (row && item) {
-        beginInlineRename(row, item);
-      }
+    if (event.key === 'F2' && !event.defaultPrevented && selectionArray().length) {
+      event.preventDefault();
+      triggerRename();
     }
   });
 }
@@ -1099,6 +1182,8 @@ function resolveModifiedRange(preset = 'any', from = '', to = '') {
 
 /** Toggle selection when rows/cards are clicked. */
 function handleSelection(event, item) {
+  if (event.target.closest('input:not([type="checkbox"]), textarea, [contenteditable="true"]'))
+    return;
   const path = item.path;
   const allowRange = event.shiftKey;
   const allowToggle = event.metaKey || event.ctrlKey;
@@ -1408,19 +1493,24 @@ function findItemByPath(path) {
 /** Render inline rename input for a row. */
 function beginInlineRename(row, item) {
   const original = item.name;
-  const cell = row.querySelector('td:nth-child(2)');
+  const cell = row.querySelector('.file-label');
   if (!cell || cell.querySelector('input')) return;
   const input = document.createElement('input');
   input.type = 'text';
   input.value = original;
   input.className = 'form-control form-control-sm';
   input.maxLength = 120;
+  input.setAttribute('aria-label', 'Rename ' + original);
+  row.draggable = false;
   cell.innerHTML = '';
   cell.appendChild(input);
   input.focus();
   input.select();
 
+  let finished = false;
   const finish = async (commit) => {
+    if (finished) return;
+    finished = true;
     input.disabled = true;
     if (!commit) {
       renderList();
@@ -1453,6 +1543,10 @@ function beginInlineRename(row, item) {
     }
   };
 
+  ['click', 'dblclick', 'pointerdown', 'mousedown', 'contextmenu'].forEach((type) => {
+    input.addEventListener(type, (event) => event.stopPropagation());
+  });
+  input.addEventListener('dragstart', (event) => event.stopPropagation());
   input.addEventListener('keydown', async (event) => {
     event.stopPropagation();
     if (event.key === 'Enter') {
@@ -1525,6 +1619,10 @@ function parseDragPayload(dataTransfer) {
 
 /** Begin dragging selected items. */
 function handleDragStart(event, item) {
+  if (event.target.closest('input, textarea, [contenteditable="true"]')) {
+    event.stopPropagation();
+    return;
+  }
   const selection = selectionArray();
   if (!selection.includes(item.path)) {
     setSelection([item.path]);
@@ -1547,12 +1645,25 @@ export function getSelection() {
 export { renderList };
 
 export function triggerRename() {
-  if (selectionArray().length !== 1) {
+  const selected = selectionArray();
+  if (selected.length > 1) {
+    const items = selected.map(findItemByPath);
+    if (items.every((item) => item && !item.is_dir)) {
+      openBulkRename(selected);
+    } else {
+      showToast('Select files only to rename multiple items.', true);
+    }
+    return;
+  }
+  if (selected.length !== 1) {
     showToast('Select a single item to rename.', true);
     return;
   }
   const [path] = selectionArray();
-  const row = tableBody?.querySelector(`tr[data-path="${CSS.escape(path)}"]`);
+  const row =
+    state.viewMode === 'grid'
+      ? gridContainer?.querySelector(`.file-card[data-path="${CSS.escape(path)}"]`)
+      : tableBody?.querySelector(`tr[data-path="${CSS.escape(path)}"]`);
   const item = findItemByPath(path);
   if (!row || !item) {
     showToast('Unable to find selected item.', true);

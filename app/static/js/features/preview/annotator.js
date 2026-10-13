@@ -9,6 +9,12 @@ import { showToast, setStatus } from '../../shared/ui.js';
 import { requestGlobalRefresh } from '../../shared/refresh.js';
 import { errorDiagnostic, warnDiagnostic } from '../../shared/diagnostics.js';
 import {
+  nextAnnotationNumber,
+  selectionRectangle,
+  rectanglesIntersect,
+  isAnnotationTypingTarget,
+} from './annotation_selection.js';
+import {
   COLOR_TOOLS,
   buildDefaultToolColors,
   loadStoredToolColors,
@@ -18,6 +24,7 @@ import {
   colorWithOpacity,
   clamp,
 } from './annotator_helpers.js';
+import { PdfAnnotationSession } from './pdf_annotations.js';
 
 /**
  * Annotation workspace powered by Konva.js.
@@ -54,6 +61,9 @@ const elements = {
   actionSave: document.getElementById('annotate-action-save'),
   actionPrevious: document.getElementById('annotate-action-previous'),
   actionNext: document.getElementById('annotate-action-next'),
+  pageControls: document.getElementById('annotate-pdf-pages'),
+  pageNumber: document.getElementById('annotate-pdf-page'),
+  pageCount: document.getElementById('annotate-pdf-page-count'),
   navigateDialog: document.getElementById('modal-annotate-navigate'),
   navigateSave: document.getElementById('annotate-navigate-save'),
   navigateDiscard: document.getElementById('annotate-navigate-discard'),
@@ -66,6 +76,9 @@ const elements = {
   saveDialogOverwrite: document.getElementById('annotate-dialog-overwrite'),
   saveDialogCopy: document.getElementById('annotate-dialog-copy'),
   saveDialogName: document.getElementById('annotate-dialog-name'),
+  counterControls: document.getElementById('annotate-counter-controls'),
+  counterNext: document.getElementById('annotate-counter-next'),
+  counterRestart: document.getElementById('annotate-counter-restart'),
 };
 
 const DEFAULT_TOOL_COLORS = buildDefaultToolColors(elements);
@@ -94,13 +107,17 @@ const state = {
   panStart: null,
   panOrigin: null,
   panAlt: false,
-  counter: 0,
+  nextCounterOverride: null,
   history: [],
   future: [],
   commandSerial: 0,
   historyManager: null,
   isRestoring: false,
-  selectedNode: null,
+  selectedNodes: [],
+  selectionBox: null,
+  selectionStart: null,
+  selectionInitial: [],
+  actionBefore: null,
   keyHandler: null,
   spacePanning: false,
   resizeObserver: null,
@@ -111,6 +128,12 @@ const state = {
   saving: false,
   navigationBusy: false,
   savedDocumentSnapshot: '',
+  pdf: null,
+  generation: 0,
+  allowClose: false,
+  closePending: false,
+  closing: null,
+  finishClosing: null,
   toolColors: loadStoredToolColors(DEFAULT_TOOL_COLORS),
 };
 
@@ -120,16 +143,148 @@ export async function openAnnotationModal(options = {}) {
     return;
   }
   try {
+    if (state.closing) await state.closing;
     await ensureKonvaLoaded();
     const saved = await loadAnnotationDocument(options.path);
-    prepareModal({ ...options, url: annotationBaseUrl(options.path), saved });
+    if (saved.document.kind === 'pdf') {
+      await preparePdfModal({ ...options, mime: 'application/pdf', saved });
+    } else {
+      prepareModal({ ...options, url: annotationBaseUrl(options.path), saved });
+    }
   } catch (error) {
     handleError(error);
   }
 }
 
+function hasUnsavedChanges() {
+  if (!state.annotationsGroup) return false;
+  if (state.pdf) {
+    state.pdf.update(annotationDocument());
+    return state.pdf.dirty;
+  }
+  return JSON.stringify(annotationDocument()) !== state.savedDocumentSnapshot;
+}
+
+function updateEditingBusy() {
+  const busy = state.saving || state.navigationBusy;
+  elements.modal.querySelector('.modal-content').inert = busy;
+  state.stage?.listening(!busy);
+}
+
+function updateDocumentControls(isPdf) {
+  document.getElementById('modal-annotate-label').textContent = isPdf
+    ? 'Annotate PDF'
+    : 'Annotate image';
+  elements.pageControls?.classList.toggle('d-none', !isPdf);
+  for (const [button, direction] of [
+    [elements.actionPrevious, 'Previous'],
+    [elements.actionNext, 'Next'],
+  ]) {
+    if (!button) continue;
+    const label = `${direction} ${isPdf ? 'page' : 'image'}`;
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.disabled = false;
+  }
+  if (state.pdf) {
+    elements.pageNumber.value = String(state.pdf.pageIndex + 1);
+    elements.pageNumber.max = String(state.pdf.count);
+    elements.pageCount.textContent = `of ${state.pdf.count}`;
+    elements.actionPrevious.disabled = state.pdf.pageIndex === 0;
+    elements.actionNext.disabled = state.pdf.pageIndex === state.pdf.count - 1;
+  }
+}
+
+async function preparePdfModal(options) {
+  resetState();
+  const generation = state.generation;
+  state.filePath = options.path;
+  state.fileName = options.displayName || options.name || options.path;
+  state.mime = 'application/pdf';
+  state.expectedHash = options.saved.hash;
+  state.copyNameSuggestion = `${state.fileName
+    .replace(/\.[^.]+$/, '')
+    .split(/[\\/]/)
+    .pop()}-annotated.pdf`;
+  elements.fileLabel.textContent = state.fileName;
+  elements.saveDialogName.value = '';
+  elements.saveDialogName.placeholder = state.copyNameSuggestion;
+  elements.saveDialogOverwrite.checked = true;
+  elements.saveDialogCopy.checked = false;
+  updateSaveMode();
+  updateDocumentControls(true);
+  setOverlay(true, 'Loading PDF...');
+  elements.actionSave.disabled = true;
+  bindModalEvents();
+  showModal();
+  try {
+    const session = await PdfAnnotationSession.open(options.path, options.saved);
+    if (generation !== state.generation) {
+      session.destroy();
+      return;
+    }
+    state.pdf = session;
+    await navigatePdfPage(0, true);
+  } catch (error) {
+    if (generation === state.generation) setOverlay(true, error.message);
+    throw error;
+  }
+}
+
+async function navigatePdfPage(index, initial = false) {
+  const session = state.pdf;
+  if (!session || state.navigationBusy || state.saving || index < 0 || index >= session.count)
+    return;
+  if (!initial && index === session.pageIndex) return;
+  if (state.annotationsGroup) {
+    session.update(annotationDocument());
+    session.histories.set(session.pageIndex, {
+      manager: state.historyManager,
+      next: state.nextCounterOverride,
+    });
+  }
+  state.navigationBusy = true;
+  updateEditingBusy();
+  elements.actionSave.disabled = true;
+  elements.pageNumber.disabled = true;
+  setOverlay(true, `Loading page ${index + 1}...`);
+  try {
+    const canvas = await session.render(index);
+    if (session !== state.pdf) return;
+    teardownStage();
+    state.image = canvas;
+    state.imageSize = { width: session.current.width, height: session.current.height };
+    state.zoom = 1;
+    initializeStage();
+    installDocument(session.current);
+    const history = session.histories.get(index);
+    state.historyManager = history?.manager || createHistoryManager();
+    state.nextCounterOverride = history?.next ?? null;
+    updateCounterControls();
+    updateHistoryButtons();
+    updateDocumentControls(true);
+    setOverlay(false);
+    updateStatusMessage(`Page ${index + 1} of ${session.count}`);
+  } catch (error) {
+    if (session === state.pdf) {
+      setOverlay(true, 'Unable to load this page. Choose another page or close the editor.');
+      updateDocumentControls(true);
+      handleError(error);
+    }
+  } finally {
+    state.navigationBusy = false;
+    updateEditingBusy();
+    elements.actionSave.disabled = !state.stage;
+    elements.pageNumber.disabled = false;
+    elements.modal.focus({ preventScroll: true });
+  }
+}
+
 function prepareModal(options) {
   resetState();
+  const generation = state.generation;
+  updateDocumentControls(false);
+  elements.actionSave.disabled = false;
   state.filePath = options.path;
   state.expectedHash = options.saved.hash;
   state.fileName = options.displayName || options.name || options.path || 'image.png';
@@ -158,6 +313,7 @@ function prepareModal(options) {
   const image = new Image();
   image.decoding = 'async';
   image.onload = () => {
+    if (generation !== state.generation) return;
     state.image = image;
     state.imageSize = {
       width: image.naturalWidth || image.width || 1,
@@ -169,6 +325,7 @@ function prepareModal(options) {
     setOverlay(false);
   };
   image.onerror = () => {
+    if (generation !== state.generation) return;
     setOverlay(true, 'Unable to load this image for annotation.');
   };
   image.src = options.url;
@@ -188,16 +345,24 @@ function showModal() {
 }
 
 function resetState() {
+  state.generation += 1;
+  state.pdf?.destroy();
+  state.pdf = null;
+  state.allowClose = false;
+  state.closePending = false;
   teardownStage();
   state.zoom = 1;
   state.baseScale = 1;
-  state.counter = 0;
+  state.nextCounterOverride = null;
   state.history = [];
   state.future = [];
   state.commandSerial = 0;
   state.historyManager = createHistoryManager();
   state.isRestoring = false;
-  state.selectedNode = null;
+  state.selectedNodes = [];
+  state.selectionStart = null;
+  state.selectionInitial = [];
+  state.actionBefore = null;
   state.drawingShape = null;
   state.drawingStart = null;
   state.panStart = null;
@@ -224,19 +389,61 @@ function bindModalEvents() {
   if (elements.modal.dataset.annotateBound === 'true') return;
 
   elements.modal.addEventListener('hidden.bs.modal', () => {
+    state.generation += 1;
+    state.pdf?.destroy();
+    state.pdf = null;
     teardownStage();
     detachKeyboard();
+    state.finishClosing?.();
+    state.closing = null;
+    state.finishClosing = null;
+  });
+  elements.modal.addEventListener('hide.bs.modal', (event) => {
+    const markClosing = () => {
+      if (!event.defaultPrevented)
+        state.closing = new Promise((resolve) => {
+          state.finishClosing = resolve;
+        });
+    };
+    if (state.allowClose) {
+      markClosing();
+      return;
+    }
+    if (state.saving || state.navigationBusy) {
+      event.preventDefault();
+      return;
+    }
+    if (!state.stage || !hasUnsavedChanges()) {
+      markClosing();
+      return;
+    }
+    event.preventDefault();
+    if (state.closePending) return;
+    state.closePending = true;
+    void chooseNavigationAction().then(async (action) => {
+      try {
+        if (action === 'cancel') return;
+        if (action === 'save' && !(await handleSave('overwrite', '', true))) return;
+        state.allowClose = true;
+        state.modalInstance?.hide();
+      } finally {
+        state.closePending = false;
+      }
+    });
   });
 
   document.getElementById('annotate-apply-reference')?.addEventListener('click', async () => {
+    if (state.saving || state.navigationBusy) return;
+    const generation = state.generation;
     try {
-      const reference = await chooseAnnotationReference();
-      if (!reference) return;
+      const reference = await chooseAnnotationReference({ includePdf: Boolean(state.pdf) });
+      if (!reference || generation !== state.generation || state.saving || state.navigationBusy)
+        return;
       if (
         reference.document.width !== state.imageSize.width ||
         reference.document.height !== state.imageSize.height
       ) {
-        throw new Error('Exact annotation duplication requires matching image dimensions.');
+        throw new Error('Exact annotation duplication requires matching dimensions.');
       }
       const previous = annotationDocument();
       let next = reference.document;
@@ -260,8 +467,8 @@ function bindModalEvents() {
       });
       updateStatusMessage(
         reference.preserveExisting
-          ? 'Reference annotations added above existing annotations. Review and save the image.'
-          : 'Reference annotations applied. Review and save the image.'
+          ? 'Reference annotations added. Review and save.'
+          : 'Reference annotations applied. Review and save.'
       );
     } catch (error) {
       handleError(error);
@@ -273,6 +480,14 @@ function bindModalEvents() {
   elements.actionSave?.addEventListener('click', () => openSaveDialog());
   elements.actionPrevious?.addEventListener('click', () => void navigateImage(-1));
   elements.actionNext?.addEventListener('click', () => void navigateImage(1));
+  elements.pageNumber?.addEventListener('change', () => {
+    const page = Number(elements.pageNumber.value);
+    if (state.pdf && Number.isInteger(page) && page >= 1 && page <= state.pdf.count) {
+      void navigatePdfPage(page - 1);
+    } else {
+      updateDocumentControls(Boolean(state.pdf));
+    }
+  });
 
   elements.saveDialogConfirm?.addEventListener('click', () => {
     const mode = elements.saveDialogCopy?.checked ? 'copy' : 'overwrite';
@@ -291,6 +506,21 @@ function bindModalEvents() {
   elements.actionRedo?.addEventListener('click', () => redo());
   elements.actionDelete?.addEventListener('click', () => removeSelection());
   elements.actionReset?.addEventListener('click', () => resetView());
+  elements.counterNext?.addEventListener('input', () => {
+    const number = Number(elements.counterNext.value);
+    const valid = Number.isSafeInteger(number) && number > 0 && number < Number.MAX_SAFE_INTEGER;
+    elements.counterNext.setCustomValidity(valid ? '' : 'Enter a positive whole number.');
+    state.nextCounterOverride = valid ? number : null;
+  });
+  elements.counterNext?.addEventListener('blur', () => {
+    elements.counterNext.setCustomValidity('');
+    updateCounterControls();
+  });
+  elements.counterRestart?.addEventListener('click', () => {
+    state.nextCounterOverride = 1;
+    updateCounterControls();
+    focusToolButton('counter');
+  });
 
   elements.strokeColor?.addEventListener('change', () => {
     state.toolColors = syncToolPalette(state.tool, elements, state.toolColors, DEFAULT_TOOL_COLORS);
@@ -328,8 +558,19 @@ function bindModalEvents() {
   elements.modal.dataset.annotateBound = 'true';
 }
 
-async function handleSave(mode = 'overwrite', providedName = '', keepOpen = false) {
-  if (state.saving || !state.stage || !state.annotationsGroup) return false;
+async function handleSave(
+  mode = 'overwrite',
+  providedName = '',
+  keepOpen = false,
+  navigationSave = false
+) {
+  if (
+    state.saving ||
+    (state.navigationBusy && !navigationSave) ||
+    !state.stage ||
+    !state.annotationsGroup
+  )
+    return false;
   const effectiveMode = mode === 'copy' ? 'copy' : 'overwrite';
   let filename = '';
   if (effectiveMode === 'copy') {
@@ -337,25 +578,31 @@ async function handleSave(mode = 'overwrite', providedName = '', keepOpen = fals
   }
   try {
     state.saving = true;
+    updateEditingBusy();
     if (elements.actionSave) {
       elements.actionSave.disabled = true;
       elements.actionSave.setAttribute('aria-busy', 'true');
     }
     setStatus('Saving annotations...');
-    const dataUrl = await exportComposite();
-    const result = await saveAnnotation({
-      path: state.filePath,
-      mode: effectiveMode,
-      filename,
-      dataUrl,
-      document: annotationDocument(),
-      overlay: await exportComposite(true),
-      expectedHash: state.expectedHash,
-    });
+    let result;
+    if (state.pdf) {
+      state.pdf.update(annotationDocument());
+      result = await state.pdf.save(effectiveMode, filename);
+      state.expectedHash = state.pdf.hash;
+    } else {
+      const dataUrl = await exportComposite();
+      result = await saveAnnotation({
+        path: state.filePath,
+        mode: effectiveMode,
+        filename,
+        dataUrl,
+        document: annotationDocument(),
+        overlay: await exportComposite(true),
+        expectedHash: state.expectedHash,
+      });
+    }
     const overwritten = (result?.mode || effectiveMode) === 'overwrite';
-    showToast(
-      effectiveMode === 'copy' ? 'Annotated copy saved.' : 'Image updated with annotations.'
-    );
+    showToast(effectiveMode === 'copy' ? 'Annotated copy saved.' : 'Annotations saved.');
     requestGlobalRefresh({ refreshList: true, refreshTree: false });
     if (overwritten) {
       document.dispatchEvent(
@@ -366,13 +613,17 @@ async function handleSave(mode = 'overwrite', providedName = '', keepOpen = fals
     }
     setStatus('Saved/Idle');
     if (keepOpen) state.savedDocumentSnapshot = JSON.stringify(annotationDocument());
-    else state.modalInstance?.hide();
+    else {
+      state.allowClose = true;
+      state.modalInstance?.hide();
+    }
     return true;
   } catch (error) {
     handleError(error);
     return false;
   } finally {
     state.saving = false;
+    updateEditingBusy();
     if (elements.actionSave) {
       elements.actionSave.disabled = false;
       elements.actionSave.removeAttribute('aria-busy');
@@ -406,8 +657,13 @@ function chooseNavigationAction() {
 }
 
 async function navigateImage(direction) {
+  if (state.pdf) {
+    await navigatePdfPage(state.pdf.pageIndex + direction);
+    return;
+  }
   if (state.navigationBusy || state.saving || !state.stage) return;
   state.navigationBusy = true;
+  updateEditingBusy();
   try {
     const parts = state.filePath.replace(/\\/g, '/').split('/');
     const folder = parts.slice(0, -1).join('/') || '.';
@@ -427,7 +683,7 @@ async function navigateImage(direction) {
     if (JSON.stringify(annotationDocument()) !== state.savedDocumentSnapshot) {
       const action = await chooseNavigationAction();
       if (action === 'cancel') return;
-      if (action === 'save' && !(await handleSave('overwrite', '', true))) return;
+      if (action === 'save' && !(await handleSave('overwrite', '', true, true))) return;
     }
     const saved = await loadAnnotationDocument(target.path);
     const mime =
@@ -448,6 +704,7 @@ async function navigateImage(direction) {
     handleError(error);
   } finally {
     state.navigationBusy = false;
+    updateEditingBusy();
   }
 }
 
@@ -547,7 +804,12 @@ function initializeStage() {
   state.transformerLayer = new konva.Layer();
   state.contentGroup = new konva.Group({ listening: true });
   state.annotationsGroup = new konva.Group({ name: 'annotations', listening: true });
-  state.imageNode = new konva.Image({ image: state.image, listening: false });
+  state.imageNode = new konva.Image({
+    image: state.image,
+    width: state.imageSize.width,
+    height: state.imageSize.height,
+    listening: false,
+  });
   state.contentGroup.add(state.imageNode);
   state.contentGroup.add(state.annotationsGroup);
   state.workspaceLayer.add(state.contentGroup);
@@ -559,23 +821,18 @@ function initializeStage() {
     boundBoxFunc: (_, newBox) => newBox,
   });
   state.transformerLayer.add(state.transformer);
+  state.selectionBox = new konva.Rect({
+    fill: 'rgba(13, 110, 253, 0.12)',
+    stroke: '#0d6efd',
+    strokeWidth: 1,
+    dash: [4, 3],
+    listening: false,
+    visible: false,
+  });
+  state.transformerLayer.add(state.selectionBox);
   state.stage.add(state.transformerLayer);
-  state.transformer.on('transformstart', () => {
-    const node = state.transformer.nodes()?.[0];
-    if (!node) return;
-    node._beforeAction = captureNodeSnapshot(node);
-  });
-  state.transformer.on('transformend', () => {
-    const node = state.transformer.nodes()?.[0];
-    if (!node) return;
-    const before = node._beforeAction;
-    node._beforeAction = null;
-    const after = captureNodeSnapshot(node);
-    if (!before || !after) return;
-    if (isSnapshotEqual(before, after)) return;
-    const cmd = createTransformCommand(before, after);
-    state.historyManager.execute(cmd, true);
-  });
+  state.transformer.on('transformstart', beginSelectionAction);
+  state.transformer.on('transformend', finishSelectionAction);
   if (elements.stageWrapper && !elements.stageWrapper.dataset.annotateContextBound) {
     elements.stageWrapper.addEventListener('contextmenu', (event) => {
       event.preventDefault();
@@ -613,6 +870,9 @@ function teardownStage() {
   state.contentGroup = null;
   state.annotationsGroup = null;
   state.transformer = null;
+  state.selectionBox = null;
+  state.selectedNodes = [];
+  state.actionBefore = null;
   state.imageNode = null;
   state.image = null;
 }
@@ -649,7 +909,7 @@ function attachStageEvents() {
       return;
     }
     if (existingNode) {
-      selectAnnotation(existingNode);
+      selectAnnotation(existingNode, evt.evt);
       return;
     }
     if (state.tool === 'select') {
@@ -672,6 +932,15 @@ function attachStageEvents() {
     if (!state.drawingShape) return;
   });
   state.stage.on('mousemove touchmove', () => {
+    if (state.selectionStart) {
+      const pointer = state.stage.getPointerPosition();
+      if (pointer) {
+        state.selectionBox.setAttrs(selectionRectangle(state.selectionStart, pointer));
+        state.selectionBox.visible(true);
+        state.transformerLayer.batchDraw();
+      }
+      return;
+    }
     if (
       (state.tool === 'pan' || state.spacePanning || state.panAlt) &&
       state.panStart &&
@@ -694,6 +963,10 @@ function attachStageEvents() {
     updateShape(pointer);
   });
   state.stage.on('mouseup touchend', () => {
+    if (state.selectionStart) {
+      finishMarqueeSelection();
+      return;
+    }
     if ((state.tool === 'pan' || state.spacePanning || state.panAlt) && state.panStart) {
       state.panStart = null;
       state.panOrigin = null;
@@ -711,29 +984,30 @@ function attachStageEvents() {
 }
 
 function handleSelection(evt) {
-  const target = evt.target;
-  if (
-    !target ||
-    target === state.imageNode ||
-    target === state.stage ||
-    target === state.contentGroup
-  ) {
-    clearSelection();
-    return;
-  }
-  const candidate = findSelectableNode(target);
-  if (!candidate) {
-    clearSelection();
-    return;
-  }
-  selectAnnotation(candidate);
+  const additive = evt.evt?.shiftKey || evt.evt?.ctrlKey || evt.evt?.metaKey;
+  state.selectionInitial = additive ? [...state.selectedNodes] : [];
+  if (!additive) clearSelection();
+  state.selectionStart = state.stage.getPointerPosition();
+  state.selectionBox.visible(false);
 }
 
 function clearSelection() {
-  state.selectedNode = null;
-  state.transformer?.nodes([]);
-  state.transformerLayer?.batchDraw();
-  elements.actionDelete?.setAttribute('disabled', 'true');
+  setSelection([]);
+}
+
+function finishMarqueeSelection() {
+  const end = state.stage.getPointerPosition() || state.selectionStart;
+  const box = selectionRectangle(state.selectionStart, end);
+  if (box.width > 3 || box.height > 3) {
+    const matches = state.annotationsGroup
+      .getChildren()
+      .filter((node) => rectanglesIntersect(box, node.getClientRect()));
+    setSelection([...state.selectionInitial, ...matches]);
+  }
+  state.selectionStart = null;
+  state.selectionInitial = [];
+  state.selectionBox.visible(false);
+  state.transformerLayer.batchDraw();
 }
 
 function findSelectableNode(node) {
@@ -854,7 +1128,8 @@ function finalizeShape() {
 
 function createCounter(pointer) {
   if (!state.konva || !state.annotationsGroup) return;
-  state.counter += 1;
+  const number = state.nextCounterOverride ?? nextAnnotationNumber(annotationDocument().nodes);
+  state.nextCounterOverride = null;
   const size = 18 + Number(elements.strokeWidth?.value || 3) * 2;
   const background = elements.highlightColor?.value || '#007bff';
   const stroke = elements.strokeColor?.value || '#0d0d0d';
@@ -873,8 +1148,8 @@ function createCounter(pointer) {
     listening: true,
   });
   const text = new state.konva.Text({
-    text: String(state.counter),
-    fontSize: size * 0.55,
+    text: String(number),
+    fontSize: Math.min(size * 0.55, (size * 1.4) / String(number).length),
     fontStyle: '700',
     fill: '#0f0f0f',
     align: 'center',
@@ -896,22 +1171,33 @@ function attachShapeListeners(node) {
   node.draggable(true);
   node.name('annotation-item');
   node.listening(true);
-  node.on('dragstart', () => {
-    node._beforeAction = captureNodeSnapshot(node);
-  });
-  node.on('dragend', () => {
-    const before = node._beforeAction;
-    node._beforeAction = null;
-    const after = captureNodeSnapshot(node);
-    if (!before || !after) return;
-    if (isSnapshotEqual(before, after)) return;
-    const cmd = createTransformCommand(before, after);
-    state.historyManager.execute(cmd, true);
-  });
+  node.on('dragstart', beginSelectionAction);
+  node.on('dragend', () => queueMicrotask(finishSelectionAction));
   node.on('mousedown touchstart', (event) => {
-    selectAnnotation(node);
+    if (state.tool === 'pan' || state.spacePanning || event.evt?.button === 2) return;
+    selectAnnotation(node, event.evt);
     event.cancelBubble = true;
   });
+}
+
+function beginSelectionAction(event) {
+  if (state.actionBefore) return;
+  const dragged = findSelectableNode(event?.target);
+  if (dragged && !state.selectedNodes.includes(dragged)) setSelection([dragged]);
+  state.actionBefore = state.selectedNodes.map(captureNodeSnapshot).filter(Boolean);
+}
+
+function finishSelectionAction() {
+  const before = state.actionBefore;
+  state.actionBefore = null;
+  if (!before?.length || !state.annotationsGroup) return;
+  const nodes = state.annotationsGroup.getChildren();
+  const after = before.map((snapshot) =>
+    captureNodeSnapshot(nodes.find((node) => node.getAttr('annotationId') === snapshot.id))
+  );
+  if (after.some((snapshot) => !snapshot)) return;
+  if (before.every((snapshot, index) => isSnapshotEqual(snapshot, after[index]))) return;
+  state.historyManager.execute(createTransformCommand(before, after), true);
 }
 
 function createHistoryManager() {
@@ -930,6 +1216,7 @@ function createHistoryManager() {
     },
     undo() {
       if (!undoStack.length) return;
+      state.nextCounterOverride = null;
       const cmd = undoStack.pop();
       cmd.undo();
       redoStack.push(cmd);
@@ -937,6 +1224,7 @@ function createHistoryManager() {
     },
     redo() {
       if (!redoStack.length) return;
+      state.nextCounterOverride = null;
       const cmd = redoStack.pop();
       cmd.do();
       undoStack.push(cmd);
@@ -979,16 +1267,9 @@ function buildNodeFromSnapshot(snapshot) {
 
 function insertNode(node, index = null) {
   if (!node || !state.annotationsGroup) return;
-  if (
-    index === null ||
-    index === undefined ||
-    index < 0 ||
-    index > state.annotationsGroup.getChildren().length
-  ) {
-    state.annotationsGroup.add(node);
-  } else {
-    node.remove();
-    state.annotationsGroup.insert(node, index);
+  state.annotationsGroup.add(node);
+  if (Number.isInteger(index) && index >= 0) {
+    node.zIndex(Math.min(index, state.annotationsGroup.getChildren().length - 1));
   }
   state.workspaceLayer?.batchDraw();
 }
@@ -1000,6 +1281,7 @@ function removeNodeById(id) {
     .find((child) => child.getAttr('annotationId') === id);
   if (!node) return null;
   const snapshot = captureNodeSnapshot(node);
+  setSelection(state.selectedNodes.filter((selected) => selected !== node));
   node.destroy();
   state.workspaceLayer?.batchDraw();
   return snapshot;
@@ -1026,21 +1308,32 @@ function createDeleteCommand(snapshots) {
       });
     },
     undo() {
+      const restored = [];
       ordered.forEach((snap) => {
         const node = buildNodeFromSnapshot(snap);
         insertNode(node, snap.index);
+        restored.push(node);
       });
+      setSelection(restored);
     },
   };
 }
 
 function createTransformCommand(before, after) {
+  const apply = (snapshots) => {
+    clearSelection();
+    snapshots.forEach(replaceNode);
+    const ids = new Set(snapshots.map((snapshot) => snapshot.id));
+    setSelection(
+      state.annotationsGroup.getChildren().filter((node) => ids.has(node.getAttr('annotationId')))
+    );
+  };
   return {
     do() {
-      replaceNode(after);
+      apply(after);
     },
     undo() {
-      replaceNode(before);
+      apply(before);
     },
   };
 }
@@ -1122,6 +1415,7 @@ function redo() {
 }
 
 function updateHistoryButtons() {
+  updateCounterControls();
   const undoSize = state.historyManager?.undoStack.length || 0;
   const redoSize = state.historyManager?.redoStack.length || 0;
   if (undoSize <= 0) {
@@ -1137,16 +1431,11 @@ function updateHistoryButtons() {
 }
 
 function removeSelection() {
-  if (!state.selectedNode) return;
-  const target = state.selectedNode;
-  const snap = captureNodeSnapshot(target);
-  if (!snap) return;
-  const cmd = createDeleteCommand([snap]);
-  cmd.do();
-  state.historyManager.execute(cmd, true);
-  state.selectedNode = null;
-  state.transformer?.nodes([]);
-  elements.actionDelete?.setAttribute('disabled', 'true');
+  const snapshots = state.selectedNodes.map(captureNodeSnapshot).filter(Boolean);
+  if (!snapshots.length) return;
+  state.nextCounterOverride = null;
+  clearSelection();
+  state.historyManager.execute(createDeleteCommand(snapshots));
 }
 
 function resetView(silent = false) {
@@ -1231,12 +1520,26 @@ function attachKeyboard() {
   if (state.keyHandler) return;
   state.keyHandler = (event) => {
     if (!elements.modal.classList.contains('show')) return;
-    const isCtrl = event.ctrlKey || event.metaKey;
+    if (state.saving || state.navigationBusy) return;
+    // Nested dialogs and typing fields own their normal browser shortcuts.
     if (
-      (event.key === 'Delete' || event.key === 'Backspace') &&
-      !event.target.closest('input, textarea')
-    ) {
+      event.target.closest?.('.modal') !== elements.modal ||
+      isAnnotationTypingTarget(event.target)
+    )
+      return;
+    if (event.type === 'keyup') {
+      if (event.key === ' ' && state.spacePanning) {
+        state.spacePanning = false;
+        updateToolButtons(state.tool);
+      }
+      return;
+    }
+    const isCtrl = event.ctrlKey || event.metaKey;
+    if (event.key === 'Delete' || event.key === 'Backspace') {
       removeSelection();
+      event.preventDefault();
+    } else if (isCtrl && event.key.toLowerCase() === 'a' && state.tool === 'select') {
+      setSelection(state.annotationsGroup?.getChildren() || []);
       event.preventDefault();
     } else if (isCtrl && event.key.toLowerCase() === 'z') {
       if (event.shiftKey) {
@@ -1257,12 +1560,16 @@ function attachKeyboard() {
         void handleSave('overwrite', '');
       }
     } else if (!event.ctrlKey && !event.metaKey && event.type === 'keydown') {
-      const activeElement = document.activeElement;
-      if (activeElement && ['INPUT', 'TEXTAREA'].includes(activeElement.tagName)) {
+      const key = event.key.toLowerCase();
+      if (key === 'j') {
+        updateToolButtons('counter');
+        elements.counterNext?.focus();
+        elements.counterNext?.select();
+        event.preventDefault();
         return;
       }
-      const key = event.key.toLowerCase();
       const toolMap = {
+        v: 'select',
         h: 'highlight',
         i: 'counter',
         l: 'line',
@@ -1284,9 +1591,6 @@ function attachKeyboard() {
         }
       }
       event.preventDefault();
-    } else if (event.key === ' ' && event.type === 'keyup') {
-      state.spacePanning = false;
-      updateToolButtons(state.tool);
     }
   };
   document.addEventListener('keydown', state.keyHandler);
@@ -1306,6 +1610,7 @@ function updateToolButtons(tool) {
     state.toolColors = syncToolPalette(state.tool, elements, state.toolColors, DEFAULT_TOOL_COLORS);
   }
   state.tool = tool;
+  updateCounterControls();
   applyToolPalette(tool, elements, state.toolColors, DEFAULT_TOOL_COLORS);
   elements.toolButtons.forEach((button) => {
     const active = button.dataset.annotateTool === tool;
@@ -1329,12 +1634,34 @@ function updateToolButtons(tool) {
   updateStatusMessage();
 }
 
-function selectAnnotation(node) {
-  if (!node || !state.transformer) return;
-  state.selectedNode = node;
-  state.transformer.nodes([node]);
+function setSelection(nodes) {
+  state.selectedNodes = [...new Set(nodes)].filter(
+    (node) => node?.getParent() === state.annotationsGroup
+  );
+  state.transformer?.nodes(state.selectedNodes);
   state.transformerLayer?.batchDraw();
-  elements.actionDelete?.removeAttribute('disabled');
+  if (elements.actionDelete) elements.actionDelete.disabled = !state.selectedNodes.length;
+}
+
+function selectAnnotation(node, event) {
+  if (!node || !state.transformer) return;
+  const additive = state.tool === 'select' && (event?.shiftKey || event?.ctrlKey || event?.metaKey);
+  if (additive) {
+    setSelection(
+      state.selectedNodes.includes(node)
+        ? state.selectedNodes.filter((selected) => selected !== node)
+        : [...state.selectedNodes, node]
+    );
+  } else if (!state.selectedNodes.includes(node)) {
+    setSelection([node]);
+  }
+}
+
+function updateCounterControls() {
+  elements.counterControls?.classList.toggle('d-none', state.tool !== 'counter');
+  if (!elements.counterNext || document.activeElement === elements.counterNext) return;
+  const nodes = state.annotationsGroup?.getChildren().map((node) => node.toObject()) || [];
+  elements.counterNext.value = String(state.nextCounterOverride ?? nextAnnotationNumber(nodes));
 }
 
 function focusToolButton(tool) {
@@ -1356,6 +1683,7 @@ function annotationDocument() {
 
 function installDocument(document) {
   clearSelection();
+  state.nextCounterOverride = null;
   state.annotationsGroup.destroyChildren();
   for (const saved of document.nodes) {
     const node = state.konva.Node.create(saved);
@@ -1367,11 +1695,8 @@ function installDocument(document) {
     if (Number.isFinite(serial)) state.commandSerial = Math.max(state.commandSerial, serial);
     attachShapeListeners(node);
     state.annotationsGroup.add(node);
-    for (const text of node.find ? node.find('Text') : []) {
-      const value = Number(text.text());
-      if (Number.isFinite(value)) state.counter = Math.max(state.counter, value);
-    }
   }
+  updateCounterControls();
   state.workspaceLayer?.batchDraw();
 }
 

@@ -21,6 +21,9 @@ REQUIRED_FILES = [
     VENDOR_ROOT / "bootstrap" / "bootstrap.bundle.min.js",
     VENDOR_ROOT / "html2canvas" / "html2canvas.esm.js",
     VENDOR_ROOT / "konva" / "konva.min.js",
+    VENDOR_ROOT / "pdfjs" / "pdf.mjs",
+    VENDOR_ROOT / "pdfjs" / "pdf.worker.mjs",
+    VENDOR_ROOT / "pdfjs" / "standard_fonts" / "LiberationSans-Regular.ttf",
     VENDOR_ROOT / "prism" / "prism.min.js",
     VENDOR_ROOT / "prism" / "plugins" / "autoloader" / "prism-autoloader.min.js",
 ]

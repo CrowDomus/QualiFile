@@ -39,6 +39,8 @@
         <li><a href="#workspace-tour">Workspace tour</a></li>
         <li><a href="#projects-tour">Projects tour</a></li>
         <li><a href="#actions-reference">Actions reference</a></li>
+        <li><a href="#bulk-file-workflows">Rename and duplicate files</a></li>
+        <li><a href="#annotation-editor">Image and PDF annotations</a></li>
         <li><a href="#context-menus">Context menus</a></li>
         <li><a href="#settings-reference">Settings reference</a></li>
         <li><a href="#troubleshooting">Troubleshooting</a></li>
@@ -165,20 +167,20 @@
             <li><strong>Choose columns</strong> from the Actions menu in the Files pane.</li>
             <li><strong>Grid view</strong> for card-style browsing.</li>
             <li><strong>Grid thumbnails</strong>: common image files (JPG/JPEG/PNG/GIF/WEBP/BMP) show inline thumbnails when visible, including after folder navigation; other items keep icon placeholders.</li>
-            <li><strong>Categorize</strong> groups items by tags; categories can be collapsed.</li>
+            <li><strong>Categorize</strong> groups items by tags. Click a tag header to collapse or expand it. Double-click the header to select every file in that displayed group and expand it. Selection respects the current folder, subfolder setting and filters. Files hidden by filters are not selected.</li>
             <li><strong>Tag dots</strong> show tag colors instead of full tag labels.</li>
             <li><strong>Selection</strong>: shift-click and ctrl/cmd-click for multi-select.</li>
-            <li><strong>Inline rename</strong>: <span class="kbd">F2</span> on a selected item.</li>
+            <li><strong>Inline rename</strong>: <span class="kbd">F2</span> on a selected item. Click or drag within the name field to position the cursor or select text without dragging the file or folder.</li>
           </ul>
 
           <h3 id="preview-pane">Preview pane</h3>
           <ul>
             <li>Preview supported file types (PDF, PNG, JPG, TXT, source code).</li>
             <li>Code syntax highlighting follows the selected app theme (Light, Light+, Dark, Dark+).</li>
-            <li>Buttons: Open file, Notes, Fullscreen, Show/Hide details, Clear.</li>
+            <li>Buttons: Open file, Notes, Fullscreen, Show/Hide details, Clear. Fullscreen has a colored highlight for easier access.</li>
             <li>Metadata panel includes type, size, modified/created, validation state, and full path.</li>
             <li>Image controls: zoom, rotate, reset, annotate.</li>
-            <li>PDF controls: page count + Extract button.</li>
+            <li>PDF controls: page count, Extract and Annotate. Office documents converted for preview remain read-only.</li>
             <li>Embedded PDF previews, including converted Office documents, are limited to 32 MiB. Use Open to view larger documents externally.</li>
           </ul>
           <p class="note">Unsupported file types show a download/notice card rather than preview content.</p>
@@ -297,7 +299,8 @@
               <tr><td>New Folder</td><td>Toolbar</td><td>Create a folder in the current path.</td><td>Click "New Folder", enter name.</td></tr>
               <tr><td>New File</td><td>Toolbar</td><td>Create an empty file.</td><td>Click "New File", enter name.</td></tr>
               <tr><td>Import Structure</td><td>Toolbar / Import modal</td><td>Create folder structure from a template.</td><td>Choose a .txt template, set destination, preview, apply.</td></tr>
-              <tr><td>Rename</td><td>Toolbar / F2</td><td>Rename selected item.</td><td>Select one item, press <span class="kbd">F2</span> or click Rename.</td></tr>
+              <tr><td>Rename</td><td>Toolbar / F2 / Context menu</td><td>Rename one item inline or rename multiple files together.</td><td>Select files, choose Rename, review the proposed names, then apply.</td></tr>
+              <tr><td>Rename history</td><td>File or empty-area context menu</td><td>Restore names recorded by a bulk rename.</td><td>Choose an operation, review the original names and select Restore names.</td></tr>
               <tr><td>Delete</td><td>Toolbar / Context</td><td>Delete items (soft delete by default).</td><td>Select items, click Delete, optionally "Delete permanently".</td></tr>
               <tr><td>Set as Root</td><td>Folder context menu</td><td>Make a folder the new root.</td><td>Right-click a folder Right Set as root.</td></tr>
               <tr><td>Open in Explorer</td><td>Context menu</td><td>Reveal file or folder in system explorer.</td><td>Right-click -> Show in File Explorer.</td></tr>
@@ -307,6 +310,7 @@
               <tr><td>Manage Notes</td><td>Context menu / Preview</td><td>Add, edit, or close notes tied to a path.</td><td>Right-click -> Manage Notes, or use Preview -> Notes.</td></tr>
               <tr><td>Edit Tags</td><td>Context menu / Capture / Merge</td><td>Assign category tags.</td><td>Right-click -> Edit Tags, or select tags in dialogs.</td></tr>
               <tr><td>Copy / Move</td><td>Context menu / Drag-drop</td><td>Copy or move files/folders within the root.</td><td>Right-click -> Copy/Move or drag to a target folder.</td></tr>
+              <tr><td>Duplicate</td><td>File context menu</td><td>Create independent copies beside the selected files.</td><td>Right-click -> Duplicate File or Duplicate Files. Existing files are never replaced.</td></tr>
               <tr><td>Paste into Folder</td><td>Folder context menu</td><td>Paste copied/moved items into a folder.</td><td>Right-click a folder -> Paste (if clipboard set).</td></tr>
               <tr><td>Open Multiple Fullscreen</td><td>File context menu</td><td>Compare 2-4 files in fullscreen.</td><td>Select 2-4 files -> Right-click -> Open fullscreen.</td></tr>
               <tr><td>Open in Greenshot</td><td>Context menu / Preview</td><td>Open an image in Greenshot.</td><td>Right-click an image -> Open in Greenshot.</td></tr>
@@ -319,9 +323,9 @@
           <ul>
             <li><strong>Open file</strong>: opens the file in the system default app.</li>
             <li><strong>Notes</strong>: manage notes linked to the file or folder.</li>
-            <li><strong>Fullscreen</strong>: enlarge the preview.</li>
+            <li><strong>Fullscreen</strong>: enlarge the preview. Choose Annotate for a supported image or PDF. In a multi-file comparison, each supported file has its own Annotate button. Closing the editor returns to the comparison with refreshed content.</li>
             <li><strong>Show/Hide details</strong>: toggle metadata panel.</li>
-            <li><strong>Annotate</strong> (images): open the annotation workspace. After saving, the selected image preview updates automatically.</li>
+            <li><strong>Annotate</strong> (PNG, JPG/JPEG, WEBP and PDF): open the shared annotation workspace. After saving, the selected file preview updates automatically.</li>
             <li><strong>Extract pages</strong> (PDFs): open extract modal.</li>
           </ul>
 
@@ -331,6 +335,7 @@
             <li>Configure paper size, orientation, margins, fit, alignment, caption size, and page numbers.</li>
             <li>Optional per-page phrases with helpers: <strong>Use filenames</strong> and <strong>Clear all</strong>.</li>
             <li>Merge actions are type-aware: PDF merge expects only PDFs, image merge expects image files.</li>
+            <li>Merges have no file-count limit. Image pages are processed one at a time. Only one merge runs at a time, so wait for it to finish before starting another.</li>
           </ul>
 
           <h3 id="capture-actions">Capture &amp; Greenshot</h3>
@@ -341,19 +346,54 @@
           </ul>
         </section>
 
+        <section id="bulk-file-workflows">
+          <h2>Rename and duplicate files</h2>
+          <h3>Rename multiple files</h3>
+          <ol>
+            <li>Select the files, then choose <strong>Rename Files...</strong> from the context menu. The toolbar Rename button and <span class="kbd">F2</span> also open this dialog for multiple files.</li>
+            <li>Choose <strong>Add prefix or suffix</strong> to keep the existing name, or <strong>Sequential numbering</strong> to use a base name, start number and minimum number of digits.</li>
+            <li>Review the Current name and New name columns. Extensions are preserved. Numbering follows folder order, then file-name order with numeric prefixes sorted numerically.</li>
+            <li>Select <strong>Rename</strong>. A conflict disables the action until it is resolved. Existing files are never overwritten.</li>
+          </ol>
+          <p>For example, base name <strong>Evidence</strong>, start <strong>1</strong> and <strong>3</strong> digits produce <code>Evidence 001.png</code>, <code>Evidence 002.pdf</code>, and so on. Tags, notes, validation and annotation history follow each renamed file.</p>
+          <h3>Restore original names</h3>
+          <p>Right-click a file or an empty part of the file list and choose <strong>Rename history...</strong>. Select an operation, review its original names and choose <strong>Restore names</strong>. The history is saved for the workspace and survives restarting QualiFile.</p>
+          <p>Restoration is cancelled if a file was moved, replaced, modified or deleted, or if an original name is already occupied. For files renamed more than once, restore the most recent operation first. If an operation was interrupted, Rename history can retry restoring its original names after you close programs locking those files.</p>
+          <h3>Duplicate files</h3>
+          <p>Select one or more files and choose <strong>Duplicate File</strong> or <strong>Duplicate Files</strong> from the context menu. Copies are created beside the originals using a <code> - Copy</code> suffix and an additional number when needed. This works for every regular file type. Use Copy and Paste for folders.</p>
+          <p>Images and PDFs edited in QualiFile retain their editable annotations and saved version history in each duplicate. The copies have independent histories. Editing or restoring a copy does not change the original.</p>
+        </section>
+
+        <section id="annotation-editor">
+          <h2>Image and PDF annotations</h2>
+          <p>Select a supported image or a PDF and choose <strong>Annotate</strong> in the preview pane or fullscreen viewer. Both use the same tools: highlight, rectangle, circle, line and numbered markers, with the same color, stroke width, highlight opacity, zoom, pan, selection, undo and redo controls.</p>
+          <h3>Select and edit several annotations</h3>
+          <p>Activate <strong>Select</strong> with the cursor button or <span class="kbd">V</span>. Hold <span class="kbd">Shift</span>, <span class="kbd">Ctrl</span> or <span class="kbd">Cmd</span> while clicking objects to add or remove them from the selection. Drag across empty canvas space to select intersecting objects. Hold a modifier while dragging to extend the selection.</p>
+          <p>With Select active, <span class="kbd">Ctrl</span> + <span class="kbd">A</span> selects all annotations on the current image or PDF page. Move, resize, rotate or delete the selection together. Numbered markers stay intact. Undo restores a group edit as one operation.</p>
+          <h3>Numbered markers</h3>
+          <p>Choose <strong>Numbering</strong> or press <span class="kbd">I</span>, then click to place a marker. The Next field shows the number that will be placed. After deletion or undo, automatic numbering follows the last remaining marker in insertion order. Existing marker labels are not renumbered.</p>
+          <p>Use <strong>Restart numbering at 1</strong> to begin a new sequence, or press <span class="kbd">J</span> and enter a positive whole number in <strong>Next</strong>. The chosen number applies to the next marker, then numbering continues from it. Each PDF page has its own sequence. To continue across pages, set the next number when opening the next page.</p>
+          <h3>Work through a PDF</h3>
+          <p>Use the Previous and Next arrows or the <strong>Page</strong> field to change pages. Annotations and undo history are retained separately for each page during editing. Switching pages keeps your unsaved work. Save writes all edited pages together, or choose Save as copy to leave the original unchanged.</p>
+          <p>PDF annotations remain editable in QualiFile and are visible in external PDF readers. Original PDF text and page content are preserved. Existing annotations from other PDF tools remain in the document but are not converted into QualiFile editing objects.</p>
+          <p>Protected or digitally signed PDFs require an unprotected, unsigned copy before editing. Very large or unusual PDFs may exceed safe editor limits. The standard preview remains available for supported documents, and Open file uses an external reader.</p>
+          <h3>Save and close</h3>
+          <p>Save annotations to overwrite the current file or create a copy. Closing with unsaved changes offers Save, Discard and Cancel. The previous file is archived before an overwrite, and the preview refreshes after saving. Annotation shortcuts do not run while typing in an input field.</p>
+        </section>
+
         <section id="image-history">
-          <h2>Folder memory, reusable annotations, and image history</h2>
+          <h2>Folder memory, reusable annotations, and file history</h2>
           <p>Refreshing the browser keeps the displayed folder. Each tab remembers its own location. If that folder was removed, QualiFile opens its nearest available parent.</p>
-          <h3>Apply annotations from another image</h3>
-          <p>In the annotation editor, choose <strong>Copy annotations</strong>. Select an annotated reference, or choose <strong>Show</strong> to inspect an image with its saved annotations. The selected row is highlighted. To keep the target image's current annotations and add the reference annotations above them, select <strong>Keep existing annotations and add reference annotations on top</strong>. Leave it unchecked to replace the current annotations. Choose <strong>Use reference</strong>, review the result, and save. Undo reverses applying the reference before saving.</p>
+          <h3>Apply annotations from a reference</h3>
+          <p>In the annotation editor, choose <strong>Copy annotations</strong>. Select an annotated image. When editing a PDF, you can also select a page from an annotated PDF. Choose <strong>Show</strong> to inspect the reference without closing the picker. The selected row is highlighted. Enable <strong>Keep existing annotations</strong> to add the reference layer above your current annotations, or leave it unchecked to replace them. Choose <strong>Use reference</strong>, review the result, and save. Undo reverses applying the reference before saving.</p>
           <p>Choose <strong>Show</strong> beside an image in the reference picker to inspect it without closing the picker. In the annotation editor, use the left and right arrows to move between images in the same folder. If the current annotations have changed, choose <strong>Save</strong>, <strong>Discard</strong>, or <strong>Cancel</strong> before moving. The arrows wrap between the first and last image. If the folder has only one image, QualiFile shows an information message.</p>
-          <p>For multiple images, select them in the workspace, right-click, and choose <strong>Apply annotations from reference...</strong>. Select the reference, choose whether to keep existing annotations with the same checkbox, and confirm with <strong>Apply annotations</strong>. The result reports saved, skipped, and failed files.</p>
-          <p>Exact duplication preserves the full annotation layer and requires matching image dimensions. Existing editable annotations are replaced unless the keep-existing option is selected. The reference is skipped if it is also selected. Images with annotations flattened by older versions cannot serve as editable references until new annotations are saved.</p>
-          <h3>Image history</h3>
-          <p>Image history is available automatically. QualiFile stores new archives inside its internal data folder. Open <strong>Settings</strong>, then <strong>File management</strong> to see the full archive location. The header <strong>Capture</strong> button is light green and <strong>PDF Tools</strong> is light red.</p>
-          <p>Before an image is changed, its previous bytes and editable annotations are archived. Renaming does not create a version. If internal storage is unavailable, the protected change is stopped. Versions created with an older, manually selected archive folder remain there and can still be restored while that folder is available. File management shows the earlier location when applicable.</p>
-          <p>Right-click an image and choose <strong>Restore previous version...</strong>. One version restores directly. Multiple versions open a list with a <strong>Thumbnails</strong> view and a <strong>Show</strong> preview with zoom. Restoring preserves current tags and archives the current image so that the restore can itself be reversed.</p>
-          <p>Back up the application data directory and any earlier manually selected archive folders. Image history protects changes performed through QualiFile. Edits made directly by external programs are not automatically versioned.</p>
+          <p>For multiple images, select them in the workspace, right-click, and choose <strong>Apply annotations from reference...</strong>. Select the reference, choose whether to keep existing annotations, and choose <strong>Apply</strong>. Progress shows the number of images processed. The final summary reports saved, skipped and failed files. Expand Details to inspect failures.</p>
+          <p>Exact duplication preserves the full annotation layer and requires matching image or page dimensions. Existing editable annotations are replaced unless the keep-existing option is selected. The reference is skipped if it is also selected. Images with annotations flattened by older versions cannot serve as editable references until new annotations are saved.</p>
+          <h3>Image and PDF history</h3>
+          <p>History is available automatically. QualiFile stores new archives inside its internal data folder. Open <strong>Settings</strong>, then <strong>File management</strong> to see the full archive location. The header <strong>Capture</strong> button is light green and <strong>PDF Tools</strong> is light red.</p>
+          <p>Before an image or PDF is changed through its annotation editor, its previous bytes and editable annotations are archived. Renaming does not create a content version. If internal storage is unavailable, the protected change is stopped. Versions created with an older, manually selected archive folder remain there and can still be restored while that folder is available.</p>
+          <p>Right-click an image or PDF and choose <strong>Restore previous version...</strong>. One version restores directly. Multiple versions open a list with a <strong>Show</strong> preview. Image history also offers a <strong>Thumbnails</strong> view. Restoring preserves current tags and archives the current file so that the restore can itself be reversed.</p>
+          <p>Back up the application data directory and any earlier manually selected archive folders. History protects changes performed through QualiFile. Edits made directly by external programs are not automatically versioned.</p>
         </section>
 
         <section id="context-menus">
@@ -367,8 +407,11 @@
             <li>Open multiple files fullscreen (2-4 files)</li>
             <li>Open in Greenshot (images)</li>
             <li>Copy / Move</li>
+            <li>Duplicate File / Duplicate Files</li>
             <li>Create ZIP Archive</li>
-            <li>Rename</li>
+            <li>Rename File / Rename Files</li>
+            <li>Rename history</li>
+            <li>Restore previous version (supported images and PDFs)</li>
             <li>Manage Notes</li>
             <li>Validate / Unvalidate</li>
             <li>Edit Tags</li>
@@ -392,6 +435,7 @@
           <h3 id="context-menu-empty">Empty list area</h3>
           <ul>
             <li>Create New Folder / File</li>
+            <li>Rename history</li>
             <li>Paste (if clipboard set)</li>
             <li>Open Current Folder in File Explorer</li>
             <li>Capture</li>
@@ -423,7 +467,7 @@
             <li><span class="kbd">Enter</span>: open selected file or folder.</li>
             <li><span class="kbd">Delete</span>: queue delete for selection.</li>
             <li><span class="kbd">Space</span>: toggle selection.</li>
-            <li><span class="kbd">F2</span>: inline rename.</li>
+            <li><span class="kbd">F2</span>: rename one item inline or open bulk rename for selected files.</li>
             <li><span class="kbd">Up</span>/<span class="kbd">Down</span>: move selection.</li>
           </ul>
           <h3>Folder tree</h3>
@@ -437,8 +481,10 @@
             <li><span class="kbd">Delete</span> / <span class="kbd">Backspace</span>: delete selection</li>
             <li><span class="kbd">Ctrl</span> + <span class="kbd">Z</span>: undo</li>
             <li><span class="kbd">Ctrl</span> + <span class="kbd">Y</span> or <span class="kbd">Ctrl</span> + <span class="kbd">Shift</span> + <span class="kbd">Z</span>: redo</li>
-            <li><span class="kbd">Ctrl</span> + <span class="kbd">S</span>: save (overwrite); <span class="kbd">Ctrl</span> + <span class="kbd">Shift</span> + <span class="kbd">S</span>: save as copy</li>
+            <li><span class="kbd">Ctrl</span> + <span class="kbd">S</span>: save (overwrite). <span class="kbd">Ctrl</span> + <span class="kbd">Shift</span> + <span class="kbd">S</span>: save as copy</li>
+            <li><span class="kbd">V</span>: selection tool. <span class="kbd">Ctrl</span> + <span class="kbd">A</span>: select all annotations on the current image or PDF page while this tool is active.</li>
             <li><span class="kbd">H</span>/<span class="kbd">I</span>/<span class="kbd">L</span>/<span class="kbd">C</span>/<span class="kbd">R</span>: highlight/counter/line/circle/rectangle tools</li>
+            <li><span class="kbd">J</span>: activate numbering and focus the Next number field.</li>
             <li><span class="kbd">Space</span> (hold): pan canvas</li>
           </ul>
         </section>
@@ -497,6 +543,7 @@
           <h3 id="settings-files">File management</h3>
           <ul>
             <li>Soft delete (default on): move to trash instead of permanent delete.</li>
+            <li>View the archive folder used automatically for image and PDF history.</li>
           </ul>
 
           <h3 id="settings-merge">Merge defaults</h3>
@@ -519,6 +566,7 @@
           <h3 id="settings-utilities">Utilities</h3>
           <ul>
             <li>Office preview quality: Standard (better fidelity) or Fast (quicker Office previews).</li>
+            <li id="capture-merge-update">Replace existing files on capture and merge: off by default. Enable to replace matching names automatically. Replaced captures retain their previous state in history. A merge replaces its output only after it succeeds.</li>
             <li>Accelerated Office previews: enabled by default, keeps one Office application ready
               while previewing new documents. It closes after two minutes of inactivity or when you
               exit QualiFile. This works with both quality settings. Disable it and save preferences
@@ -545,7 +593,8 @@
             <li><code>data/preview_cache</code>: rendered preview images and PDFs.</li>
             <li><code>data/office_cache</code>: Office-to-PDF preview cache.</li>
             <li><code>data/notes</code>: notes, root state, and small runtime files.</li>
-            <li><code>.qualifile_internal/qualifile.db</code>: internal database (projects, validation, metadata).</li>
+            <li><code>.qualifile_internal/qualifile.db</code>: internal database, including editable annotation definitions, file-history references and bulk rename history.</li>
+            <li><code>.qualifile_internal/image_assets</code> and <code>.qualifile_internal/image_history</code>: image and PDF bases, annotation layers and archived file contents. Include both with the database in backups.</li>
             <li><code>.qualifile_meta.json</code> and <code>.qualifile_internal/</code>: internal metadata folders.</li>
             <li>Legacy sidecars may exist: <code>.qualifile_tags.json</code>, <code>.qualifile_notes.json</code>.</li>
             <li><code>.qualifile_trash</code>: soft delete location (if enabled).</li>
@@ -578,7 +627,10 @@
           <p>If browser permissions block capture, try the legacy rectangle mode or use Greenshot.</p>
 
           <h3>Preview unavailable</h3>
-          <p>Only PDF, PNG, JPG, TXT, and code files are previewed. Other file types show a notice.</p>
+          <p>Supported images, PDFs, text, code and supported Office documents can be previewed. An unsupported file or an oversized PDF shows a notice. Use Open file to view it externally.</p>
+
+          <h3>Cannot restore renamed files</h3>
+          <p>Restore the most recent rename first. Check that the files still have their renamed paths and have not been modified, and that the original names are free. An interrupted operation can be retried from Rename history after file locks are released.</p>
         </section>
 
         <section id="faq">
@@ -611,11 +663,5 @@
   </div>
 
   <script src="assets/app.js" defer></script>
-<section class="container my-4" aria-labelledby="capture-merge-update">
-<h2 id="capture-merge-update">Capture, merge and annotation updates</h2>
-<p>Image and PDF merges have no file-count limit. Image pages are processed one at a time. Only one merge runs at a time, so wait for it to finish before starting another.</p>
-<p>In Settings, Utilities, enable <strong>Replace existing files on capture and merge</strong> to replace matching filenames automatically. This is off by default. Replaced captures keep their previous image state in image history. Existing PDF outputs are replaced only after the merge succeeds.</p>
-<p>Applying reference annotations shows the number of images processed and a final saved, skipped and failed summary. Expand Details to inspect failures.</p>
-</section>
 </body>
 </html>

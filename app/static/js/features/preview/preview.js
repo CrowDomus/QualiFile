@@ -13,6 +13,7 @@ import { createLoadingOperation, isAbortError } from '../modals/loading_modal.js
 import { warnDiagnostic } from '../../shared/diagnostics.js';
 import { normalizePath } from '../../shared/paths.js';
 import { attachPdfFrame } from './pdf_frame.js';
+import { canAnnotatePreview, launchPreviewAnnotation } from './annotation_launch.js';
 
 const container = document.getElementById('preview-content');
 const clearButton = document.getElementById('preview-close');
@@ -44,9 +45,9 @@ const CONTENT_ZOOM_STEP = 0.1;
 let previewState = null;
 let imageResizeObserver = null;
 let resizeTimer = null;
-let annotatorModulePromise = null;
 let previewLoadingOperation = null;
 let disposePdfFrame = null;
+let annotationOpening = false;
 
 if (clearButton) {
   clearButton.addEventListener('click', () => clearPreview());
@@ -110,7 +111,7 @@ document.addEventListener('qualifile:preview-refresh', (event) => {
   const targetPath = event.detail?.path;
   if (!previewState?.item) return;
   if (targetPath && previewState.item.path !== targetPath) return;
-  if (previewState.type === 'image') {
+  if (previewState.type === 'image' || previewState.type === 'pdf') {
     void showPreview(previewState.item);
     return;
   }
@@ -936,17 +937,23 @@ function setupImageControls(img) {
     previewState.imageControls.push({ id, element: button });
     controlsContainer.appendChild(button);
   });
+  appendAnnotationControl();
+  updateImageButtonState();
+}
+
+function appendAnnotationControl() {
+  if (!controlsContainer || !canAnnotatePreview(previewState?.item?.path, previewState?.type))
+    return;
   const annotateButton = document.createElement('button');
   annotateButton.type = 'button';
   annotateButton.id = 'preview-annotate';
   annotateButton.className = 'btn btn-outline-primary';
   annotateButton.textContent = 'Annotate';
-  annotateButton.title = 'Annotate this image';
+  annotateButton.title = 'Annotate this file';
   annotateButton.addEventListener('click', () => {
     void openAnnotationWorkspace();
   });
   controlsContainer.appendChild(annotateButton);
-  updateImageButtonState();
 }
 
 /** Update zoom/rotation in response to button presses. */
@@ -993,6 +1000,7 @@ function renderPdf(data, item) {
 function setupPdfControls() {
   if (!controlsContainer) return;
   controlsContainer.innerHTML = '';
+  appendAnnotationControl();
   if (!previewState?.totalPages) {
     return;
   }
@@ -1195,46 +1203,32 @@ function formatDate(value) {
 }
 
 async function openAnnotationWorkspace() {
-  if (!previewState || previewState.type !== 'image' || !previewState.item) return;
+  if (annotationOpening) return;
+  if (!previewState || !canAnnotatePreview(previewState.item?.path, previewState.type)) return;
+  const item = previewState.item;
+  annotationOpening = true;
   try {
-    await ensureFullscreenClosed();
-    const module = await loadAnnotatorModule();
-    const annotator = module?.openAnnotationModal;
-    if (typeof annotator !== 'function') {
-      throw new Error('Annotation module failed to load.');
-    }
-    annotator({
-      path: previewState.item.path,
-      displayName: previewState.item.displayName || previewState.item.name,
-      name: previewState.item.name,
-      url: previewState.url,
-      mime: previewState.mime,
-    });
+    await launchPreviewAnnotation(
+      {
+        path: item.path,
+        displayName: item.displayName || item.name,
+        name: item.name,
+        url: previewState.url,
+        mime: previewState.mime,
+      },
+      {
+        viewer: fullscreenModal,
+        onReturn: async () => {
+          await showPreview(item);
+          openFullscreenPreview();
+        },
+      }
+    );
   } catch (error) {
     handleError(error);
+  } finally {
+    annotationOpening = false;
   }
-}
-
-async function ensureFullscreenClosed() {
-  if (!fullscreenModal) return;
-  const isOpen = fullscreenModal.classList.contains('show');
-  if (!isOpen) return;
-  const modalInstance = bootstrap.Modal.getOrCreateInstance(fullscreenModal);
-  await new Promise((resolve) => {
-    const handler = () => {
-      fullscreenModal.removeEventListener('hidden.bs.modal', handler);
-      resolve();
-    };
-    fullscreenModal.addEventListener('hidden.bs.modal', handler);
-    modalInstance.hide();
-  });
-}
-
-async function loadAnnotatorModule() {
-  if (!annotatorModulePromise) {
-    annotatorModulePromise = import('./annotator.js');
-  }
-  return annotatorModulePromise;
 }
 
 export function getPreviewedItem() {

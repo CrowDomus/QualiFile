@@ -1800,6 +1800,7 @@ main.container-fluid {
 }
 
 .list-pane-toolbar {
+    flex-shrink: 0;
     background-color: var(--bs-body-bg);
     display: flex;
     flex-wrap: wrap;
@@ -2842,6 +2843,7 @@ main.container-fluid {
 
 .annotate-stage-overlay.hidden {
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
 }
 
@@ -3870,4 +3872,25 @@ main.container-fluid {
     overflow: auto;
     overflow-wrap: anywhere;
     margin: 1rem;
+}
+
+#preview-fullscreen {
+    --bs-btn-color: #ffffff;
+    --bs-btn-bg: #245bc4;
+    --bs-btn-border-color: #245bc4;
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #19489e;
+    --bs-btn-hover-border-color: #19489e;
+    --bs-btn-active-color: #ffffff;
+    --bs-btn-active-bg: #163e89;
+    --bs-btn-active-border-color: #163e89;
+    --bs-btn-disabled-color: #ffffff;
+    --bs-btn-disabled-bg: #245bc4;
+    --bs-btn-disabled-border-color: #245bc4;
+    --bs-btn-focus-shadow-rgb: 36, 91, 196;
+}
+
+.file-label:has(input) {
+    flex: 1;
+    min-width: 8rem;
 }
