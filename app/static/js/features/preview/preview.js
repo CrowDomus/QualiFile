@@ -1000,8 +1000,8 @@ function renderPdf(data, item) {
 function setupPdfControls() {
   if (!controlsContainer) return;
   controlsContainer.innerHTML = '';
-  appendAnnotationControl();
   if (!previewState?.totalPages) {
+    appendAnnotationControl();
     return;
   }
   const info = document.createElement('div');
@@ -1011,6 +1011,7 @@ function setupPdfControls() {
   label.textContent = `${count} page${count === 1 ? '' : 's'}`;
   info.appendChild(label);
   controlsContainer.appendChild(info);
+  appendAnnotationControl();
 }
 
 /** Render non-previewable files as download links. */

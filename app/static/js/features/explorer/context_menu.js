@@ -287,23 +287,13 @@ function renderMenu(items) {
 function positionMenu(x, y) {
   if (!menuElement) return;
   menuElement.classList.remove('visible');
-  menuElement.style.left = `${x}px`;
-  menuElement.style.top = `${y}px`;
+  // Position and reveal together so a later dismissal cannot be undone by a frame callback.
+  const left = Math.max(8, Math.min(x, window.innerWidth - menuElement.offsetWidth - 8));
+  const top = Math.max(8, Math.min(y, window.innerHeight - menuElement.offsetHeight - 8));
+  menuElement.style.left = `${left}px`;
+  menuElement.style.top = `${top}px`;
   menuElement.setAttribute('aria-hidden', 'false');
-  requestAnimationFrame(() => {
-    menuElement.classList.add('visible');
-    const rect = menuElement.getBoundingClientRect();
-    let left = x;
-    let top = y;
-    if (rect.right > window.innerWidth) {
-      left = Math.max(8, window.innerWidth - rect.width - 8);
-    }
-    if (rect.bottom > window.innerHeight) {
-      top = Math.max(8, window.innerHeight - rect.height - 8);
-    }
-    menuElement.style.left = `${left}px`;
-    menuElement.style.top = `${top}px`;
-  });
+  menuElement.classList.add('visible');
 }
 
 function hideMenu() {

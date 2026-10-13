@@ -25,6 +25,7 @@ import {
   clamp,
 } from './annotator_helpers.js';
 import { PdfAnnotationSession } from './pdf_annotations.js';
+import { createAnnotationPanels } from './annotation_panels.js';
 
 /**
  * Annotation workspace powered by Konva.js.
@@ -137,6 +138,183 @@ const state = {
   toolColors: loadStoredToolColors(DEFAULT_TOOL_COLORS),
 };
 
+const panelElementKeys = ['stageHost', 'stageWrapper', 'stageOverlay', 'stageMessage'];
+const singlePanelElements = Object.fromEntries(panelElementKeys.map((key) => [key, elements[key]]));
+const panelControlKeys = ['strokeColor', 'strokeWidth', 'highlightColor', 'highlightOpacity'];
+const sessionKeys = [
+  'stage',
+  'workspaceLayer',
+  'transformerLayer',
+  'contentGroup',
+  'annotationsGroup',
+  'transformer',
+  'imageNode',
+  'image',
+  'imageSize',
+  'baseScale',
+  'zoom',
+  'tool',
+  'drawingShape',
+  'drawingStart',
+  'panStart',
+  'panOrigin',
+  'panAlt',
+  'nextCounterOverride',
+  'history',
+  'future',
+  'commandSerial',
+  'historyManager',
+  'isRestoring',
+  'selectedNodes',
+  'selectionBox',
+  'selectionStart',
+  'selectionInitial',
+  'actionBefore',
+  'spacePanning',
+  'resizeObserver',
+  'filePath',
+  'fileName',
+  'mime',
+  'copyNameSuggestion',
+  'expectedHash',
+  'savedDocumentSnapshot',
+  'pdf',
+  'toolColors',
+];
+let panels = null;
+
+function storeActivePanel(deactivate = true) {
+  const panel = panels?.panels.get(panels.active);
+  if (!panel || !state.stage) return;
+  panels.status(state.filePath, hasUnsavedChanges());
+  if (deactivate) {
+    state.resizeObserver?.disconnect();
+    state.resizeObserver = null;
+    state.stage.listening(false);
+    state.transformer?.visible(false);
+    state.transformerLayer?.draw();
+  }
+  panel.snapshot = Object.fromEntries(sessionKeys.map((key) => [key, state[key]]));
+  panel.controls = Object.fromEntries(panelControlKeys.map((key) => [key, elements[key].value]));
+}
+
+function activatePanel(path, force = false) {
+  const panel = panels?.panels.get(path);
+  if (!panel?.snapshot || (!force && (panels.busy || state.saving || state.navigationBusy)))
+    return false;
+  if (panels.active === path && !force) return true;
+  storeActivePanel();
+  Object.assign(state, panel.snapshot);
+  for (const key of panelControlKeys) elements[key].value = panel.controls[key];
+  Object.assign(elements, {
+    stageHost: panel.stageHost,
+    stageWrapper: panel.wrapper,
+    stageOverlay: panel.stageOverlay,
+    stageMessage: panel.stageMessage,
+  });
+  panels.setActive(path);
+  state.stage.listening(true);
+  state.transformer?.visible(true);
+  state.transformerLayer?.draw();
+  elements.fileLabel.textContent = state.fileName;
+  elements.saveDialogName.placeholder = state.copyNameSuggestion;
+  elements.zoomSlider.value = String(state.zoom);
+  updateDocumentControls(Boolean(state.pdf));
+  const selected = state.selectedNodes;
+  updateToolButtons(state.tool);
+  setSelection(selected);
+  updateHistoryButtons();
+  observeStageResize();
+  updateStatusMessage();
+  elements.modal.focus({ preventScroll: true });
+  return false;
+}
+
+async function openAnnotationPanels(options) {
+  resetState();
+  const area = singlePanelElements.stageWrapper.parentElement;
+  panels = createAnnotationPanels({
+    area,
+    wrapper: singlePanelElements.stageWrapper,
+    entries: options.files,
+    activate: activatePanel,
+  });
+  panels.grid.dataset.layout = options.layout || '';
+  panels.busy = true;
+  updateEditingBusy();
+  document.getElementById('annotate-action-save-all').classList.remove('d-none');
+  document.getElementById('modal-annotate-label').textContent = 'Annotate files';
+  elements.fileLabel.textContent = '';
+  bindModalEvents();
+  showModal();
+  try {
+    for (const panel of panels.panels.values()) {
+      if (panel.entry.readOnly) continue;
+      storeActivePanel();
+      state.stage = null;
+      state.pdf = null;
+      state.resizeObserver = null;
+      panels.setActive(panel.entry.path);
+      Object.assign(elements, {
+        stageHost: panel.stageHost,
+        stageWrapper: panel.wrapper,
+        stageOverlay: panel.stageOverlay,
+        stageMessage: panel.stageMessage,
+      });
+      try {
+        const saved = await loadAnnotationDocument(panel.entry.path);
+        if (saved.document.kind === 'pdf') await preparePdfModal({ ...panel.entry, saved });
+        else
+          await prepareModal({ ...panel.entry, saved, url: annotationBaseUrl(panel.entry.path) });
+        if (state.stage) storeActivePanel();
+      } catch (error) {
+        panels.status(panel.entry.path, false, 'Unavailable');
+        setOverlay(true, error.message || 'Unable to load this file.');
+      } finally {
+        if (!state.stage) {
+          state.pdf?.destroy();
+          state.pdf = null;
+          panels.status(panel.entry.path, false, 'Unavailable');
+        }
+      }
+    }
+    const first = panels.panels.get(options.path)?.snapshot
+      ? options.path
+      : [...panels.panels.values()].find((panel) => panel.snapshot)?.entry.path;
+    if (first) activatePanel(first, true);
+    else elements.modal.querySelector('.annotate-header-toolbar').inert = true;
+  } finally {
+    panels.busy = false;
+    updateEditingBusy();
+  }
+}
+
+async function saveAllPanels() {
+  if (!panels || panels.busy || state.saving || state.navigationBusy) return false;
+  const initial = panels.active;
+  storeActivePanel();
+  panels.busy = true;
+  updateEditingBusy();
+  let success = true;
+  try {
+    const dirty = [...panels.panels.values()].filter((panel) => panel.dirty && panel.snapshot);
+    for (const [index, panel] of dirty.entries()) {
+      activatePanel(panel.entry.path, true);
+      updateStatusMessage(`Saving ${index + 1} of ${dirty.length}`);
+      if (!(await handleSave('overwrite', '', true))) {
+        success = false;
+        panels.status(panel.entry.path, true, 'Save failed');
+      }
+      storeActivePanel();
+    }
+  } finally {
+    activatePanel(initial, true);
+    panels.busy = false;
+    updateEditingBusy();
+  }
+  return success;
+}
+
 export async function openAnnotationModal(options = {}) {
   if (!elements.modal || !elements.stageHost || !elements.stageWrapper) {
     errorDiagnostic('AnnotationModalMarkupMissing');
@@ -145,11 +323,17 @@ export async function openAnnotationModal(options = {}) {
   try {
     if (state.closing) await state.closing;
     await ensureKonvaLoaded();
+    if (options.files?.length > 1) {
+      await openAnnotationPanels(options);
+      return;
+    }
     const saved = await loadAnnotationDocument(options.path);
     if (saved.document.kind === 'pdf') {
       await preparePdfModal({ ...options, mime: 'application/pdf', saved });
     } else {
-      prepareModal({ ...options, url: annotationBaseUrl(options.path), saved });
+      void prepareModal({ ...options, url: annotationBaseUrl(options.path), saved }).catch(
+        handleError
+      );
     }
   } catch (error) {
     handleError(error);
@@ -166,7 +350,7 @@ function hasUnsavedChanges() {
 }
 
 function updateEditingBusy() {
-  const busy = state.saving || state.navigationBusy;
+  const busy = state.saving || state.navigationBusy || Boolean(panels?.busy);
   elements.modal.querySelector('.modal-content').inert = busy;
   state.stage?.listening(!busy);
 }
@@ -192,6 +376,9 @@ function updateDocumentControls(isPdf) {
     elements.pageCount.textContent = `of ${state.pdf.count}`;
     elements.actionPrevious.disabled = state.pdf.pageIndex === 0;
     elements.actionNext.disabled = state.pdf.pageIndex === state.pdf.count - 1;
+  } else if (panels) {
+    elements.actionPrevious.disabled = true;
+    elements.actionNext.disabled = true;
   }
 }
 
@@ -280,7 +467,7 @@ async function navigatePdfPage(index, initial = false) {
   }
 }
 
-function prepareModal(options) {
+async function prepareModal(options) {
   resetState();
   const generation = state.generation;
   updateDocumentControls(false);
@@ -312,25 +499,36 @@ function prepareModal(options) {
   setOverlay(true, 'Loading image...');
   const image = new Image();
   image.decoding = 'async';
-  image.onload = () => {
-    if (generation !== state.generation) return;
-    state.image = image;
-    state.imageSize = {
-      width: image.naturalWidth || image.width || 1,
-      height: image.naturalHeight || image.height || 1,
+  const ready = new Promise((resolve, reject) => {
+    image.onload = () => {
+      if (generation !== state.generation) {
+        resolve(false);
+        return;
+      }
+      state.image = image;
+      state.imageSize = {
+        width: image.naturalWidth || image.width || 1,
+        height: image.naturalHeight || image.height || 1,
+      };
+      initializeStage();
+      installDocument(options.saved.document);
+      state.savedDocumentSnapshot = JSON.stringify(annotationDocument());
+      setOverlay(false);
+      resolve(true);
     };
-    initializeStage();
-    installDocument(options.saved.document);
-    state.savedDocumentSnapshot = JSON.stringify(annotationDocument());
-    setOverlay(false);
-  };
-  image.onerror = () => {
-    if (generation !== state.generation) return;
-    setOverlay(true, 'Unable to load this image for annotation.');
-  };
+    image.onerror = () => {
+      if (generation !== state.generation) {
+        resolve(false);
+        return;
+      }
+      setOverlay(true, 'Unable to load this image for annotation.');
+      reject(new Error('Unable to load this image for annotation.'));
+    };
+  });
   image.src = options.url;
   bindModalEvents();
   showModal();
+  return ready;
 }
 
 function showModal() {
@@ -345,6 +543,7 @@ function showModal() {
 }
 
 function resetState() {
+  elements.modal.querySelector('.annotate-header-toolbar').inert = false;
   state.generation += 1;
   state.pdf?.destroy();
   state.pdf = null;
@@ -394,6 +593,12 @@ function bindModalEvents() {
     state.pdf = null;
     teardownStage();
     detachKeyboard();
+    if (panels) {
+      panels.destroy();
+      panels = null;
+      Object.assign(elements, singlePanelElements);
+      document.getElementById('annotate-action-save-all').classList.add('d-none');
+    }
     state.finishClosing?.();
     state.closing = null;
     state.finishClosing = null;
@@ -409,11 +614,15 @@ function bindModalEvents() {
       markClosing();
       return;
     }
-    if (state.saving || state.navigationBusy) {
+    if (state.saving || state.navigationBusy || panels?.busy) {
       event.preventDefault();
       return;
     }
-    if (!state.stage || !hasUnsavedChanges()) {
+    const dirty = panels
+      ? (storeActivePanel(false), [...panels.panels.values()].some((panel) => panel.dirty))
+      : state.stage && hasUnsavedChanges();
+    if (panels && state.stage) state.stage.listening(true);
+    if (!dirty) {
       markClosing();
       return;
     }
@@ -423,7 +632,11 @@ function bindModalEvents() {
     void chooseNavigationAction().then(async (action) => {
       try {
         if (action === 'cancel') return;
-        if (action === 'save' && !(await handleSave('overwrite', '', true))) return;
+        if (
+          action === 'save' &&
+          !(panels ? await saveAllPanels() : await handleSave('overwrite', '', true))
+        )
+          return;
         state.allowClose = true;
         state.modalInstance?.hide();
       } finally {
@@ -478,6 +691,9 @@ function bindModalEvents() {
   elements.saveDialogOverwrite?.addEventListener('change', updateSaveMode);
 
   elements.actionSave?.addEventListener('click', () => openSaveDialog());
+  document
+    .getElementById('annotate-action-save-all')
+    ?.addEventListener('click', () => void saveAllPanels());
   elements.actionPrevious?.addEventListener('click', () => void navigateImage(-1));
   elements.actionNext?.addEventListener('click', () => void navigateImage(1));
   elements.pageNumber?.addEventListener('change', () => {
@@ -493,7 +709,7 @@ function bindModalEvents() {
     const mode = elements.saveDialogCopy?.checked ? 'copy' : 'overwrite';
     const provided = elements.saveDialogName?.value.trim() || '';
     state.saveModalInstance?.hide();
-    void handleSave(mode, provided);
+    void handleSave(mode, provided, Boolean(panels));
   });
 
   elements.saveDialog?.addEventListener('hidden.bs.modal', () => {
@@ -602,6 +818,7 @@ async function handleSave(
       });
     }
     const overwritten = (result?.mode || effectiveMode) === 'overwrite';
+    if (overwritten && result?.hash) state.expectedHash = result.hash;
     showToast(effectiveMode === 'copy' ? 'Annotated copy saved.' : 'Annotations saved.');
     requestGlobalRefresh({ refreshList: true, refreshTree: false });
     if (overwritten) {
@@ -612,8 +829,10 @@ async function handleSave(
       );
     }
     setStatus('Saved/Idle');
-    if (keepOpen) state.savedDocumentSnapshot = JSON.stringify(annotationDocument());
-    else {
+    if (keepOpen) {
+      if (overwritten) state.savedDocumentSnapshot = JSON.stringify(annotationDocument());
+      if (panels) panels.status(state.filePath, hasUnsavedChanges());
+    } else {
       state.allowClose = true;
       state.modalInstance?.hide();
     }
@@ -634,6 +853,10 @@ async function handleSave(
 function chooseNavigationAction() {
   if (!elements.navigateDialog) return Promise.resolve('cancel');
   const instance = window.bootstrap.Modal.getOrCreateInstance(elements.navigateDialog);
+  elements.navigateDialog.querySelector('.modal-body').textContent = panels
+    ? 'Save changes to all edited files before closing?'
+    : 'Save your annotations before leaving? Save updates the current file.';
+  elements.navigateSave.textContent = panels ? 'Save all' : 'Save';
   return new Promise((resolve) => {
     let choice = 'cancel';
     const finish = () => {
@@ -722,12 +945,12 @@ function updateSaveMode() {
 
 function openSaveDialog(defaultMode = 'overwrite') {
   if (!elements.saveDialog) {
-    void handleSave('overwrite', '');
+    void handleSave('overwrite', '', Boolean(panels));
     return;
   }
   const bootstrapModal = window.bootstrap?.Modal;
   if (!bootstrapModal) {
-    void handleSave('overwrite', '');
+    void handleSave('overwrite', '', Boolean(panels));
     return;
   }
   if (!state.saveModalInstance) {
@@ -797,8 +1020,8 @@ function initializeStage() {
   const rect = elements.stageWrapper.getBoundingClientRect();
   state.stage = new konva.Stage({
     container: elements.stageHost,
-    width: Math.max(rect.width, 300),
-    height: Math.max(rect.height, 300),
+    width: Math.max(rect.width, panels ? 1 : 300),
+    height: Math.max(rect.height, panels ? 1 : 300),
   });
   state.workspaceLayer = new konva.Layer();
   state.transformerLayer = new konva.Layer();
@@ -839,7 +1062,9 @@ function initializeStage() {
     });
     elements.stageWrapper.dataset.annotateContextBound = 'true';
   }
+  const initializedStage = state.stage;
   const applyInitialView = () => {
+    if (state.stage !== initializedStage) return;
     resetView(true);
   };
   applyInitialView();
@@ -879,10 +1104,14 @@ function teardownStage() {
 
 function observeStageResize() {
   if (!window.ResizeObserver || !elements.stageWrapper) return;
+  const observedStage = state.stage;
   state.resizeObserver = new ResizeObserver(() => {
-    if (!state.stage) return;
+    if (!state.stage || state.stage !== observedStage) return;
     const rect = elements.stageWrapper.getBoundingClientRect();
-    state.stage.size({ width: Math.max(rect.width, 300), height: Math.max(rect.height, 300) });
+    state.stage.size({
+      width: Math.max(rect.width, panels ? 1 : 300),
+      height: Math.max(rect.height, panels ? 1 : 300),
+    });
     fitContentToStage(false);
   });
   state.resizeObserver.observe(elements.stageWrapper);
@@ -890,7 +1119,11 @@ function observeStageResize() {
 
 function attachStageEvents() {
   if (!state.stage) return;
+  const eventStage = state.stage;
+  const canInteract = () =>
+    state.stage === eventStage && !state.saving && !state.navigationBusy && !panels?.busy;
   state.stage.on('mousedown touchstart', (evt) => {
+    if (!canInteract()) return;
     if (!state.stage || !state.contentGroup) return;
     const pointer = getContentPointerPosition(evt);
     const targetNode = evt.target;
@@ -932,6 +1165,7 @@ function attachStageEvents() {
     if (!state.drawingShape) return;
   });
   state.stage.on('mousemove touchmove', () => {
+    if (!canInteract()) return;
     if (state.selectionStart) {
       const pointer = state.stage.getPointerPosition();
       if (pointer) {
@@ -963,6 +1197,7 @@ function attachStageEvents() {
     updateShape(pointer);
   });
   state.stage.on('mouseup touchend', () => {
+    if (!canInteract()) return;
     if (state.selectionStart) {
       finishMarqueeSelection();
       return;
@@ -977,6 +1212,7 @@ function attachStageEvents() {
     finalizeShape();
   });
   state.stage.on('wheel', (evt) => {
+    if (!canInteract()) return;
     evt.evt.preventDefault();
     const direction = evt.evt.deltaY > 0 ? -0.15 : 0.15;
     applyZoom(state.zoom + direction, evt);
@@ -1428,6 +1664,8 @@ function updateHistoryButtons() {
   } else {
     elements.actionRedo?.removeAttribute('disabled');
   }
+  if (panels && !panels.busy && !state.navigationBusy && state.annotationsGroup)
+    panels.status(state.filePath, hasUnsavedChanges());
 }
 
 function removeSelection() {
@@ -1520,7 +1758,7 @@ function attachKeyboard() {
   if (state.keyHandler) return;
   state.keyHandler = (event) => {
     if (!elements.modal.classList.contains('show')) return;
-    if (state.saving || state.navigationBusy) return;
+    if (state.saving || state.navigationBusy || panels?.busy) return;
     // Nested dialogs and typing fields own their normal browser shortcuts.
     if (
       event.target.closest?.('.modal') !== elements.modal ||
@@ -1557,7 +1795,7 @@ function attachKeyboard() {
         openSaveDialog('copy');
       } else {
         event.preventDefault();
-        void handleSave('overwrite', '');
+        void handleSave('overwrite', '', Boolean(panels));
       }
     } else if (!event.ctrlKey && !event.metaKey && event.type === 'keydown') {
       const key = event.key.toLowerCase();

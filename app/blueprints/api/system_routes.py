@@ -544,7 +544,24 @@ def api_screenshot() -> Response:
     overwrite = get_preference(_data_dir_path(), current_app.config, "capture_merge_overwrite") == "1"
     try:
         destination.parent.mkdir(parents=True, exist_ok=True)
-        if destination.exists():
+        if not requested_name:
+            generated_destination = destination
+            sequence = 0
+            while True:
+                destination = generated_destination if sequence == 0 else generated_destination.with_name(
+                    f"{generated_destination.stem} ({sequence}){generated_destination.suffix}"
+                )
+                sequence += 1
+                if destination.exists() or destination.is_symlink():
+                    continue
+                try:
+                    with staged_output(destination, overwrite=False) as stage:
+                        stage.write_bytes(payload)
+                    break
+                except FileExistsError:
+                    # Another capture may publish after the name was chosen.
+                    continue
+        elif destination.exists():
             if not overwrite:
                 return jsonify({"error": "A file with this name already exists.", "code": "conflict"}), 409
             from .image_history_routes import image_history

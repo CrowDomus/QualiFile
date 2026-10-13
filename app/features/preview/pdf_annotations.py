@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from PIL import ImageColor
 from pypdf import PdfReader, PdfWriter
+from pypdf._codecs.core_font_metrics import CORE_FONT_METRICS
 from pypdf.generic import (
     ArrayObject, DecodedStreamObject, DictionaryObject,
     FloatObject, NameObject, NumberObject, TextStringObject,
@@ -222,6 +223,141 @@ class _Appearance:
         self.command(x, y, 'm', bx - math.sin(angle) * half, by + math.cos(angle) * half, 'l', bx + math.sin(angle) * half, by - math.cos(angle) * half, 'l', 'h', paint)
 
 
+def _multiply(left, right):
+    """Compose the same affine transforms used by the vector appearance."""
+    a, b, c, d, e, f = left
+    g, h, i, j, k, l = right
+    return (a*g + c*h, b*g + d*h, a*i + c*j, b*i + d*j,
+            a*k + c*l + e, b*k + d*l + f)
+
+
+def _node_matrix(attrs, parent):
+    angle = math.radians(float(attrs.get('rotation', 0)))
+    transforms = (
+        (1, 0, 0, 1, attrs.get('x', 0), attrs.get('y', 0)),
+        (math.cos(angle), math.sin(angle), -math.sin(angle), math.cos(angle), 0, 0),
+        (1, attrs.get('skewY', 0), attrs.get('skewX', 0), 1, 0, 0),
+        (attrs.get('scaleX', 1), 0, 0, attrs.get('scaleY', 1), 0, 0),
+        (1, 0, 0, 1, -float(attrs.get('offsetX', 0)), -float(attrs.get('offsetY', 0))),
+    )
+    for transform in transforms:
+        parent = _multiply(parent, transform)
+    return parent
+
+
+def _union_bounds(boxes):
+    boxes = [box for box in boxes if box is not None]
+    if not boxes:
+        return None
+    return (min(box[0] for box in boxes), min(box[1] for box in boxes),
+            max(box[2] for box in boxes), max(box[3] for box in boxes))
+
+
+def _transformed_bounds(points, matrix):
+    a, b, c, d, e, f = matrix
+    transformed = [(a*x + c*y + e, b*x + d*y + f) for x, y in points]
+    return (min(p[0] for p in transformed), min(p[1] for p in transformed),
+            max(p[0] for p in transformed), max(p[1] for p in transformed))
+
+
+def _ellipse_bounds(rx, ry, matrix):
+    """Include the extrema of the actual four cubic curves, after transformation."""
+    a, b, c, d, e, f = matrix
+    k = 0.5522847498307936
+    curves = (
+        ((rx, 0), (rx, k*ry), (k*rx, ry), (0, ry)),
+        ((0, ry), (-k*rx, ry), (-rx, k*ry), (-rx, 0)),
+        ((-rx, 0), (-rx, -k*ry), (-k*rx, -ry), (0, -ry)),
+        ((0, -ry), (k*rx, -ry), (rx, -k*ry), (rx, 0)),
+    )
+    points = []
+    for curve in curves:
+        mapped = [(a*x+c*y+e, b*x+d*y+f) for x, y in curve]
+        points.extend((mapped[0], mapped[-1]))
+        for axis in (0, 1):
+            p0, p1, p2, p3 = [point[axis] for point in mapped]
+            qa, qb, qc = p3-3*p2+3*p1-p0, 2*(p2-2*p1+p0), p1-p0
+            roots = []
+            if abs(qa) < 1e-12:
+                if abs(qb) >= 1e-12:
+                    roots.append(-qc/qb)
+            else:
+                discriminant = qb*qb-4*qa*qc
+                if discriminant >= 0:
+                    roots.extend(((-qb+math.sqrt(discriminant))/(2*qa),
+                                  (-qb-math.sqrt(discriminant))/(2*qa)))
+            for t in roots:
+                if 0 < t < 1:
+                    points.append(tuple((1-t)**3*mapped[0][i] + 3*(1-t)**2*t*mapped[1][i]
+                                        + 3*(1-t)*t*t*mapped[2][i] + t**3*mapped[3][i]
+                                        for i in (0, 1)))
+    return _transformed_bounds(points, (1, 0, 0, 1, 0, 0))
+
+
+def _node_bounds(node, parent):
+    """Bound one logical object, including its children and stroked edges."""
+    attrs, kind = node.get('attrs', {}), node['className']
+    if attrs.get('visible') is False:
+        return None
+    matrix = _node_matrix(attrs, parent)
+    if kind == 'Group':
+        return _union_bounds(_node_bounds(child, matrix) for child in node.get('children', []))
+    stroke = (max(0, float(attrs.get('strokeWidth', 2))) / 2
+              if attrs.get('stroke') and attrs.get('strokeEnabled', True) else 0)
+    if kind in {'Circle', 'Ellipse'}:
+        rx, ry = ((abs(float(attrs.get('radius', 0))),) * 2 if kind == 'Circle'
+                  else (abs(float(attrs.get('radiusX', 0))), abs(float(attrs.get('radiusY', 0)))))
+        a, b, c, d, _, _ = matrix
+        x0, y0, x1, y1 = _ellipse_bounds(rx, ry, matrix)
+        dx, dy = stroke*math.hypot(a, c), stroke*math.hypot(b, d)
+        return x0-dx, y0-dy, x1+dx, y1+dy
+    if kind == 'Rect':
+        x0, x1 = sorted((0, float(attrs.get('width', 0))))
+        y0, y1 = sorted((0, float(attrs.get('height', 0))))
+    elif kind == 'Text':
+        text = str(attrs.get('text', ''))
+        size = max(1, float(attrs.get('fontSize', 12)))
+        metrics = CORE_FONT_METRICS['Helvetica-Bold']
+        advances = [metrics.character_widths.get(char, metrics.character_widths['default']) for char in text]
+        # Use the pinned PDF font's full glyph bounds to retain accents and descenders.
+        left, bottom, right, top = metrics.font_descriptor.bbox
+        x0, x1 = left*size/1000, (sum(advances[:-1]) + right)*size/1000
+        y0, y1 = (0.8-top/1000)*size, (0.8-bottom/1000)*size
+        stroke = 0
+    else:
+        values = attrs.get('points', [])
+        if len(values) < 4 or len(values) % 2:
+            raise ValueError('Invalid annotation line.')
+        points = list(zip(values[::2], values[1::2]))
+        if kind == 'Arrow':
+            ends = [(points[-2], points[-1])]
+            if attrs.get('pointerAtBeginning'):
+                ends.append((points[1], points[0]))
+            for (x0, y0), (x, y) in ends:
+                angle = math.atan2(y-y0, x-x0)
+                length, half = float(attrs.get('pointerLength', 10)), float(attrs.get('pointerWidth', 10))/2
+                bx, by = x-math.cos(angle)*length, y-math.sin(angle)*length
+                points.extend(((bx-math.sin(angle)*half, by+math.cos(angle)*half),
+                               (bx+math.sin(angle)*half, by-math.cos(angle)*half)))
+        # PDF's default miter limit is 10. Acute path corners can extend farther
+        # than half the stroke, while an ordinary two-point line cannot.
+        if (kind == 'Arrow' or len(points) > 2) and attrs.get('lineJoin', 'miter') == 'miter':
+            stroke *= 10
+        x0, y0, x1, y1 = _transformed_bounds(points, (1, 0, 0, 1, 0, 0))
+    return _transformed_bounds(((x0-stroke, y0-stroke), (x1+stroke, y0-stroke),
+                                (x1+stroke, y1+stroke), (x0-stroke, y1+stroke)), matrix)
+
+
+def _annotation_label(node):
+    kind = node['className']
+    if kind == 'Group':
+        labels = [str(child.get('attrs', {}).get('text', ''))
+                  for child in node.get('children', []) if child['className'] == 'Text']
+        return 'Number ' + ' '.join(labels) if labels else 'Annotation group'
+    return {'Rect': 'Rectangle', 'Ellipse': 'Ellipse', 'Circle': 'Circle',
+            'Line': 'Line', 'Arrow': 'Arrow', 'Text': 'Text'}.get(kind, 'Annotation')
+
+
 def render_pdf(binary, document):
     reader = _reader(binary)
     validate_pdf_document(document, reader)
@@ -229,19 +365,26 @@ def render_pdf(binary, document):
     for page, saved in zip(writer.pages, document['pages']):
         if not saved['nodes']:
             continue
-        _, _, box, matrix = page_geometry(page)
-        drawing = _Appearance(writer)
-        drawing.command('q', *matrix, 'cm')
-        for node in saved['nodes']:
-            drawing.node(node)
-        drawing.command('Q')
-        appearance = DecodedStreamObject()
-        appearance.set_data(('\n'.join(drawing.ops) + '\n').encode('ascii'))
-        appearance.update({NameObject('/Type'): NameObject('/XObject'), NameObject('/Subtype'): NameObject('/Form'), NameObject('/FormType'): NumberObject(1), NameObject('/BBox'): ArrayObject([FloatObject(v) for v in box]), NameObject('/Resources'): drawing.resources})
-        stamp = DictionaryObject({NameObject('/Type'): NameObject('/Annot'), NameObject('/Subtype'): NameObject('/Stamp'), NameObject('/Rect'): ArrayObject([FloatObject(v) for v in box]), NameObject('/F'): NumberObject(4), NameObject('/NM'): TextStringObject('QualiFile-' + uuid4().hex), NameObject('/Contents'): TextStringObject('QualiFile annotations'), NameObject('/AP'): DictionaryObject({NameObject('/N'): writer._add_object(appearance.flate_encode())})})
+        _, _, _, matrix = page_geometry(page)
         annotations = page.get('/Annots')
         annotations = annotations.get_object() if annotations is not None else ArrayObject()
-        annotations.append(writer._add_object(stamp))
+        for node in saved['nodes']:
+            box = _node_bounds(node, matrix)
+            if box is None:
+                continue
+            # A small numerical margin prevents antialiased edges from clipping.
+            box = (box[0]-0.01, box[1]-0.01, box[2]+0.01, box[3]+0.01)
+            if not all(math.isfinite(value) and abs(value) <= 10_000_000 for value in box):
+                raise ValueError('Annotation bounds are too large to save safely.')
+            drawing = _Appearance(writer)
+            drawing.command('q', *matrix, 'cm')
+            drawing.node(node)
+            drawing.command('Q')
+            appearance = DecodedStreamObject()
+            appearance.set_data(('\n'.join(drawing.ops) + '\n').encode('ascii'))
+            appearance.update({NameObject('/Type'): NameObject('/XObject'), NameObject('/Subtype'): NameObject('/Form'), NameObject('/FormType'): NumberObject(1), NameObject('/BBox'): ArrayObject([FloatObject(v) for v in box]), NameObject('/Resources'): drawing.resources})
+            stamp = DictionaryObject({NameObject('/Type'): NameObject('/Annot'), NameObject('/Subtype'): NameObject('/Stamp'), NameObject('/Rect'): ArrayObject([FloatObject(v) for v in box]), NameObject('/F'): NumberObject(4), NameObject('/NM'): TextStringObject('QualiFile-' + uuid4().hex), NameObject('/T'): TextStringObject('QualiFile'), NameObject('/Contents'): TextStringObject(_annotation_label(node)), NameObject('/AP'): DictionaryObject({NameObject('/N'): writer._add_object(appearance.flate_encode())})})
+            annotations.append(writer._add_object(stamp))
         page[NameObject('/Annots')] = annotations
     output = io.BytesIO()
     writer.write(output)

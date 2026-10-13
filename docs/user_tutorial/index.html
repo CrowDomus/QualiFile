@@ -323,7 +323,7 @@
           <ul>
             <li><strong>Open file</strong>: opens the file in the system default app.</li>
             <li><strong>Notes</strong>: manage notes linked to the file or folder.</li>
-            <li><strong>Fullscreen</strong>: enlarge the preview. Choose Annotate for a supported image or PDF. In a multi-file comparison, each supported file has its own Annotate button. Closing the editor returns to the comparison with refreshed content.</li>
+            <li><strong>Fullscreen</strong>: enlarge the preview. Choose Annotate for a supported image or PDF. In a multi-file comparison, Annotate opens the selected files together. Click a file panel to edit it while keeping the other files visible. Closing the editor returns to the comparison with refreshed content.</li>
             <li><strong>Show/Hide details</strong>: toggle metadata panel.</li>
             <li><strong>Annotate</strong> (PNG, JPG/JPEG, WEBP and PDF): open the shared annotation workspace. After saving, the selected file preview updates automatically.</li>
             <li><strong>Extract pages</strong> (PDFs): open extract modal.</li>
@@ -340,7 +340,7 @@
 
           <h3 id="capture-actions">Capture &amp; Greenshot</h3>
           <ul>
-            <li><strong>Capture screenshot</strong>: rectangle, window, or full screen.</li>
+            <li><strong>Capture screenshot</strong>: rectangle, window, or full screen. Quick captures receive unique names, including when several are taken in the same second.</li>
             <li>Optional details prompt (filename, folder, tags).</li>
             <li><strong>Greenshot</strong>: external integration using only the executable configured before server startup.</li>
           </ul>
@@ -375,10 +375,14 @@
           <p>Use <strong>Restart numbering at 1</strong> to begin a new sequence, or press <span class="kbd">J</span> and enter a positive whole number in <strong>Next</strong>. The chosen number applies to the next marker, then numbering continues from it. Each PDF page has its own sequence. To continue across pages, set the next number when opening the next page.</p>
           <h3>Work through a PDF</h3>
           <p>Use the Previous and Next arrows or the <strong>Page</strong> field to change pages. Annotations and undo history are retained separately for each page during editing. Switching pages keeps your unsaved work. Save writes all edited pages together, or choose Save as copy to leave the original unchanged.</p>
-          <p>PDF annotations remain editable in QualiFile and are visible in external PDF readers. Original PDF text and page content are preserved. Existing annotations from other PDF tools remain in the document but are not converted into QualiFile editing objects.</p>
+          <p>PDF annotations remain editable in QualiFile and are exported as separate vector objects. Compatible external PDF editors can select, move, resize or remove each object independently. A numbered marker and its circle remain one object. Original PDF text and page content are preserved. Existing annotations from other PDF tools remain in the document but are not converted into QualiFile editing objects.</p>
           <p>Protected or digitally signed PDFs require an unprotected, unsigned copy before editing. Very large or unusual PDFs may exceed safe editor limits. The standard preview remains available for supported documents, and Open file uses an external reader.</p>
+          <h3>Annotate several files in fullscreen</h3>
+          <p>Select two to four files, right-click and choose <strong>Open fullscreen</strong>. Choose <strong>Annotate</strong> on a supported file. All selected files remain visible. Click a panel or its filename to activate it, then use the shared annotation toolbar. Unsupported files stay visible as read-only previews.</p>
+          <p>Each editable file keeps its own annotations, undo history, view and numbering state. PDF pages retain their separate drafts. Switching between panels does not discard work or require saving. The active panel is highlighted, and modified files show <strong>Unsaved</strong>.</p>
+          <p><strong>Save</strong> saves the active file and keeps the workspace open. <strong>Save all</strong> updates all modified files. If one save fails, its draft remains available and successful saves are kept. Retry saves only files that still have unsaved changes. Saving a copy leaves the original draft marked unsaved, so you can later save or discard it explicitly.</p>
           <h3>Save and close</h3>
-          <p>Save annotations to overwrite the current file or create a copy. Closing with unsaved changes offers Save, Discard and Cancel. The previous file is archived before an overwrite, and the preview refreshes after saving. Annotation shortcuts do not run while typing in an input field.</p>
+          <p>Save annotations to overwrite the current file or create a copy. Closing with unsaved changes offers Save, Discard and Cancel. In the multi-file workspace, Save handles every modified file and keeps the editor open if any save fails. The previous file is archived before an overwrite, and the preview refreshes after saving. Annotation shortcuts do not run while typing in an input field.</p>
         </section>
 
         <section id="image-history">

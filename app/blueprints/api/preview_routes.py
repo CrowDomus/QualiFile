@@ -370,7 +370,7 @@ def api_save_annotation() -> Response:
         relative = _relative_to_base(root, destination)
     except Exception as exc:
         return _fs_error_response(exc)
-    return jsonify({"path": relative, "mode": mode, "mime": mime})
+    return jsonify({"path": relative, "mode": mode, "mime": mime, "hash": digest(binary)})
 
 
 @api_bp.route("/preview_artifact/<token>")

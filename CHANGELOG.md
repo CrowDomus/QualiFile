@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## 1.4.1 - 2026-10-13
+
+- Keep multiple files visible while annotating in fullscreen, with independent drafts, undo and PDF page state.
+- Save the active file or all modified files, retaining unsaved work after partial failures.
+- Export each PDF annotation as an independent vector object that compatible PDF editors can move, resize or remove.
+- Align the PDF Annotate control with image controls and improve repeated image saves.
+- Preserve every rapid quick capture with a unique generated filename.
+- Update the tutorial for simultaneous editing and independent PDF objects.
+
 ## 1.4.0 - 2026-10-13
 
 - Annotate PDF pages with the image annotation tools, including numbering, while preserving original text and page geometry.

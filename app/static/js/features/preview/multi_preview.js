@@ -654,6 +654,14 @@ async function annotateEntry(entry) {
         displayName: entry.title,
         mime: entry.data.mime,
         url: entry.data.url,
+        files: latestEntries.map((current) => ({
+          path: current.path,
+          displayName: current.title,
+          mime: current.data.mime,
+          readOnly: !canAnnotatePreview(current.path, current.data?.type),
+          preview: cardElements.get(current.path)?.querySelector('.multi-preview-canvas'),
+        })),
+        layout: currentLayoutId,
       },
       {
         viewer: modalElement,

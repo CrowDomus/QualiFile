@@ -61,7 +61,7 @@ build_portable.bat
 build_portable_embedded.bat
 ```
 
-Local version 1.4.0 builds are generated in `dist/`. The latest published downloads remain `v1.3.1`:
+Local version 1.4.1 builds are generated in `dist/`. The latest published downloads remain `v1.3.1`:
 
 - [QualiFile Portable](https://github.com/CrowDomus/QualiFile/releases/download/v1.3.1/QualiFile_Portable.zip)
 - [QualiFile Portable Embedded](https://github.com/CrowDomus/QualiFile/releases/download/v1.3.1/QualiFile_Portable_Embedded.zip)
