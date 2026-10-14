@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 1.5.1 - 2026-10-15
+
+- Serve bundled PDF JavaScript modules and workers with a valid JavaScript content type regardless of Windows file associations.
+- Version PDF module URLs so an upgrade avoids incorrect content types retained in the browser cache.
+- Reload the isolated PDF reader when entering or leaving fullscreen so the document remains visible.
+- Verify PDF module responses during portable builds and test actual PDF rendering, annotation save and fullscreen round trips.
+
 ## 1.5.0 - 2026-10-14
 
 - Open supported selected images and PDFs directly in a shared annotation workspace.

@@ -751,6 +751,7 @@ function openFullscreenPreview() {
   previewPane.removeAttribute('style');
   previewPane.classList.add('preview-pane-fullscreen');
   fullscreenBody.appendChild(previewPane);
+  reloadPdfAfterPaneMove();
   const modal = bootstrap.Modal.getOrCreateInstance(fullscreenModal);
   modal.show();
 }
@@ -773,6 +774,16 @@ function restorePreviewPane() {
   previewPanePlaceholder.parentNode?.insertBefore(previewPane, previewPanePlaceholder);
   previewPanePlaceholder.remove();
   previewPanePlaceholder = null;
+  reloadPdfAfterPaneMove();
+}
+
+function reloadPdfAfterPaneMove() {
+  if (previewState?.type !== 'pdf') return;
+  const frame = container?.querySelector('.preview-pdf-container iframe');
+  if (!frame?.isConnected) return;
+  // Moving an iframe restarts its document and its one-time PDF transfer.
+  disposePdfFrame?.();
+  disposePdfFrame = attachPdfFrame(frame, previewState.url);
 }
 
 /** Initialise scaling state once an image loads. */

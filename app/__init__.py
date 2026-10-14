@@ -11,7 +11,7 @@ import secrets
 from logging.handlers import TimedRotatingFileHandler
 from uuid import uuid4
 
-from flask import Flask, g
+from flask import Flask, g, request
 
 from .blueprints.api import api_bp
 from .blueprints.pages import page_bp
@@ -385,6 +385,11 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
         request_id = getattr(g, "request_id", None)
         if request_id:
             response.headers["X-Request-ID"] = request_id
+        # Host MIME registrations must not prevent bundled modules from loading.
+        if request.endpoint == "static" and response.status_code < 400:
+            filename = (request.view_args or {}).get("filename", "")
+            if Path(filename).suffix.lower() in {".js", ".mjs"}:
+                response.mimetype = "text/javascript"
         return secure_response(response)
 
     @app.context_processor

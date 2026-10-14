@@ -6,6 +6,7 @@ const ASSETS =
   window.__QUALIFILE__?.offlineAssets === true
     ? '/static/dist/vendor/pdfjs/'
     : '/static/vendor/pdfjs/';
+const ASSET_VERSION = encodeURIComponent(window.__QUALIFILE__?.appVersion || '');
 let libraryPromise;
 
 function snapshot(document) {
@@ -26,9 +27,9 @@ function snapshot(document) {
 
 export class PdfAnnotationSession {
   static async open(path, saved) {
-    libraryPromise ||= import(`${ASSETS}pdf.mjs`);
+    libraryPromise ||= import(`${ASSETS}pdf.mjs?v=${ASSET_VERSION}`);
     const library = await libraryPromise;
-    library.GlobalWorkerOptions.workerSrc = `${ASSETS}pdf.worker.mjs`;
+    library.GlobalWorkerOptions.workerSrc = `${ASSETS}pdf.worker.mjs?v=${ASSET_VERSION}`;
     const data = await loadPdfBytes(annotationBaseUrl(path));
     const loading = library.getDocument({
       data,

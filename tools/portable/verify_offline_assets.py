@@ -17,6 +17,7 @@ DIST_ROOT = ROOT / "app" / "static" / "dist"
 VENDOR_ROOT = DIST_ROOT / "vendor"
 
 REQUIRED_FILES = [
+    DIST_ROOT / "js" / "entrypoints" / "main.min.js",
     VENDOR_ROOT / "bootstrap" / "bootstrap.min.css",
     VENDOR_ROOT / "bootstrap" / "bootstrap.bundle.min.js",
     VENDOR_ROOT / "html2canvas" / "html2canvas.esm.js",
@@ -57,6 +58,21 @@ def _render_pages() -> list[str]:
         if response.status_code != 200:
             raise RuntimeError(f"GET {path} returned {response.status_code}")
         html_outputs.append(response.get_data(as_text=True))
+    for asset in REQUIRED_FILES:
+        if asset.suffix not in {".js", ".mjs"}:
+            continue
+        path = "/static/" + asset.relative_to(ROOT / "app" / "static").as_posix()
+        response = client.get(path)
+        if response.status_code != 200 or response.mimetype not in {
+            "text/javascript",
+            "application/javascript",
+        }:
+            raise RuntimeError(
+                f"GET {path} returned {response.status_code} {response.mimetype}, "
+                "expected a loadable JavaScript asset"
+            )
+        if response.headers.get("X-Content-Type-Options") != "nosniff":
+            raise RuntimeError(f"GET {path} lost its nosniff protection")
     return html_outputs
 
 
