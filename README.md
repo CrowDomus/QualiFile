@@ -61,10 +61,11 @@ build_portable.bat
 build_portable_embedded.bat
 ```
 
-Local version 1.5.0 builds are generated in `dist/`. The latest published downloads remain `v1.3.1`:
+Download the packaged builds for the `v1.5.0` release:
 
-- [QualiFile Portable](https://github.com/CrowDomus/QualiFile/releases/download/v1.3.1/QualiFile_Portable.zip)
-- [QualiFile Portable Embedded](https://github.com/CrowDomus/QualiFile/releases/download/v1.3.1/QualiFile_Portable_Embedded.zip)
+- [QualiFile Portable](https://github.com/CrowDomus/QualiFile/releases/download/v1.5.0/QualiFile_Portable.zip)
+- [QualiFile Portable Embedded](https://github.com/CrowDomus/QualiFile/releases/download/v1.5.0/QualiFile_Portable_Embedded.zip)
+- [SHA-256 checksums](https://github.com/CrowDomus/QualiFile/releases/download/v1.5.0/SHA256SUMS.txt)
 
 Portable builds bundle minified frontend assets, the user tutorial, and
 vendored offline web assets under `dist/`.
