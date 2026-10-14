@@ -371,19 +371,43 @@ def _staged_image_transfer(root: Path, source: Path, destination: Path, *, move:
             shutil.rmtree(stage)
 
 
-def _copy_or_move(items: Iterable[str], root: Path, destination: str, *, move: bool, on_conflict: str = "rename") -> List[dict]:
+def _transfer_filename(source: Path, requested: str) -> str:
+    """Validate an optional single-file name without changing its file type."""
+    name = validate_name(requested)
+    if any(ord(character) < 32 or ord(character) == 127 for character in name):
+        raise ValueError("Name contains control characters.")
+    if name.split('.')[0].upper() in RESERVED_NAMES:
+        raise ValueError("Name is reserved on Windows.")
+    original_suffix = source.suffix
+    requested_suffix = Path(name).suffix
+    if original_suffix:
+        if requested_suffix and requested_suffix.casefold() != original_suffix.casefold():
+            raise ValueError(f"Keep the original {original_suffix} file extension.")
+        name = (name[:-len(requested_suffix)] if requested_suffix else name) + original_suffix
+    if len(name.encode('utf-8')) > 255:
+        raise ValueError("Filename is too long.")
+    return validate_name(name)
+
+
+def _copy_or_move(items: Iterable[str], root: Path, destination: str, *, move: bool, on_conflict: str = "rename", new_name: str | None = None) -> List[dict]:
     """Shared implementation for move/copy operations."""
 
     if on_conflict not in {"rename", "skip", "overwrite"}:
         raise ValueError("Unknown conflict policy.")
+    if new_name is not None and not isinstance(new_name, str):
+        raise ValueError("Destination filename must be text.")
+    requested_name = new_name.strip() if new_name is not None else ''
     dest_path = _mutation_target(root, destination, allow_root=True)
     if not dest_path.is_dir():
         raise NotADirectoryError(str(dest_path))
     sources = _preflight_sources(root, items)
+    if requested_name and (len(sources) != 1 or not sources[0].is_file()):
+        raise ValueError("A destination filename can only be used for one file.")
+    filename = _transfer_filename(sources[0], requested_name) if requested_name else None
     planned = []
     reserved = set()
     for src in sources:
-        dest_item = _mutation_target(root, dest_path / src.name, must_exist=False)
+        dest_item = _mutation_target(root, dest_path / (filename or src.name), must_exist=False)
         final_dest = dest_item
         if src.is_dir() and is_within_root(src, dest_path):
             raise ValueError("A folder cannot be transferred into itself.")
@@ -416,16 +440,16 @@ def _copy_or_move(items: Iterable[str], root: Path, destination: str, *, move: b
     return results
 
 
-def move_items(root: Path, items: Iterable[str], destination: str, on_conflict: str = "rename") -> List[dict]:
+def move_items(root: Path, items: Iterable[str], destination: str, on_conflict: str = "rename", new_name: str | None = None) -> List[dict]:
     """Move ``items`` into ``destination`` handling conflicts."""
 
-    return _copy_or_move(items, root, destination, move=True, on_conflict=on_conflict)
+    return _copy_or_move(items, root, destination, move=True, on_conflict=on_conflict, new_name=new_name)
 
 
-def copy_items(root: Path, items: Iterable[str], destination: str, on_conflict: str = "rename") -> List[dict]:
+def copy_items(root: Path, items: Iterable[str], destination: str, on_conflict: str = "rename", new_name: str | None = None) -> List[dict]:
     """Copy ``items`` into ``destination`` handling conflicts."""
 
-    return _copy_or_move(items, root, destination, move=False, on_conflict=on_conflict)
+    return _copy_or_move(items, root, destination, move=False, on_conflict=on_conflict, new_name=new_name)
 
 
 def delete_items(root: Path, items: Iterable[str], permanent: bool = False) -> List[dict]:

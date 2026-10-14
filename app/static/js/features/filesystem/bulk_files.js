@@ -94,8 +94,12 @@ function previewTable(rows, restore = false) {
   const fragment = document.createDocumentFragment();
   for (const row of rows) {
     const line = node('tr', row.error ? 'table-danger' : '');
-    const current = node('td', 'text-break', restore ? row.new : row.old);
-    const proposed = node('td', 'text-break', restore ? row.old : row.new);
+    const basename = (path) =>
+      String(path || '')
+        .split(/[\\/]/)
+        .pop();
+    const current = node('td', 'text-break', basename(restore ? row.new : row.old));
+    const proposed = node('td', 'text-break', basename(restore ? row.old : row.new));
     if (row.error) proposed.append(node('div', 'small text-danger', row.error));
     line.append(current, proposed);
     fragment.append(line);

@@ -16,6 +16,24 @@
           Select how to handle items when they already exist in
           <span class="fw-semibold" id="conflict-target"></span>.
         </p>
+        <div class="mb-3" id="conflict-name-field" hidden>
+          <label class="form-label" for="conflict-name">Destination filename (optional)</label>
+          <div class="input-group">
+            <input
+              class="form-control"
+              id="conflict-name"
+              type="text"
+              maxlength="255"
+              autocomplete="off"
+              aria-describedby="conflict-name-help"
+              disabled
+            />
+            <span class="input-group-text" id="conflict-name-extension"></span>
+          </div>
+          <div class="form-text" id="conflict-name-help">
+            Leave blank to keep the current name. The extension is preserved.
+          </div>
+        </div>
         <div class="form-check">
           <input
             class="form-check-input"

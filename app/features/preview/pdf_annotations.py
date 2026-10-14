@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import getpass
 import io
 import json
 import math
@@ -358,9 +359,24 @@ def _annotation_label(node):
             'Line': 'Line', 'Arrow': 'Arrow', 'Text': 'Text'}.get(kind, 'Annotation')
 
 
-def render_pdf(binary, document):
+def _annotation_author(connection=None):
+    if connection is not None:
+        row = connection.execute(
+            'SELECT p.display_name FROM app_state a JOIN user_profiles p '
+            'ON p.id=a.active_profile_id WHERE a.state_id=?', ('global',)
+        ).fetchone()
+        if row and isinstance(row[0], str) and row[0].strip():
+            return row[0].strip()
+    try:
+        return getpass.getuser().strip() or None
+    except (OSError, KeyError, ImportError):
+        return None
+
+
+def render_pdf(binary, document, *, author=None):
     reader = _reader(binary)
     validate_pdf_document(document, reader)
+    author = _annotation_author() if author is None else author
     writer = PdfWriter(clone_from=reader)
     for page, saved in zip(writer.pages, document['pages']):
         if not saved['nodes']:
@@ -383,7 +399,11 @@ def render_pdf(binary, document):
             appearance = DecodedStreamObject()
             appearance.set_data(('\n'.join(drawing.ops) + '\n').encode('ascii'))
             appearance.update({NameObject('/Type'): NameObject('/XObject'), NameObject('/Subtype'): NameObject('/Form'), NameObject('/FormType'): NumberObject(1), NameObject('/BBox'): ArrayObject([FloatObject(v) for v in box]), NameObject('/Resources'): drawing.resources})
-            stamp = DictionaryObject({NameObject('/Type'): NameObject('/Annot'), NameObject('/Subtype'): NameObject('/Stamp'), NameObject('/Rect'): ArrayObject([FloatObject(v) for v in box]), NameObject('/F'): NumberObject(4), NameObject('/NM'): TextStringObject('QualiFile-' + uuid4().hex), NameObject('/T'): TextStringObject('QualiFile'), NameObject('/Contents'): TextStringObject(_annotation_label(node)), NameObject('/AP'): DictionaryObject({NameObject('/N'): writer._add_object(appearance.flate_encode())})})
+            # Subjects identify objects without creating synthetic comment text
+            # that PDF readers display as a separate note indicator.
+            stamp = DictionaryObject({NameObject('/Type'): NameObject('/Annot'), NameObject('/Subtype'): NameObject('/Stamp'), NameObject('/Rect'): ArrayObject([FloatObject(v) for v in box]), NameObject('/F'): NumberObject(4), NameObject('/NM'): TextStringObject('QualiFile-' + uuid4().hex), NameObject('/Subj'): TextStringObject(_annotation_label(node)), NameObject('/AP'): DictionaryObject({NameObject('/N'): writer._add_object(appearance.flate_encode())})})
+            if author:
+                stamp[NameObject('/T')] = TextStringObject(author)
             annotations.append(writer._add_object(stamp))
         page[NameObject('/Annots')] = annotations
     output = io.BytesIO()
@@ -437,7 +457,7 @@ class PdfHistory(ImageHistory):
                 raise ValueError("The annotated copy must have a .pdf extension.")
             base = self._read_blob(before['base'])
             _reader(self.target(relative).read_bytes())
-            binary = render_pdf(base, document)
+            binary = render_pdf(base, document, author=_annotation_author(self.conn))
             if len(binary) > MAX_BYTES:
                 raise ValueError("The annotated PDF exceeds the editor's safe save size.")
             after = {'hash': digest(binary), 'base': before['base'], 'overlay': None, 'document': copy.deepcopy(document)}

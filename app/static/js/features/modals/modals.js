@@ -37,6 +37,7 @@ import { normalizePath } from '../../shared/paths.js';
 import { applyTagUpdates } from '../../shared/list.js';
 
 let conflictResolver = null;
+let conflictRequest = 0;
 let currentMergeItems = [];
 let mergePhraseMap = new Map();
 let mergeModalPreferredMode = null;
@@ -923,9 +924,12 @@ function setupConflictModal() {
     event.preventDefault();
     const conflict = form.querySelector('input[name="conflict"]:checked').value;
     const operation = form.querySelector('#conflict-operation').value;
+    const nameInput = form.querySelector('#conflict-name');
+    const baseName = !nameInput.disabled ? nameInput.value.trim() : '';
+    const newName = baseName ? baseName + (nameInput.dataset.extension || '') : '';
     bootstrap.Modal.getInstance(document.getElementById('modal-conflict')).hide();
     if (conflictResolver) {
-      conflictResolver({ conflict, operation });
+      conflictResolver({ conflict, operation, newName });
       conflictResolver = null;
     }
   });
@@ -3389,8 +3393,15 @@ export async function openFileTagsModal(paths, label = '') {
     try {
       await refreshTagState({ silent: true });
     } catch (error) {
-      // already surfaced
+      handleError(error);
+      return;
     }
+  }
+  if (!state.tags?.length) {
+    tagEditorPaths = [];
+    tagEditorLabel = '';
+    openSettingsModal('tags');
+    return;
   }
   renderFileTagOptions();
   bootstrap.Modal.getOrCreateInstance(tagEditorModal).show();
@@ -3404,7 +3415,37 @@ export function openDeleteModal(selection) {
 }
 
 /** Present the conflict resolution dialog for drag-and-drop. */
-export function openConflictDialog(targetPath) {
+export async function openConflictDialog(targetPath, items = []) {
+  const ticket = ++conflictRequest;
+  const root = state.root;
+  const field = document.getElementById('conflict-name-field');
+  const nameInput = document.getElementById('conflict-name');
+  const extensionLabel = document.getElementById('conflict-name-extension');
+  field.hidden = true;
+  nameInput.disabled = true;
+  nameInput.value = '';
+  nameInput.dataset.extension = '';
+  if (items.length === 1) {
+    let entry;
+    try {
+      entry = await requestJson(`/api/metadata?path=${encodeURIComponent(items[0])}`);
+    } catch (error) {
+      handleError(error);
+      return null;
+    }
+    if (ticket !== conflictRequest || root !== state.root) return null;
+    if (entry.is_dir === false) {
+      const name = entry.name || String(items[0]).split(/[\\/]/).pop();
+      const dot = name.lastIndexOf('.');
+      const extension = dot > 0 ? name.slice(dot) : '';
+      nameInput.placeholder = extension ? name.slice(0, -extension.length) : name;
+      nameInput.dataset.extension = extension;
+      extensionLabel.textContent = extension;
+      extensionLabel.hidden = !extension;
+      field.hidden = false;
+      nameInput.disabled = false;
+    }
+  }
   document.getElementById('conflict-target').textContent = targetPath;
   const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-conflict'));
   modal.show();

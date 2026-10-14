@@ -279,7 +279,7 @@
           </ul>
           <h3>Tags</h3>
           <ul>
-            <li>Assign tags to files and folders via context menu or capture/merge dialogs.</li>
+            <li>Assign tags to files and folders via context menu or capture/merge dialogs. If the current workspace or project has no tags, Edit Tags opens Manage Tags so you can create them first.</li>
             <li>Tags can be color-coded and organized hierarchically.</li>
             <li>Use tag dots or full tag labels in the Files pane.</li>
           </ul>
@@ -309,10 +309,11 @@
               <tr><td>Validate / Unvalidate</td><td>Context menu (files)</td><td>Mark files as validated.</td><td>Right-click -> Validate / Unvalidate.</td></tr>
               <tr><td>Manage Notes</td><td>Context menu / Preview</td><td>Add, edit, or close notes tied to a path.</td><td>Right-click -> Manage Notes, or use Preview -> Notes.</td></tr>
               <tr><td>Edit Tags</td><td>Context menu / Capture / Merge</td><td>Assign category tags.</td><td>Right-click -> Edit Tags, or select tags in dialogs.</td></tr>
-              <tr><td>Copy / Move</td><td>Context menu / Drag-drop</td><td>Copy or move files/folders within the root.</td><td>Right-click -> Copy/Move or drag to a target folder.</td></tr>
+              <tr><td>Copy / Move</td><td>Context menu / Drag-drop</td><td>Copy or move files/folders within the root.</td><td>Right-click -> Copy/Move or drag to a target folder. For one file, optionally enter a new filename in the destination dialog. Leave it blank to keep the original name. The file extension is preserved.</td></tr>
               <tr><td>Duplicate</td><td>File context menu</td><td>Create independent copies beside the selected files.</td><td>Right-click -> Duplicate File or Duplicate Files. Existing files are never replaced.</td></tr>
               <tr><td>Paste into Folder</td><td>Folder context menu</td><td>Paste copied/moved items into a folder.</td><td>Right-click a folder -> Paste (if clipboard set).</td></tr>
               <tr><td>Open Multiple Fullscreen</td><td>File context menu</td><td>Compare 2-4 files in fullscreen.</td><td>Select 2-4 files -> Right-click -> Open fullscreen.</td></tr>
+              <tr><td>Annotate</td><td>File context menu</td><td>Edit selected supported images and PDFs together.</td><td>Select the files, right-click and choose Annotate.</td></tr>
               <tr><td>Open in Greenshot</td><td>Context menu / Preview</td><td>Open an image in Greenshot.</td><td>Right-click an image -> Open in Greenshot.</td></tr>
               <tr><td>Capture</td><td>Toolbar</td><td>Capture screen region/window/full screen.</td><td>Click Capture -> select mode.</td></tr>
               <tr><td>Merge PDFs / Extract Pages</td><td>Toolbar / Preview</td><td>Merge PDFs/images or extract page ranges.</td><td>Use PDF Tools or Extract in preview.</td></tr>
@@ -352,12 +353,12 @@
           <ol>
             <li>Select the files, then choose <strong>Rename Files...</strong> from the context menu. The toolbar Rename button and <span class="kbd">F2</span> also open this dialog for multiple files.</li>
             <li>Choose <strong>Add prefix or suffix</strong> to keep the existing name, or <strong>Sequential numbering</strong> to use a base name, start number and minimum number of digits.</li>
-            <li>Review the Current name and New name columns. Extensions are preserved. Numbering follows folder order, then file-name order with numeric prefixes sorted numerically.</li>
+            <li>Review the Current name and New name columns, which show filenames without folder paths. Extensions are preserved. Numbering follows folder order, then file-name order with numeric prefixes sorted numerically.</li>
             <li>Select <strong>Rename</strong>. A conflict disables the action until it is resolved. Existing files are never overwritten.</li>
           </ol>
           <p>For example, base name <strong>Evidence</strong>, start <strong>1</strong> and <strong>3</strong> digits produce <code>Evidence 001.png</code>, <code>Evidence 002.pdf</code>, and so on. Tags, notes, validation and annotation history follow each renamed file.</p>
           <h3>Restore original names</h3>
-          <p>Right-click a file or an empty part of the file list and choose <strong>Rename history...</strong>. Select an operation, review its original names and choose <strong>Restore names</strong>. The history is saved for the workspace and survives restarting QualiFile.</p>
+          <p>Right-click a file or an empty part of the file list and choose <strong>Rename history...</strong>. Select an operation, review its original filenames and choose <strong>Restore names</strong>. The list shows filenames without folder paths. The history is saved for the workspace and survives restarting QualiFile.</p>
           <p>Restoration is cancelled if a file was moved, replaced, modified or deleted, or if an original name is already occupied. For files renamed more than once, restore the most recent operation first. If an operation was interrupted, Rename history can retry restoring its original names after you close programs locking those files.</p>
           <h3>Duplicate files</h3>
           <p>Select one or more files and choose <strong>Duplicate File</strong> or <strong>Duplicate Files</strong> from the context menu. Copies are created beside the originals using a <code> - Copy</code> suffix and an additional number when needed. This works for every regular file type. Use Copy and Paste for folders.</p>
@@ -375,10 +376,12 @@
           <p>Use <strong>Restart numbering at 1</strong> to begin a new sequence, or press <span class="kbd">J</span> and enter a positive whole number in <strong>Next</strong>. The chosen number applies to the next marker, then numbering continues from it. Each PDF page has its own sequence. To continue across pages, set the next number when opening the next page.</p>
           <h3>Work through a PDF</h3>
           <p>Use the Previous and Next arrows or the <strong>Page</strong> field to change pages. Annotations and undo history are retained separately for each page during editing. Switching pages keeps your unsaved work. Save writes all edited pages together, or choose Save as copy to leave the original unchanged.</p>
-          <p>PDF annotations remain editable in QualiFile and are exported as separate vector objects. Compatible external PDF editors can select, move, resize or remove each object independently. A numbered marker and its circle remain one object. Original PDF text and page content are preserved. Existing annotations from other PDF tools remain in the document but are not converted into QualiFile editing objects.</p>
+          <p>PDF annotations remain editable in QualiFile and are exported as separate vector objects. Reopen the same file with Annotate to move, change or delete saved QualiFile objects. Compatible external PDF editors can select, move, resize or remove each object independently. A numbered marker and its circle remain one object. Original PDF text and page content are preserved. Existing annotations from other PDF tools remain in the document but are not converted into QualiFile editing objects.</p>
+          <p>Newly saved objects use your active profile name as their author, or your computer username when no profile name is set. QualiFile does not add automatic comment text to these objects, avoiding the extra note indicators that some PDF readers show. Genuine comments already in the PDF are preserved. If another application changes the file, reopen it before editing so those external changes are kept.</p>
           <p>Protected or digitally signed PDFs require an unprotected, unsigned copy before editing. Very large or unusual PDFs may exceed safe editor limits. The standard preview remains available for supported documents, and Open file uses an external reader.</p>
           <h3>Annotate several files in fullscreen</h3>
-          <p>Select two to four files, right-click and choose <strong>Open fullscreen</strong>. Choose <strong>Annotate</strong> on a supported file. All selected files remain visible. Click a panel or its filename to activate it, then use the shared annotation toolbar. Unsupported files stay visible as read-only previews.</p>
+          <p>Select supported images and PDFs, right-click and choose <strong>Annotate</strong> to open them together. Scroll to reach additional panels in a large selection. Files beyond the first four load when you activate their panel. Click a panel or its filename to activate it, then use the shared annotation toolbar. Right-drag pans the active file without opening the browser menu.</p>
+          <p>You can also select two to four files, choose <strong>Open fullscreen</strong>, then choose <strong>Annotate</strong> on a supported file. Unsupported files in this comparison stay visible as read-only previews.</p>
           <p>Each editable file keeps its own annotations, undo history, view and numbering state. PDF pages retain their separate drafts. Switching between panels does not discard work or require saving. The active panel is highlighted, and modified files show <strong>Unsaved</strong>.</p>
           <p><strong>Save</strong> saves the active file and keeps the workspace open. <strong>Save all</strong> updates all modified files. If one save fails, its draft remains available and successful saves are kept. Retry saves only files that still have unsaved changes. Saving a copy leaves the original draft marked unsaved, so you can later save or discard it explicitly.</p>
           <h3>Save and close</h3>

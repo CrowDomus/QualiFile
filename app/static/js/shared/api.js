@@ -400,20 +400,32 @@ export async function revealInFileExplorer(path, select = false) {
 }
 
 /** Move items to a destination, applying conflict behaviour. */
-export async function moveItems(items, destination, conflict = 'rename') {
+export async function moveItems(items, destination, conflict = 'rename', newName = '') {
   return requestJson('/api/move_copy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items, destination, operation: 'move', on_conflict: conflict }),
+    body: JSON.stringify({
+      items,
+      destination,
+      operation: 'move',
+      on_conflict: conflict,
+      new_name: newName,
+    }),
   });
 }
 
 /** Copy items to a destination, applying conflict behaviour. */
-export async function copyItems(items, destination, conflict = 'rename') {
+export async function copyItems(items, destination, conflict = 'rename', newName = '') {
   return requestJson('/api/move_copy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items, destination, operation: 'copy', on_conflict: conflict }),
+    body: JSON.stringify({
+      items,
+      destination,
+      operation: 'copy',
+      on_conflict: conflict,
+      new_name: newName,
+    }),
   });
 }
 

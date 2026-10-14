@@ -2819,6 +2819,11 @@ main.container-fluid {
     min-height: 0;
 }
 
+.annotation-panels-scroll {
+    grid-auto-rows: minmax(260px, 45vh);
+    overflow-y: auto;
+}
+
 .annotation-panels[data-layout="two-horizontal"],
 .annotation-panels[data-layout="three-rows"],
 .annotation-panels[data-layout="four-rows"] {

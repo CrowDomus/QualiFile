@@ -15,6 +15,8 @@ import { normalizePath } from '../../shared/paths.js';
 import { attachPdfFrame } from './pdf_frame.js';
 import { canAnnotatePreview, launchPreviewAnnotation } from './annotation_launch.js';
 
+export { launchSelectedAnnotations } from './annotation_launch.js';
+
 const container = document.getElementById('preview-content');
 const clearButton = document.getElementById('preview-close');
 const controlsContainer = document.getElementById('preview-controls');

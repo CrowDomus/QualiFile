@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## 1.5.0 - 2026-10-14
+
+- Open supported selected images and PDFs directly in a shared annotation workspace.
+- Load additional annotation panels on demand and suppress the browser menu while panning.
+- Use the current user's name for PDF objects and omit synthetic comment text that adds note indicators.
+- Preserve editable PDF objects across saves and retain genuine existing comments.
+- Optionally rename a single file when copying or moving it, with existing collision and history protection.
+- Open Manage Tags directly when the current workspace or project has no tags.
+- Show filenames without paths in bulk rename previews and rename history.
+- Update the offline tutorial for these workflows.
+
 ## 1.4.1 - 2026-10-13
 
 - Keep multiple files visible while annotating in fullscreen, with independent drafts, undo and PDF page state.

@@ -35,7 +35,7 @@ import {
   sendFileViaEmail,
 } from '../../shared/api.js';
 import { refreshTree } from './tree.js';
-import { getPreviewedItem, clearPreview } from '../preview/preview.js';
+import { getPreviewedItem, clearPreview, launchSelectedAnnotations } from '../preview/preview.js';
 import { isInvalidDestination, normalizePath } from '../../shared/paths.js';
 import { requestGlobalRefresh } from '../../shared/refresh.js';
 import { openWithGreenshot } from '../preview/greenshot.js';
@@ -374,6 +374,13 @@ function buildFileMenu(context) {
     disabled: !selection.length || !allFiles,
     action: () => sendSelectionViaEmail(selection),
   });
+  if (
+    selection.length &&
+    allFiles &&
+    selection.every((path) => supportedImage(path) || /\.pdf$/i.test(path))
+  ) {
+    items.push({ label: 'Annotate', action: () => launchSelectedAnnotations(selection) });
+  }
   if (selection.length && allFiles && selection.every(supportedImage)) {
     items.push({
       label: 'Apply annotations from reference...',
@@ -729,15 +736,15 @@ async function pasteInto(destination) {
   if (operationSelect) {
     operationSelect.value = clipboard.operation === 'move' ? 'move' : 'copy';
   }
-  const response = await openConflictDialog(target);
+  const response = await openConflictDialog(target, clipboard.items);
   if (!response) return;
   const operation = response.operation === 'copy' ? 'copy' : 'move';
   try {
     setStatus(operation === 'copy' ? 'Copying…' : 'Moving…');
     if (operation === 'copy') {
-      await copyItems(clipboard.items, target, response.conflict);
+      await copyItems(clipboard.items, target, response.conflict, response.newName);
     } else {
-      await moveItems(clipboard.items, target, response.conflict);
+      await moveItems(clipboard.items, target, response.conflict, response.newName);
       if (clipboard.operation === 'move') {
         clearClipboard();
       }

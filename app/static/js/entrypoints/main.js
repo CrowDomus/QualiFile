@@ -1333,14 +1333,14 @@ async function executeDrop(items, destination) {
     showToast('Cannot move an item into itself or its subfolder.', true);
     return;
   }
-  const response = await openConflictDialog(targetDestination);
+  const response = await openConflictDialog(targetDestination, items);
   if (!response) return;
   try {
     setStatus(response.operation === 'copy' ? 'Copying…' : 'Moving…');
     if (response.operation === 'copy') {
-      await copyItems(items, targetDestination, response.conflict);
+      await copyItems(items, targetDestination, response.conflict, response.newName);
     } else {
-      await moveItems(items, targetDestination, response.conflict);
+      await moveItems(items, targetDestination, response.conflict, response.newName);
     }
     showToast('Operation completed');
     requestGlobalRefresh();

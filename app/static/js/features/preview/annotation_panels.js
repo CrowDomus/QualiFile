@@ -58,6 +58,7 @@ export function createAnnotationPanels({ area, wrapper, entries, activate }) {
     panels.set(entry.path, panel);
   }
   area.replaceChildren(grid);
+  grid.classList.toggle('annotation-panels-scroll', panels.size > 4);
   let resizeObserver = null;
   const controller = {
     panels,

@@ -1,7 +1,39 @@
 import { supportedImage } from './image_history.js';
 
+let selectionLaunchPending = false;
+
 export function canAnnotatePreview(path, type) {
   return (type === 'image' && supportedImage(path)) || (type === 'pdf' && /\.pdf$/i.test(path));
+}
+
+/** Open supported workspace selections directly, keeping the editor's existing save guards. */
+export async function launchSelectedAnnotations(paths) {
+  if (
+    selectionLaunchPending ||
+    document.getElementById('modal-annotate')?.classList.contains('show')
+  )
+    return;
+  const files = [...new Set(paths)].map((path) => {
+    if (!supportedImage(path) && !/\.pdf$/i.test(path)) {
+      throw new Error('Select image or PDF files to annotate.');
+    }
+    const extension = path.split('.').pop().toLowerCase();
+    const mime = {
+      pdf: 'application/pdf',
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      webp: 'image/webp',
+    }[extension];
+    return { path, displayName: path.split(/[\\/]/).pop(), mime };
+  });
+  if (!files.length) return;
+  selectionLaunchPending = true;
+  try {
+    await launchPreviewAnnotation({ ...files[0], files });
+  } finally {
+    selectionLaunchPending = false;
+  }
 }
 
 /** Switch between fullscreen viewers and the editor without stacking focus traps. */

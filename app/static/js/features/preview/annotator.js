@@ -83,6 +83,7 @@ const elements = {
 };
 
 const DEFAULT_TOOL_COLORS = buildDefaultToolColors(elements);
+const contextBoundWrappers = new WeakSet();
 
 const state = {
   konvaPromise: null,
@@ -200,8 +201,19 @@ function storeActivePanel(deactivate = true) {
 
 function activatePanel(path, force = false) {
   const panel = panels?.panels.get(path);
-  if (!panel?.snapshot || (!force && (panels.busy || state.saving || state.navigationBusy)))
+  if (
+    !panel ||
+    panel.entry.readOnly ||
+    (!force && (panels.busy || state.saving || state.navigationBusy))
+  )
     return false;
+  if (!panel.snapshot) {
+    void loadDeferredPanel(panel);
+    return false;
+  }
+  if (panels.grid.classList.contains('annotation-panels-scroll')) {
+    panel.card.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
   if (panels.active === path && !force) return true;
   storeActivePanel();
   Object.assign(state, panel.snapshot);
@@ -216,6 +228,7 @@ function activatePanel(path, force = false) {
   state.stage.listening(true);
   state.transformer?.visible(true);
   state.transformerLayer?.draw();
+  elements.modal.querySelector('.annotate-header-toolbar').inert = false;
   elements.fileLabel.textContent = state.fileName;
   elements.saveDialogName.placeholder = state.copyNameSuggestion;
   elements.zoomSlider.value = String(state.zoom);
@@ -228,6 +241,52 @@ function activatePanel(path, force = false) {
   updateStatusMessage();
   elements.modal.focus({ preventScroll: true });
   return false;
+}
+
+async function loadPanel(panel) {
+  storeActivePanel();
+  state.stage = null;
+  state.pdf = null;
+  state.resizeObserver = null;
+  panels.setActive(panel.entry.path);
+  Object.assign(elements, {
+    stageHost: panel.stageHost,
+    stageWrapper: panel.wrapper,
+    stageOverlay: panel.stageOverlay,
+    stageMessage: panel.stageMessage,
+  });
+  panels.status(panel.entry.path, false, 'Loading...');
+  panel.stageOverlay.querySelector('.spinner-border')?.classList.remove('d-none');
+  setOverlay(true, 'Loading...');
+  try {
+    const saved = await loadAnnotationDocument(panel.entry.path);
+    if (saved.document.kind === 'pdf') await preparePdfModal({ ...panel.entry, saved });
+    else await prepareModal({ ...panel.entry, saved, url: annotationBaseUrl(panel.entry.path) });
+    if (state.stage) storeActivePanel();
+  } catch (error) {
+    panels.status(panel.entry.path, false, 'Unavailable');
+    setOverlay(true, error.message || 'Unable to load this file.');
+  } finally {
+    if (!state.stage) {
+      state.pdf?.destroy();
+      state.pdf = null;
+      panels.status(panel.entry.path, false, 'Unavailable');
+    }
+  }
+}
+
+async function loadDeferredPanel(panel) {
+  const previous = panels.active;
+  panels.busy = true;
+  updateEditingBusy();
+  try {
+    await loadPanel(panel);
+    if (panel.snapshot) activatePanel(panel.entry.path, true);
+    else if (panels.panels.get(previous)?.snapshot) activatePanel(previous, true);
+  } finally {
+    panels.busy = false;
+    updateEditingBusy();
+  }
 }
 
 async function openAnnotationPanels(options) {
@@ -248,35 +307,18 @@ async function openAnnotationPanels(options) {
   bindModalEvents();
   showModal();
   try {
+    let loaded = 0;
     for (const panel of panels.panels.values()) {
       if (panel.entry.readOnly) continue;
-      storeActivePanel();
-      state.stage = null;
-      state.pdf = null;
-      state.resizeObserver = null;
-      panels.setActive(panel.entry.path);
-      Object.assign(elements, {
-        stageHost: panel.stageHost,
-        stageWrapper: panel.wrapper,
-        stageOverlay: panel.stageOverlay,
-        stageMessage: panel.stageMessage,
-      });
-      try {
-        const saved = await loadAnnotationDocument(panel.entry.path);
-        if (saved.document.kind === 'pdf') await preparePdfModal({ ...panel.entry, saved });
-        else
-          await prepareModal({ ...panel.entry, saved, url: annotationBaseUrl(panel.entry.path) });
-        if (state.stage) storeActivePanel();
-      } catch (error) {
-        panels.status(panel.entry.path, false, 'Unavailable');
-        setOverlay(true, error.message || 'Unable to load this file.');
-      } finally {
-        if (!state.stage) {
-          state.pdf?.destroy();
-          state.pdf = null;
-          panels.status(panel.entry.path, false, 'Unavailable');
-        }
+      if (loaded >= 4 && panel.entry.path !== options.path) {
+        panels.status(panel.entry.path, false, 'Open to annotate');
+        panel.stageMessage.textContent = 'Click to annotate';
+        panel.stageOverlay.classList.remove('hidden');
+        panel.stageOverlay.querySelector('.spinner-border')?.classList.add('d-none');
+        continue;
       }
+      await loadPanel(panel);
+      loaded += 1;
     }
     const first = panels.panels.get(options.path)?.snapshot
       ? options.path
@@ -1056,11 +1098,11 @@ function initializeStage() {
   state.stage.add(state.transformerLayer);
   state.transformer.on('transformstart', beginSelectionAction);
   state.transformer.on('transformend', finishSelectionAction);
-  if (elements.stageWrapper && !elements.stageWrapper.dataset.annotateContextBound) {
+  if (elements.stageWrapper && !contextBoundWrappers.has(elements.stageWrapper)) {
     elements.stageWrapper.addEventListener('contextmenu', (event) => {
       event.preventDefault();
     });
-    elements.stageWrapper.dataset.annotateContextBound = 'true';
+    contextBoundWrappers.add(elements.stageWrapper);
   }
   const initializedStage = state.stage;
   const applyInitialView = () => {

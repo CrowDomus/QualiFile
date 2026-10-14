@@ -347,11 +347,12 @@ def api_move_copy() -> Response:
     destination = data.get("destination")
     conflict = data.get("on_conflict", "rename")
     operation = data.get("operation", "move")
+    new_name = data.get("new_name")
     try:
         if operation == "move":
-            results = move_items(root, items, destination, conflict)
+            results = move_items(root, items, destination, conflict, new_name)
         elif operation == "copy":
-            results = copy_items(root, items, destination, conflict)
+            results = copy_items(root, items, destination, conflict, new_name)
         else:
             return jsonify({"error": "Unknown operation"}), 400
     except Exception as exc:
